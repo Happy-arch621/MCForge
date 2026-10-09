@@ -146,6 +146,25 @@ label.chk input{accent-color:var(--grass);width:16px;height:16px}
 .soon h2{font-size:13px;color:var(--grass);margin-bottom:14px}
 .soon p{color:var(--muted);max-width:520px;margin:0 auto}
 
+/* ---------- Iconos de items ---------- */
+.ico{image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+.slot .ico{width:44px;height:44px}
+.slot .glint-fx{position:absolute;inset:6px;pointer-events:none;mix-blend-mode:screen;
+  background:linear-gradient(115deg,transparent 30%,#c27cff99 45%,transparent 60%) 0 0/300% 300%;
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;animation:glint 2.6s linear infinite}
+@keyframes glint{from{background-position:100% 0}to{background-position:-50% 0}}
+.ac-item .ico{width:20px;height:20px;flex:0 0 20px}
+.ac-item .lft{display:flex;align-items:center;gap:6px;min-width:0}
+/* ---------- Diálogo de texturas ---------- */
+dialog{background:var(--panel);color:var(--text);border:2px solid;border-color:var(--bevel-hi) var(--bevel-lo) var(--bevel-lo) var(--bevel-hi);padding:0;max-width:min(560px,94vw)}
+dialog::backdrop{background:#000a}
+dialog .hd{display:flex;align-items:center;padding:12px;border-bottom:2px solid var(--bevel-lo)}
+dialog .hd h2{font-size:12px;flex:1}
+dialog .bd{padding:14px;display:flex;flex-direction:column;gap:10px}
+dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:break-all}
+.drop{border:2px dashed var(--bevel-hi);padding:22px;text-align:center;cursor:pointer;color:var(--muted)}
+.drop.over{border-color:var(--grass);color:var(--grass)}
+#texStatus{font-size:13px}
 #toast{position:fixed;left:50%;bottom:180px;transform:translateX(-50%);background:var(--grass-dk);border:2px solid #7fdc5a;padding:8px 14px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;font-size:13px}
 #toast.show{opacity:1}
 .list-row{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;padding:6px;background:#1e1e22;border:1px solid #333}
@@ -160,6 +179,7 @@ label.chk input{accent-color:var(--grass);width:16px;height:16px}
   <div class="sp"></div>
   <label for="verSel">Versión</label>
   <select id="verSel" style="width:auto"></select>
+  <button class="btn" id="texBtn" type="button">🧱 Texturas</button>
   <button class="btn" id="libBtn" type="button">📚 Biblioteca</button>
 </header>
 
@@ -306,7 +326,96 @@ label.chk input{accent-color:var(--grass);width:16px;height:16px}
 
 <!-- =================== PESTAÑAS DE FASES SIGUIENTES =================== -->
 <section class="tab" id="tab-mobs"><div class="bevel soon"><h2>Mobs — fase 3</h2><p>/summon con atributos, equipo, efectos, pasajeros y vista previa 3D con texturas de tu resource pack.</p></div></section>
-<section class="tab" id="tab-potions"><div class="bevel soon"><h2>Pociones — fase 2</h2><p>Bebibles, arrojadizas, persistentes y flechas, con su /give y el /effect equivalente.</p></div></section>
+<section class="tab" id="tab-potions">
+  <div class="layout">
+    <div id="potForm">
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn sm" type="button" id="potReset">Nuevo</button>
+        <button class="btn sm" type="button" id="potExample">Cargar ejemplo</button>
+      </div>
+
+      <details class="sec bevel" open>
+        <summary>Básico</summary>
+        <div class="sec-body">
+          <div class="f" style="margin-bottom:8px"><span>Tipo</span>
+            <div class="row" id="potTypes" style="margin:0"></div>
+          </div>
+          <div class="row">
+            <div class="f"><span>Cantidad</span><input type="number" min="1" max="99" data-k="count"></div>
+            <div class="f grow"><span>Para (objetivo)</span><input type="text" data-k="target" list="targets" placeholder="@p"></div>
+          </div>
+        </div>
+      </details>
+
+      <details class="sec bevel" open>
+        <summary>Efectos <span class="badge" id="effBadge">0</span></summary>
+        <div class="sec-body">
+          <div id="effList"></div>
+          <button class="btn sm" type="button" id="effAdd">+ Efecto</button>
+          <p class="hint">Nivel 1 = efecto I. Se admite hasta el nivel 256. La duración va en segundos; marca "∞" para que sea infinito.</p>
+        </div>
+      </details>
+
+      <details class="sec bevel" open>
+        <summary>Nombre</summary>
+        <div class="sec-body">
+          <div id="potNameEditor"></div>
+          <label class="chk"><input type="checkbox" data-k="noItalic"> Quitar la cursiva por defecto (nombre y lore)</label>
+        </div>
+      </details>
+
+      <details class="sec bevel">
+        <summary>Lore <span class="badge" id="potLoreBadge">0</span></summary>
+        <div class="sec-body">
+          <div id="potLoreList"></div>
+          <button class="btn sm" type="button" id="potLoreAdd">+ Línea</button>
+        </div>
+      </details>
+
+      <details class="sec bevel">
+        <summary>Color</summary>
+        <div class="sec-body">
+          <div class="row">
+            <label class="chk"><input type="checkbox" data-k="colorOn"> Color personalizado</label>
+            <input type="color" data-k="color">
+            <input type="text" data-k="color" style="width:110px" maxlength="7" aria-label="Color hex">
+          </div>
+          <p class="hint" id="potAutoColor"></p>
+        </div>
+      </details>
+
+      <details class="sec bevel">
+        <summary>Opciones</summary>
+        <div class="sec-body">
+          <div class="row">
+            <div class="f grow"><span>Poción base (opcional, se suma a tus efectos)</span><div class="ac" id="acPotion"></div></div>
+          </div>
+          <label class="chk"><input type="checkbox" data-k="exactDuration"> Duración exacta en persistentes y flechas</label>
+          <p class="hint" style="margin-top:0">En el juego la nube persistente dura ×0.25 y la flecha ×0.125. Con esto se añade <code>potion_duration_scale=1</code> para que dure lo que pusiste (solo 1.21.5+).</p>
+          <label class="chk"><input type="checkbox" data-k="hideEffects"> Ocultar los efectos en el tooltip</label>
+          <label class="chk"><input type="checkbox" data-k="glint"> Brillo de encantamiento</label>
+        </div>
+      </details>
+    </div>
+
+    <aside class="side">
+      <div class="bevel preview-wrap">
+        <h3>Vista previa</h3>
+        <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+          <div class="slot inset" id="potSlot"></div>
+          <div class="mc-tooltip" id="potTooltip"></div>
+        </div>
+      </div>
+      <div class="bevel preview-wrap">
+        <div class="row" style="margin:0;align-items:center"><h3 style="flex:1">/effect equivalente</h3>
+          <button class="btn sm" type="button" id="effCopyAll">📋 Copiar todos</button></div>
+        <div id="effCmds"></div>
+        <p class="hint" style="margin:0">Aplica los mismos efectos directamente al objetivo, sin poción. Un comando por efecto. <code>/effect</code> no puede ocultar solo el icono.</p>
+      </div>
+      <div class="warns" id="potWarns"></div>
+    </aside>
+  </div>
+</section>
 <section class="tab" id="tab-villagers"><div class="bevel soon"><h2>Aldeanos — fase 4</h2><p>Profesión, bioma, nivel y editor de tradeos usando items de tu biblioteca.</p></div></section>
 </main>
 
@@ -336,8 +445,26 @@ label.chk input{accent-color:var(--grass);width:16px;height:16px}
   <div id="libList"></div>
 </aside>
 
+<!-- =================== CARGAR TEXTURAS =================== -->
+<dialog id="texDlg">
+  <div class="hd"><h2>Texturas</h2><button class="btn icon sm" type="button" id="texClose" aria-label="Cerrar">✕</button></div>
+  <div class="bd">
+    <div id="texStatus"></div>
+    <label class="drop" id="texDrop">
+      Suelta aquí el <b>.jar</b> de Minecraft o un resource pack <b>.zip</b>, o haz clic para elegirlo
+      <input type="file" id="texFile" accept=".jar,.zip" multiple hidden>
+    </label>
+    <div id="texProgress" class="hint"></div>
+    <p class="hint" style="margin:0">El .jar está en <code>%appdata%\.minecraft\versions\26.3\26.3.jar</code> (cambia 26.3 por tu versión).
+      Si cargas un resource pack después del .jar, sus texturas reemplazan las vanilla, igual que en el juego. Así también ves los modelos de tu <code>item_model</code>.</p>
+    <p class="hint" style="margin:0">Las texturas se quedan guardadas en este navegador; no se suben a ningún lado.</p>
+    <div class="row" style="justify-content:flex-end;margin:0"><button class="btn sm danger" type="button" id="texClear">Borrar texturas guardadas</button></div>
+  </div>
+</dialog>
+
 <div id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 const DATA = {"items":[["abandoned_camp_map","Mapa de campamento abandonado"],["acacia_boat","Bote de acacia"],["acacia_button","Botón de acacia"],["acacia_chest_boat","Bote de acacia con cofre"],["acacia_door","Puerta de acacia"],["acacia_fence","Valla de acacia"],["acacia_fence_gate","Puerta de valla de acacia"],["acacia_hanging_sign","Letrero colgante de acacia"],["acacia_leaves","Hojas de acacia"],["acacia_log","Tronco de acacia"],["acacia_planks","Tablones de acacia"],["acacia_pressure_plate","Placa de presión de acacia"],["acacia_sapling","Retoño de acacia"],["acacia_shelf","Repisa de acacia"],["acacia_sign","Letrero de acacia"],["acacia_slab","Losa de acacia"],["acacia_stairs","Escaleras de acacia"],["acacia_trapdoor","Trampilla de acacia"],["acacia_wood","Leño de acacia"],["activator_rail","Vía activadora"],["allay_spawn_egg","Generar allay"],["allium","Allium"],["amethyst_block","Bloque de amatista"],["amethyst_cluster","Racimo de amatista"],["amethyst_shard","Fragmento de amatista"],["ancient_debris","Escombros ancestrales"],["andesite","Andesita"],["andesite_slab","Losa de andesita"],["andesite_stairs","Escaleras de andesita"],["andesite_wall","Pared de andesita"],["angler_pottery_sherd","Fragmento de cerámica de pescador"],["anvil","Yunque"],["apple","Manzana"],["archer_pottery_sherd","Fragmento de cerámica de arquero"],["armadillo_scute","Escama de armadillo"],["armadillo_spawn_egg","Generar armadillo"],["armor_stand","Soporte para armadura"],["arms_up_pottery_sherd","Fragmento de cerámica de silueta"],["arrow","Flecha"],["axolotl_bucket","Cubeta con ajolote"],["axolotl_spawn_egg","Generar ajolote"],["azalea","Azalea"],["azalea_leaves","Hojas de azalea"],["azure_bluet","Rubiácea"],["baked_potato","Papa horneada"],["bamboo","Bambú"],["bamboo_block","Bloque de bambú"],["bamboo_button","Botón de bambú"],["bamboo_chest_raft","Balsa de bambú con cofre"],["bamboo_door","Puerta de bambú"],["bamboo_fence","Valla de bambú"],["bamboo_fence_gate","Puerta de valla de bambú"],["bamboo_hanging_sign","Letrero colgante de bambú"],["bamboo_mosaic","Mosaico de bambú"],["bamboo_mosaic_slab","Losa de mosaico de bambú"],["bamboo_mosaic_stairs","Escaleras de mosaico de bambú"],["bamboo_planks","Tablones de bambú"],["bamboo_pressure_plate","Placa de presión de bambú"],["bamboo_raft","Balsa de bambú"],["bamboo_shelf","Repisa de bambú"],["bamboo_sign","Letrero de bambú"],["bamboo_slab","Losa de bambú"],["bamboo_stairs","Escaleras de bambú"],["bamboo_trapdoor","Trampilla de bambú"],["barrel","Barril"],["barrier","Barrera"],["basalt","Basalto"],["bat_spawn_egg","Generar murciélago"],["beacon","Faro"],["bedrock","Piedra madre"],["bee_nest","Colmena de abejas"],["bee_spawn_egg","Generar abeja"],["beef","Bistec crudo"],["beehive","Apiario de abejas"],["beetroot","Betabel"],["beetroot_seeds","Semillas de betabel"],["beetroot_soup","Sopa de betabel"],["bell","Campana"],["big_dripleaf","Plantaforma grande"],["birch_boat","Bote de abedul"],["birch_button","Botón de abedul"],["birch_chest_boat","Bote de abedul con cofre"],["birch_door","Puerta de abedul"],["birch_fence","Valla de abedul"],["birch_fence_gate","Puerta de valla de abedul"],["birch_hanging_sign","Letrero colgante de abedul"],["birch_leaves","Hojas de abedul"],["birch_log","Tronco de abedul"],["birch_planks","Tablones de abedul"],["birch_pressure_plate","Placa de presión de abedul"],["birch_sapling","Retoño de abedul"],["birch_shelf","Repisa de abedul"],["birch_sign","Letrero de abedul"],["birch_slab","Losa de abedul"],["birch_stairs","Escaleras de abedul"],["birch_trapdoor","Trampilla de abedul"],["birch_wood","Leño de abedul"],["black_banner","Estandarte negro"],["black_bed","Cama negra"],["black_bundle","Saco negro"],["black_candle","Vela negra"],["black_carpet","Alfombra negra"],["black_concrete","Concreto negro"],["black_concrete_powder","Polvo de concreto negro"],["black_concrete_slab","Losa de concreto negro"],["black_concrete_stairs","Escaleras de concreto negro"],["black_cushion","Cojín negro"],["black_dye","Tinte negro"],["black_glazed_terracotta","Azulejo negro"],["black_harness","Arnés negro"],["black_shulker_box","Caja de shulker negra"],["black_stained_glass","Vidrio negro"],["black_stained_glass_pane","Panel de vidrio negro"],["black_terracotta","Terracota negra"],["black_wool","Lana negra"],["black_wool_slab","Losa de lana negra"],["black_wool_stairs","Escaleras de lana negra"],["blackstone","Piedra negra"],["blackstone_slab","Losa de piedra negra"],["blackstone_stairs","Escaleras de piedra negra"],["blackstone_wall","Pared de piedra negra"],["blade_pottery_sherd","Fragmento de cerámica de espada"],["blast_furnace","Alto horno"],["blaze_powder","Polvo de blaze"],["blaze_rod","Vara de blaze"],["blaze_spawn_egg","Generar blaze"],["blue_banner","Estandarte azul"],["blue_bed","Cama azul"],["blue_bundle","Saco azul"],["blue_candle","Vela azul"],["blue_carpet","Alfombra azul"],["blue_concrete","Concreto azul"],["blue_concrete_powder","Polvo de concreto azul"],["blue_concrete_slab","Losa de concreto azul"],["blue_concrete_stairs","Escaleras de concreto azul"],["blue_cushion","Cojín azul"],["blue_dye","Tinte azul"],["blue_egg","Huevo azul"],["blue_glazed_terracotta","Azulejo azul"],["blue_harness","Arnés azul"],["blue_ice","Hielo azul"],["blue_orchid","Orquídea azul"],["blue_shulker_box","Caja de shulker azul"],["blue_stained_glass","Vidrio azul"],["blue_stained_glass_pane","Panel de vidrio azul"],["blue_terracotta","Terracota azul"],["blue_wool","Lana azul"],["blue_wool_slab","Losa de lana azul"],["blue_wool_stairs","Escaleras de lana azul"],["bogged_spawn_egg","Generar ciénago"],["bolt_armor_trim_smithing_template","Plantilla de herrería"],["bone","Hueso"],["bone_block","Bloque de huesos"],["bone_meal","Hueso molido"],["book","Libro"],["bookshelf","Librería"],["bordure_indented_banner_pattern","Estampado de bordura dentada"],["bow","Arco"],["bowl","Bol"],["brain_coral","Coral de cerebro"],["brain_coral_block","Bloque de coral de cerebro"],["brain_coral_fan","Gorgonia de cerebro"],["bread","Pan"],["breeze_rod","Vara de breeze"],["breeze_spawn_egg","Generar breeze"],["brewer_pottery_sherd","Fragmento de cerámica de poción"],["brewing_stand","Alambique alquímico"],["brick","Ladrillo"],["brick_slab","Losa de ladrillos"],["brick_stairs","Escaleras de ladrillos"],["brick_wall","Pared de ladrillos"],["bricks","Ladrillos"],["brown_banner","Estandarte café"],["brown_bed","Cama café"],["brown_bundle","Saco café"],["brown_candle","Vela café"],["brown_carpet","Alfombra café"],["brown_concrete","Concreto café"],["brown_concrete_powder","Polvo de concreto café"],["brown_concrete_slab","Losa de concreto café"],["brown_concrete_stairs","Escaleras de concreto café"],["brown_cushion","Cojín café"],["brown_dye","Tinte café"],["brown_egg","Huevo café"],["brown_glazed_terracotta","Azulejo café"],["brown_harness","Arnés café"],["brown_mushroom","Hongo café"],["brown_mushroom_block","Bloque de hongo café"],["brown_shulker_box","Caja de shulker café"],["brown_stained_glass","Vidrio café"],["brown_stained_glass_pane","Panel de vidrio café"],["brown_terracotta","Terracota café"],["brown_wool","Lana café"],["brown_wool_slab","Losa de lana café"],["brown_wool_stairs","Escaleras de lana café"],["brush","Brocha"],["bubble_coral","Coral de burbuja"],["bubble_coral_block","Bloque de coral de burbuja"],["bubble_coral_fan","Gorgonia de burbuja"],["bucket","Cubeta"],["budding_amethyst","Brotador de amatista"],["bundle","Saco"],["buried_ancient_city_map","Mapa de ciudad antigua enterrada"],["buried_mineshaft_map","Mapa de mina abandonada enterrada"],["buried_treasure_map","Mapa del tesoro enterrado"],["buried_trial_chambers_map","Mapa de cámara de desafío enterrada"],["burn_pottery_sherd","Fragmento de cerámica de fuego"],["bush","Arbusto"],["cactus","Cactus"],["cactus_flower","Flor de cactus"],["cake","Pastel"],["calcite","Calcita"],["calibrated_sculk_sensor","Sensor de sculk calibrado"],["camel_husk_spawn_egg","Generar camello disecado"],["camel_spawn_egg","Generar camello"],["campfire","Fogata"],["candle","Vela"],["carrot","Zanahoria"],["carrot_on_a_stick","Caña con zanahoria"],["cartography_table","Mesa de cartografía"],["carved_pumpkin","Calabaza tallada"],["cat_spawn_egg","Generar gato"],["cauldron","Caldero"],["cave_spider_spawn_egg","Generar araña de cueva"],["chain_command_block","Bloque de comandos de cadena"],["chainmail_boots","Botas de cota de malla"],["chainmail_chestplate","Pechera de cota de malla"],["chainmail_helmet","Yelmo de cota de malla"],["chainmail_leggings","Grebas de cota de malla"],["charcoal","Carbón vegetal"],["cherry_boat","Bote de cerezo"],["cherry_button","Botón de cerezo"],["cherry_chest_boat","Bote de cerezo con cofre"],["cherry_door","Puerta de cerezo"],["cherry_fence","Valla de cerezo"],["cherry_fence_gate","Puerta de valla de cerezo"],["cherry_hanging_sign","Letrero colgante de cerezo"],["cherry_leaves","Hojas de cerezo"],["cherry_log","Tronco de cerezo"],["cherry_planks","Tablones de cerezo"],["cherry_pressure_plate","Placa de presión de cerezo"],["cherry_sapling","Retoño de cerezo"],["cherry_shelf","Repisa de cerezo"],["cherry_sign","Letrero de cerezo"],["cherry_slab","Losa de cerezo"],["cherry_stairs","Escaleras de cerezo"],["cherry_trapdoor","Trampilla de cerezo"],["cherry_wood","Leño de cerezo"],["chest","Cofre"],["chest_minecart","Vagón con cofre"],["chicken","Pollo crudo"],["chicken_spawn_egg","Generar gallina"],["chipped_anvil","Yunque dañado"],["chiseled_bookshelf","Estantería"],["chiseled_cinnabar","Cinabrio grabado"],["chiseled_copper","Cobre grabado"],["chiseled_deepslate","Pizarra profunda grabada"],["chiseled_nether_bricks","Ladrillos del Nether grabados"],["chiseled_polished_blackstone","Piedra negra pulida grabada"],["chiseled_quartz_block","Cuarzo grabado"],["chiseled_red_sandstone","Arenisca roja grabada"],["chiseled_resin_bricks","Ladrillos de resina grabados"],["chiseled_sandstone","Arenisca grabada"],["chiseled_stone_bricks","Ladrillos de piedra grabados"],["chiseled_sulfur","Azufre grabado"],["chiseled_tuff","Toba grabada"],["chiseled_tuff_bricks","Ladrillos de toba grabados"],["chorus_flower","Flor de chorus"],["chorus_fruit","Fruta de chorus"],["chorus_plant","Chorus"],["cinnabar","Cinabrio"],["cinnabar_brick_slab","Losa de ladrillos de cinabrio"],["cinnabar_brick_stairs","Escaleras de ladrillos de cinabrio"],["cinnabar_brick_wall","Pared de cinabrio"],["cinnabar_bricks","Ladrillos de cinabrio"],["cinnabar_slab","Losa de cinabrio"],["cinnabar_stairs","Escaleras de cinabrio"],["cinnabar_wall","Pared de cinabrio"],["clay","Arcilla"],["clay_ball","Bola de arcilla"],["clock","Reloj"],["closed_eyeblossom","Miraflor cerrada"],["coal","Carbón"],["coal_block","Bloque de carbón"],["coal_ore","Mineral de carbón"],["coarse_dirt","Tierra infértil"],["coast_armor_trim_smithing_template","Plantilla de herrería"],["cobbled_deepslate","Pizarra profunda labrada"],["cobbled_deepslate_slab","Losa de pizarra profunda labrada"],["cobbled_deepslate_stairs","Escaleras de pizarra profunda labrada"],["cobbled_deepslate_wall","Pared de pizarra profunda labrada"],["cobblestone","Piedra labrada"],["cobblestone_slab","Losa de piedra labrada"],["cobblestone_stairs","Escaleras de piedra labrada"],["cobblestone_wall","Pared de piedra labrada"],["cobweb","Telaraña"],["cocoa_beans","Granos de cacao"],["cod","Bacalao crudo"],["cod_bucket","Cubeta con bacalao"],["cod_spawn_egg","Generar bacalao"],["command_block","Bloque de comandos"],["command_block_minecart","Vagón con bloque de comandos"],["comparator","Comparador de redstone"],["compass","Brújula"],["composter","Compostador"],["conduit","Canalizador"],["cooked_beef","Bistec asado"],["cooked_chicken","Pollo asado"],["cooked_cod","Bacalao asado"],["cooked_mutton","Cordero asado"],["cooked_porkchop","Chuleta asada"],["cooked_rabbit","Conejo asado"],["cooked_salmon","Salmón asado"],["cookie","Galleta"],["copper_axe","Hacha de cobre"],["copper_bars","Barras de cobre"],["copper_block","Bloque de cobre"],["copper_boots","Botas de cobre"],["copper_bulb","Bombilla de cobre"],["copper_chain","Cadena de cobre"],["copper_chest","Cofre de cobre"],["copper_chestplate","Pechera de cobre"],["copper_door","Puerta de cobre"],["copper_golem_spawn_egg","Generar gólem de cobre"],["copper_golem_statue","Estatua de gólem de cobre"],["copper_grate","Rejilla de cobre"],["copper_helmet","Yelmo de cobre"],["copper_hoe","Azada de cobre"],["copper_horse_armor","Armadura de cobre para caballo"],["copper_ingot","Lingote de cobre"],["copper_lantern","Farol de cobre"],["copper_leggings","Grebas de cobre"],["copper_nautilus_armor","Armadura de cobre para nautilo"],["copper_nugget","Pepita de cobre"],["copper_ore","Mineral de cobre"],["copper_pickaxe","Pico de cobre"],["copper_shovel","Pala de cobre"],["copper_spear","Lanza de cobre"],["copper_sword","Espada de cobre"],["copper_torch","Antorcha de cobre"],["copper_trapdoor","Trampilla de cobre"],["cornflower","Aciano"],["cow_spawn_egg","Generar vaca"],["cracked_deepslate_bricks","Ladrillos de pizarra profunda rotos"],["cracked_deepslate_tiles","Azulejos de pizarra profunda rotos"],["cracked_nether_bricks","Ladrillos del Nether rotos"],["cracked_polished_blackstone_bricks","Ladrillos de piedra negra pulida rota"],["cracked_stone_bricks","Ladrillos de piedra rotos"],["crafter","Fabricador"],["crafting_table","Mesa de trabajo"],["creaking_heart","Corazón de crepitante"],["creaking_spawn_egg","Generar crepitante"],["creeper_banner_pattern","Diseño de estandarte"],["creeper_head","Cabeza de creeper"],["creeper_spawn_egg","Generar creeper"],["crimson_button","Botón carmesí"],["crimson_door","Puerta carmesí"],["crimson_fence","Valla carmesí"],["crimson_fence_gate","Puerta de valla carmesí"],["crimson_fungus","Hongo carmesí"],["crimson_hanging_sign","Letrero colgante carmesí"],["crimson_hyphae","Hifas carmesí"],["crimson_nylium","Nilio carmesí"],["crimson_planks","Tablones carmesí"],["crimson_pressure_plate","Placa de presión carmesí"],["crimson_roots","Raíces carmesí"],["crimson_shelf","Repisa carmesí"],["crimson_sign","Letrero carmesí"],["crimson_slab","Losa carmesí"],["crimson_stairs","Escaleras carmesí"],["crimson_stem","Tallo carmesí"],["crimson_trapdoor","Trampilla carmesí"],["crossbow","Ballesta"],["crying_obsidian","Obsidiana llorosa"],["cut_copper","Cobre cortado"],["cut_copper_slab","Losa de cobre cortado"],["cut_copper_stairs","Escaleras de cobre cortado"],["cut_red_sandstone","Arenisca roja cortada"],["cut_red_sandstone_slab","Losa de arenisca roja cortada"],["cut_sandstone","Arenisca cortada"],["cut_sandstone_slab","Losa de arenisca cortada"],["cyan_banner","Estandarte cian"],["cyan_bed","Cama cian"],["cyan_bundle","Saco cian"],["cyan_candle","Vela cian"],["cyan_carpet","Alfombra cian"],["cyan_concrete","Concreto cian"],["cyan_concrete_powder","Polvo de concreto cian"],["cyan_concrete_slab","Losa de concreto cian"],["cyan_concrete_stairs","Escaleras de concreto cian"],["cyan_cushion","Cojín cian"],["cyan_dye","Tinte cian"],["cyan_glazed_terracotta","Azulejo cian"],["cyan_harness","Arnés cian"],["cyan_shulker_box","Caja de shulker cian"],["cyan_stained_glass","Vidrio cian"],["cyan_stained_glass_pane","Panel de vidrio cian"],["cyan_terracotta","Terracota cian"],["cyan_wool","Lana cian"],["cyan_wool_slab","Losa de lana cian"],["cyan_wool_stairs","Escaleras de lana cian"],["damaged_anvil","Yunque muy dañado"],["dandelion","Diente de león"],["danger_pottery_sherd","Fragmento de cerámica de peligro"],["dark_oak_boat","Bote de roble oscuro"],["dark_oak_button","Botón de roble oscuro"],["dark_oak_chest_boat","Bote de roble oscuro con cofre"],["dark_oak_door","Puerta de roble oscuro"],["dark_oak_fence","Valla de roble oscuro"],["dark_oak_fence_gate","Puerta de valla de roble oscuro"],["dark_oak_hanging_sign","Letrero colgante de roble oscuro"],["dark_oak_leaves","Hojas de roble oscuro"],["dark_oak_log","Tronco de roble oscuro"],["dark_oak_planks","Tablones de roble oscuro"],["dark_oak_pressure_plate","Placa de presión de roble oscuro"],["dark_oak_sapling","Retoño de roble oscuro"],["dark_oak_shelf","Repisa de roble oscuro"],["dark_oak_sign","Letrero de roble oscuro"],["dark_oak_slab","Losa de roble oscuro"],["dark_oak_stairs","Escaleras de roble oscuro"],["dark_oak_trapdoor","Trampilla de roble oscuro"],["dark_oak_wood","Leño de roble oscuro"],["dark_prismarine","Prismarina oscura"],["dark_prismarine_slab","Losa de prismarina oscura"],["dark_prismarine_stairs","Escaleras de prismarina oscura"],["daylight_detector","Sensor de luz solar"],["dead_brain_coral","Coral de cerebro muerto"],["dead_brain_coral_block","Bloque de coral de cerebro muerto"],["dead_brain_coral_fan","Gorgonia de cerebro muerta"],["dead_bubble_coral","Coral de burbuja muerto"],["dead_bubble_coral_block","Bloque de coral de burbuja muerto"],["dead_bubble_coral_fan","Gorgonia de burbuja muerta"],["dead_bush","Arbusto muerto"],["dead_fire_coral","Coral de fuego muerto"],["dead_fire_coral_block","Bloque de coral de fuego muerto"],["dead_fire_coral_fan","Gorgonia de fuego muerta"],["dead_horn_coral","Coral de cuerno muerto"],["dead_horn_coral_block","Bloque de coral de cuerno muerto"],["dead_horn_coral_fan","Gorgonia de cuerno muerta"],["dead_tube_coral","Coral de tubo muerto"],["dead_tube_coral_block","Bloque de coral de tubo muerto"],["dead_tube_coral_fan","Gorgonia de tubo muerta"],["debug_stick","Palo debug"],["decorated_pot","Jarrón"],["deepslate","Pizarra profunda"],["deepslate_brick_slab","Losa de ladrillos de pizarra profunda"],["deepslate_brick_stairs","Escaleras de ladrillos de pizarra profunda"],["deepslate_brick_wall","Pared de ladrillos de pizarra profunda"],["deepslate_bricks","Ladrillos de pizarra profunda"],["deepslate_coal_ore","Mineral de carbón de pizarra profunda"],["deepslate_copper_ore","Mineral de cobre de pizarra profunda"],["deepslate_diamond_ore","Mineral de diamante de pizarra profunda"],["deepslate_emerald_ore","Mineral de esmeralda de pizarra profunda"],["deepslate_gold_ore","Mineral de oro de pizarra profunda"],["deepslate_iron_ore","Mineral de hierro de pizarra profunda"],["deepslate_lapis_ore","Mineral de lapislázuli de pizarra profunda"],["deepslate_redstone_ore","Mineral de redstone de pizarra profunda"],["deepslate_tile_slab","Losa de azulejo de pizarra profunda"],["deepslate_tile_stairs","Escaleras de azulejo de pizarra profunda"],["deepslate_tile_wall","Pared de azulejo de pizarra profunda"],["deepslate_tiles","Azulejo de pizarra profunda"],["desert_pyramid_map","Mapa de pirámide de desierto"],["desert_village_map","Mapa de aldea de desierto"],["detector_rail","Vía detectora"],["diamond","Diamante"],["diamond_axe","Hacha de diamante"],["diamond_block","Bloque de diamante"],["diamond_boots","Botas de diamante"],["diamond_chestplate","Pechera de diamante"],["diamond_helmet","Yelmo de diamante"],["diamond_hoe","Azada de diamante"],["diamond_horse_armor","Armadura de diamante para caballo"],["diamond_leggings","Grebas de diamante"],["diamond_nautilus_armor","Armadura de diamante para nautilo"],["diamond_ore","Mineral de diamante"],["diamond_pickaxe","Pico de diamante"],["diamond_shovel","Pala de diamante"],["diamond_spear","Lanza de diamante"],["diamond_sword","Espada de diamante"],["diorite","Diorita"],["diorite_slab","Losa de diorita"],["diorite_stairs","Escaleras de diorita"],["diorite_wall","Pared de diorita"],["dirt","Tierra"],["dirt_path","Camino de tierra"],["disc_fragment_5","Fragmento de disco"],["dispenser","Dispensador"],["dolphin_spawn_egg","Generar delfín"],["donkey_spawn_egg","Generar burro"],["dragon_breath","Aliento de dragón"],["dragon_egg","Huevo de dragón"],["dragon_head","Cabeza de dragón"],["dried_ghast","Ghast seco"],["dried_kelp","Algas secas"],["dried_kelp_block","Bloque de algas secas"],["dripstone_block","Caliza"],["dropper","Soltador"],["drowned_spawn_egg","Generar ahogado"],["dune_armor_trim_smithing_template","Plantilla de herrería"],["echo_shard","Fragmento resonante"],["egg","Huevo"],["elder_guardian_spawn_egg","Generar guardián anciano"],["elytra","Elytra"],["emerald","Esmeralda"],["emerald_block","Bloque de esmeralda"],["emerald_ore","Mineral de esmeralda"],["enchanted_book","Libro encantado"],["enchanted_golden_apple","Manzana de oro encantada"],["enchanting_table","Mesa de encantamientos"],["end_crystal","Cristal del End"],["end_portal_frame","Marco del portal del End"],["end_rod","Vara del End"],["end_stone","Piedra del End"],["end_stone_brick_slab","Losa de ladrillos de piedra del End"],["end_stone_brick_stairs","Escaleras de ladrillos de piedra del End"],["end_stone_brick_wall","Pared de ladrillos de piedra del End"],["end_stone_bricks","Ladrillos de piedra del End"],["ender_chest","Cofre de ender"],["ender_dragon_spawn_egg","Generar dragón"],["ender_eye","Ojo de ender"],["ender_pearl","Perla de ender"],["enderman_spawn_egg","Generar enderman"],["endermite_spawn_egg","Generar endermite"],["evoker_spawn_egg","Generar evocador"],["experience_bottle","Botella con experiencia"],["explorer_pottery_sherd","Fragmento de cerámica de explorador"],["exposed_chiseled_copper","Cobre grabado expuesto"],["exposed_copper","Cobre expuesto"],["exposed_copper_bars","Barras de cobre expuesto"],["exposed_copper_bulb","Bombilla de cobre expuesto"],["exposed_copper_chain","Cadena de cobre expuesto"],["exposed_copper_chest","Cofre de cobre expuesto"],["exposed_copper_door","Puerta de cobre expuesto"],["exposed_copper_golem_statue","Estatua de gólem de cobre expuesto"],["exposed_copper_grate","Rejilla de cobre expuesto"],["exposed_copper_lantern","Farol de cobre expuesto"],["exposed_copper_trapdoor","Trampilla de cobre expuesto"],["exposed_cut_copper","Cobre cortado expuesto"],["exposed_cut_copper_slab","Losa de cobre cortado expuesto"],["exposed_cut_copper_stairs","Escaleras de cobre cortado expuesto"],["exposed_lightning_rod","Pararrayos expuesto"],["eye_armor_trim_smithing_template","Plantilla de herrería"],["farmland","Tierra de cultivo"],["feather","Pluma"],["fermented_spider_eye","Ojo de araña fermentado"],["fern","Helecho"],["field_masoned_banner_pattern","Estampado de mazonado"],["filled_map","Mapa"],["fire_charge","Carga de fuego"],["fire_coral","Coral de fuego"],["fire_coral_block","Bloque de coral de fuego"],["fire_coral_fan","Gorgonia de fuego"],["firefly_bush","Arbusto de luciérnagas"],["firework_rocket","Cohete de fuegos artificiales"],["firework_star","Pólvora de fuegos artificiales"],["fishing_rod","Caña de pescar"],["fletching_table","Mesa de arquería"],["flint","Pedernal"],["flint_and_steel","Encendedor"],["flow_armor_trim_smithing_template","Plantilla de herrería"],["flow_banner_pattern","Diseño de estandarte"],["flow_pottery_sherd","Fragmento de cerámica de espiral"],["flower_banner_pattern","Diseño de estandarte"],["flower_pot","Maceta"],["flowering_azalea","Azalea florecida"],["flowering_azalea_leaves","Hojas de azalea florecidas"],["fox_spawn_egg","Generar zorro"],["friend_pottery_sherd","Fragmento de cerámica de amistad"],["frog_spawn_egg","Generar rana"],["frogspawn","Huevas de rana"],["furnace","Horno"],["furnace_minecart","Vagón con horno"],["ghast_spawn_egg","Generar ghast"],["ghast_tear","Lágrima de ghast"],["gilded_blackstone","Piedra negra áurea"],["glass","Vidrio"],["glass_bottle","Botella"],["glass_pane","Panel de vidrio"],["glistering_melon_slice","Rebanada de sandía brillante"],["globe_banner_pattern","Diseño de estandarte"],["glow_berries","Bayas brillantes"],["glow_ink_sac","Saco de tinta brillante"],["glow_item_frame","Marco brillante"],["glow_lichen","Liquen brillante"],["glow_squid_spawn_egg","Generar Calamar luminoso"],["glowstone","Piedra luminosa"],["glowstone_dust","Polvo de piedra luminosa"],["goat_horn","Cuerno de cabra"],["goat_spawn_egg","Generar cabra"],["gold_block","Bloque de oro"],["gold_ingot","Lingote de oro"],["gold_nugget","Pepita de oro"],["gold_ore","Mineral de oro"],["golden_apple","Manzana de oro"],["golden_axe","Hacha de oro"],["golden_boots","Botas de oro"],["golden_carrot","Zanahoria de oro"],["golden_chestplate","Pechera de oro"],["golden_dandelion","Diente de león dorado"],["golden_helmet","Yelmo de oro"],["golden_hoe","Azada de oro"],["golden_horse_armor","Armadura de oro para caballo"],["golden_leggings","Grebas de oro"],["golden_nautilus_armor","Armadura de oro para nautilo"],["golden_pickaxe","Pico de oro"],["golden_shovel","Pala de oro"],["golden_spear","Lanza de oro"],["golden_sword","Espada de oro"],["granite","Granito"],["granite_slab","Losa de granito"],["granite_stairs","Escaleras de granito"],["granite_wall","Pared de granito"],["grass_block","Bloque de pasto"],["gravel","Grava"],["gray_banner","Estandarte gris"],["gray_bed","Cama gris"],["gray_bundle","Saco gris"],["gray_candle","Vela gris"],["gray_carpet","Alfombra gris"],["gray_concrete","Concreto gris"],["gray_concrete_powder","Polvo de concreto gris"],["gray_concrete_slab","Losa de concreto gris"],["gray_concrete_stairs","Escaleras de concreto gris"],["gray_cushion","Cojín gris"],["gray_dye","Tinte gris"],["gray_glazed_terracotta","Azulejo gris"],["gray_harness","Arnés gris"],["gray_shulker_box","Caja de shulker gris"],["gray_stained_glass","Vidrio gris"],["gray_stained_glass_pane","Panel de vidrio gris"],["gray_terracotta","Terracota gris"],["gray_wool","Lana gris"],["gray_wool_slab","Losa de lana gris"],["gray_wool_stairs","Escaleras de lana gris"],["green_banner","Estandarte verde"],["green_bed","Cama verde"],["green_bundle","Saco verde"],["green_candle","Vela verde"],["green_carpet","Alfombra verde"],["green_concrete","Concreto verde"],["green_concrete_powder","Polvo de concreto verde"],["green_concrete_slab","Losa de concreto verde"],["green_concrete_stairs","Escaleras de concreto verde"],["green_cushion","Cojín verde"],["green_dye","Tinte verde"],["green_glazed_terracotta","Azulejo verde"],["green_harness","Arnés verde"],["green_shulker_box","Caja de shulker verde"],["green_stained_glass","Vidrio verde"],["green_stained_glass_pane","Panel de vidrio verde"],["green_terracotta","Terracota verde"],["green_wool","Lana verde"],["green_wool_slab","Losa de lana verde"],["green_wool_stairs","Escaleras de lana verde"],["grindstone","Afiladora"],["guardian_spawn_egg","Generar guardián"],["gunpowder","Pólvora"],["guster_banner_pattern","Diseño de estandarte"],["guster_pottery_sherd","Fragmento de cerámica de torbellino"],["hanging_roots","Raíces colgantes"],["happy_ghast_spawn_egg","Generar ghast feliz"],["hay_block","Paca de heno"],["heart_of_the_sea","Corazón del mar"],["heart_pottery_sherd","Fragmento de cerámica de corazón"],["heartbreak_pottery_sherd","Fragmento de cerámica de corazón roto"],["heavy_core","Núcleo pesado"],["heavy_weighted_pressure_plate","Placa de presión para peso elevado"],["hoglin_spawn_egg","Generar hoglin"],["honey_block","Bloque de miel"],["honey_bottle","Botella de miel"],["honeycomb","Panal de abejas"],["honeycomb_block","Bloque de panal"],["hopper","Tolva"],["hopper_minecart","Vagón con tolva"],["horn_coral","Coral de cuerno"],["horn_coral_block","Bloque de coral de cuerno"],["horn_coral_fan","Gorgonia de cuerno"],["horse_spawn_egg","Generar caballo"],["host_armor_trim_smithing_template","Plantilla de herrería"],["howl_pottery_sherd","Fragmento de cerámica de aullido"],["husk_spawn_egg","Generar disecado"],["ice","Hielo"],["infested_chiseled_stone_bricks","Ladrillos de piedra grabados infestados"],["infested_cobblestone","Piedra labrada infestada"],["infested_cracked_stone_bricks","Ladrillos de piedra rotos infestados"],["infested_deepslate","Pizarra profunda infestada"],["infested_mossy_stone_bricks","Ladrillos de piedra musgosa infestados"],["infested_stone","Piedra infestada"],["infested_stone_bricks","Ladrillos de piedra infestados"],["ink_sac","Saco de tinta"],["iron_axe","Hacha de hierro"],["iron_bars","Barras de hierro"],["iron_block","Bloque de hierro"],["iron_boots","Botas de hierro"],["iron_chain","Cadena de hierro"],["iron_chestplate","Pechera de hierro"],["iron_door","Puerta de hierro"],["iron_golem_spawn_egg","Generar gólem de hierro"],["iron_helmet","Yelmo de hierro"],["iron_hoe","Azada de hierro"],["iron_horse_armor","Armadura de hierro para caballo"],["iron_ingot","Lingote de hierro"],["iron_leggings","Grebas de hierro"],["iron_nautilus_armor","Armadura de hierro para nautilo"],["iron_nugget","Pepita de hierro"],["iron_ore","Mineral de hierro"],["iron_pickaxe","Pico de hierro"],["iron_shovel","Pala de hierro"],["iron_spear","Lanza de hierro"],["iron_sword","Espada de hierro"],["iron_trapdoor","Trampilla de hierro"],["item_frame","Marco"],["jack_o_lantern","Calabaza de Halloween"],["jigsaw","Bloque rompecabezas"],["jukebox","Tocadiscos"],["jungle_boat","Bote de jungla"],["jungle_button","Botón de jungla"],["jungle_chest_boat","Bote de jungla con cofre"],["jungle_door","Puerta de jungla"],["jungle_fence","Valla de jungla"],["jungle_fence_gate","Puerta de valla de jungla"],["jungle_hanging_sign","Letrero colgante de jungla"],["jungle_leaves","Hojas de jungla"],["jungle_log","Tronco de jungla"],["jungle_planks","Tablones de jungla"],["jungle_pressure_plate","Placa de presión de jungla"],["jungle_pyramid_map","Mapa de pirámide de la jungla"],["jungle_sapling","Retoño de jungla"],["jungle_shelf","Repisa de jungla"],["jungle_sign","Letrero de jungla"],["jungle_slab","Losa de jungla"],["jungle_stairs","Escaleras de jungla"],["jungle_trapdoor","Trampilla de jungla"],["jungle_wood","Leño de jungla"],["kelp","Alga"],["knowledge_book","Enciclopedia"],["ladder","Escalera de mano"],["lantern","Farol"],["lapis_block","Bloque de lapislázuli"],["lapis_lazuli","Lapislázuli"],["lapis_ore","Mineral de lapislázuli"],["large_amethyst_bud","Brote de amatista grande"],["large_fern","Helecho alto"],["lava_bucket","Cubeta de lava"],["lead","Correa"],["leaf_litter","Hojas secas"],["leather","Cuero"],["leather_boots","Botas de cuero"],["leather_chestplate","Túnica de cuero"],["leather_helmet","Gorra de cuero"],["leather_horse_armor","Armadura de cuero para caballo"],["leather_leggings","Pantalones de cuero"],["lectern","Atril"],["lever","Palanca"],["light","Luz"],["light_blue_banner","Estandarte azul claro"],["light_blue_bed","Cama azul claro"],["light_blue_bundle","Saco azul claro"],["light_blue_candle","Vela azul claro"],["light_blue_carpet","Alfombra azul claro"],["light_blue_concrete","Concreto azul claro"],["light_blue_concrete_powder","Polvo de concreto azul claro"],["light_blue_concrete_slab","Losa de concreto azul claro"],["light_blue_concrete_stairs","Escaleras de concreto azul claro"],["light_blue_cushion","Cojín azul claro"],["light_blue_dye","Tinte azul claro"],["light_blue_glazed_terracotta","Azulejo azul claro"],["light_blue_harness","Arnés azul claro"],["light_blue_shulker_box","Caja de shulker azul claro"],["light_blue_stained_glass","Vidrio azul claro"],["light_blue_stained_glass_pane","Panel de vidrio azul claro"],["light_blue_terracotta","Terracota azul claro"],["light_blue_wool","Lana azul claro"],["light_blue_wool_slab","Losa de lana azul claro"],["light_blue_wool_stairs","Escaleras de lana azul claro"],["light_gray_banner","Estandarte gris claro"],["light_gray_bed","Cama gris claro"],["light_gray_bundle","Saco gris claro"],["light_gray_candle","Vela gris claro"],["light_gray_carpet","Alfombra gris claro"],["light_gray_concrete","Concreto gris claro"],["light_gray_concrete_powder","Polvo de concreto gris claro"],["light_gray_concrete_slab","Losa de concreto gris claro"],["light_gray_concrete_stairs","Escaleras de concreto gris claro"],["light_gray_cushion","Cojín gris claro"],["light_gray_dye","Tinte gris claro"],["light_gray_glazed_terracotta","Azulejo gris claro"],["light_gray_harness","Arnés gris claro"],["light_gray_shulker_box","Caja de shulker gris claro"],["light_gray_stained_glass","Vidrio gris claro"],["light_gray_stained_glass_pane","Panel de vidrio gris claro"],["light_gray_terracotta","Terracota gris claro"],["light_gray_wool","Lana gris claro"],["light_gray_wool_slab","Losa de lana gris claro"],["light_gray_wool_stairs","Escaleras de lana gris claro"],["light_weighted_pressure_plate","Placa de presión para peso liviano"],["lightning_rod","Pararrayos"],["lilac","Lila"],["lily_of_the_valley","Lirio del valle"],["lily_pad","Nenúfar"],["lime_banner","Estandarte verde lima"],["lime_bed","Cama verde lima"],["lime_bundle","Saco verde lima"],["lime_candle","Vela verde lima"],["lime_carpet","Alfombra verde lima"],["lime_concrete","Concreto verde lima"],["lime_concrete_powder","Polvo de concreto verde lima"],["lime_concrete_slab","Losa de concreto verde lima"],["lime_concrete_stairs","Escaleras de concreto verde lima"],["lime_cushion","Cojín verde lima"],["lime_dye","Tinte verde lima"],["lime_glazed_terracotta","Azulejo verde lima"],["lime_harness","Arnés verde lima"],["lime_shulker_box","Caja de shulker verde lima"],["lime_stained_glass","Vidrio verde lima"],["lime_stained_glass_pane","Panel de vidrio verde lima"],["lime_terracotta","Terracota verde lima"],["lime_wool","Lana verde lima"],["lime_wool_slab","Losa de lana verde lima"],["lime_wool_stairs","Escaleras de lana verde lima"],["lingering_potion","Poción persistente"],["llama_spawn_egg","Generar llama"],["lodestone","Magnetita"],["loom","Telar"],["mace","Mazo"],["magenta_banner","Estandarte magenta"],["magenta_bed","Cama magenta"],["magenta_bundle","Saco magenta"],["magenta_candle","Vela magenta"],["magenta_carpet","Alfombra magenta"],["magenta_concrete","Concreto magenta"],["magenta_concrete_powder","Polvo de concreto magenta"],["magenta_concrete_slab","Losa de concreto magenta"],["magenta_concrete_stairs","Escaleras de concreto magenta"],["magenta_cushion","Cojín magenta"],["magenta_dye","Tinte magenta"],["magenta_glazed_terracotta","Azulejo magenta"],["magenta_harness","Arnés magenta"],["magenta_shulker_box","Caja de shulker magenta"],["magenta_stained_glass","Vidrio magenta"],["magenta_stained_glass_pane","Panel de vidrio magenta"],["magenta_terracotta","Terracota magenta"],["magenta_wool","Lana magenta"],["magenta_wool_slab","Losa de lana magenta"],["magenta_wool_stairs","Escaleras de lana magenta"],["magma_block","Bloque de magma"],["magma_cream","Crema de magma"],["magma_cube_spawn_egg","Generar cubo de magma"],["mangrove_boat","Bote de mangle"],["mangrove_button","Botón de mangle"],["mangrove_chest_boat","Bote de mangle con cofre"],["mangrove_door","Puerta de mangle"],["mangrove_fence","Valla de mangle"],["mangrove_fence_gate","Puerta de valla de mangle"],["mangrove_hanging_sign","Letrero colgante de mangle"],["mangrove_leaves","Hojas de mangle"],["mangrove_log","Tronco de mangle"],["mangrove_planks","Tablones de mangle"],["mangrove_pressure_plate","Placa de presión de mangle"],["mangrove_propagule","Propágulo de mangle"],["mangrove_roots","Raíces de mangle"],["mangrove_shelf","Repisa de mangle"],["mangrove_sign","Letrero de mangle"],["mangrove_slab","Losa de mangle"],["mangrove_stairs","Escaleras de mangle"],["mangrove_trapdoor","Trampilla de mangle"],["mangrove_wood","Leño de mangle"],["map","Mapa en blanco"],["medium_amethyst_bud","Brote de amatista mediano"],["melon","Sandía"],["melon_seeds","Semillas de sandía"],["melon_slice","Rebanada de sandía"],["milk_bucket","Cubeta de leche"],["minecart","Vagón"],["miner_pottery_sherd","Fragmento de cerámica de minero"],["mojang_banner_pattern","Diseño de estandarte"],["mooshroom_spawn_egg","Generar mooshroom"],["moss_block","Bloque de musgo"],["moss_carpet","Alfombra de musgo"],["mossy_cobblestone","Piedra labrada musgosa"],["mossy_cobblestone_slab","Losa de piedra labrada musgosa"],["mossy_cobblestone_stairs","Escaleras de piedra labrada musgosa"],["mossy_cobblestone_wall","Pared de piedra labrada musgosa"],["mossy_stone_brick_slab","Losa de ladrillos de piedra musgosa"],["mossy_stone_brick_stairs","Escaleras de ladrillos de piedra musgosa"],["mossy_stone_brick_wall","Pared de ladrillos de piedra musgosa"],["mossy_stone_bricks","Ladrillos de piedra musgosa"],["mourner_pottery_sherd","Fragmento de cerámica de doliente"],["mud","Lodo"],["mud_brick_slab","Losa de ladrillos de adobe"],["mud_brick_stairs","Escaleras de ladrillos de adobe"],["mud_brick_wall","Pared de ladrillos de adobe"],["mud_bricks","Ladrillos de adobe"],["muddy_mangrove_roots","Raíces de mangle lodosas"],["mule_spawn_egg","Generar mula"],["mushroom_stem","Tallo de hongo"],["mushroom_stew","Sopa de hongos"],["music_disc_11","Disco"],["music_disc_13","Disco"],["music_disc_5","Disco"],["music_disc_blocks","Disco"],["music_disc_bounce","Disco"],["music_disc_cat","Disco"],["music_disc_chirp","Disco"],["music_disc_creator","Disco"],["music_disc_creator_music_box","Disco"],["music_disc_far","Disco"],["music_disc_lava_chicken","Disco"],["music_disc_mall","Disco"],["music_disc_mellohi","Disco"],["music_disc_otherside","Disco"],["music_disc_pigstep","Disco"],["music_disc_precipice","Disco"],["music_disc_relic","Disco"],["music_disc_stal","Disco"],["music_disc_strad","Disco"],["music_disc_tears","Disco"],["music_disc_wait","Disco"],["music_disc_ward","Disco"],["mutton","Cordero crudo"],["mycelium","Micelio"],["name_tag","Etiqueta"],["nautilus_shell","Caparazón de nautilo"],["nautilus_spawn_egg","Generar nautilo"],["nether_brick","Ladrillo del Nether"],["nether_brick_fence","Valla de ladrillos del Nether"],["nether_brick_slab","Losa de ladrillos del Nether"],["nether_brick_stairs","Escaleras de ladrillos del Nether"],["nether_brick_wall","Pared de ladrillos del Nether"],["nether_bricks","Ladrillos del Nether"],["nether_gold_ore","Mineral de oro del Nether"],["nether_quartz_ore","Mineral de cuarzo del Nether"],["nether_sprouts","Rastrojo del Nether"],["nether_star","Estrella del Nether"],["nether_wart","Verruga del Nether"],["nether_wart_block","Bloque de verrugas del Nether"],["netherite_axe","Hacha de netherita"],["netherite_block","Bloque de netherita"],["netherite_boots","Botas de netherita"],["netherite_chestplate","Pechera de netherita"],["netherite_helmet","Yelmo de netherita"],["netherite_hoe","Azada de netherita"],["netherite_horse_armor","Armadura de netherita para caballo"],["netherite_ingot","Lingote de netherita"],["netherite_leggings","Grebas de netherita"],["netherite_nautilus_armor","Armadura de netherita para nautilo"],["netherite_pickaxe","Pico de netherita"],["netherite_scrap","Fragmento de netherita"],["netherite_shovel","Pala de netherita"],["netherite_spear","Lanza de netherita"],["netherite_sword","Espada de netherita"],["netherite_upgrade_smithing_template","Plantilla de herrería"],["netherrack","Netherrack"],["note_block","Bloque musical"],["oak_boat","Bote de roble"],["oak_button","Botón de roble"],["oak_chest_boat","Bote de roble con cofre"],["oak_door","Puerta de roble"],["oak_fence","Valla de roble"],["oak_fence_gate","Puerta de valla de roble"],["oak_hanging_sign","Letrero colgante de roble"],["oak_leaves","Hojas de roble"],["oak_log","Tronco de roble"],["oak_planks","Tablones de roble"],["oak_pressure_plate","Placa de presión de roble"],["oak_sapling","Retoño de roble"],["oak_shelf","Repisa de roble"],["oak_sign","Letrero de roble"],["oak_slab","Losa de roble"],["oak_stairs","Escaleras de roble"],["oak_trapdoor","Trampilla de roble"],["oak_wood","Leño de roble"],["observer","Observador"],["obsidian","Obsidiana"],["ocean_monument_map","Mapa de monumento oceánico"],["ocelot_spawn_egg","Generar ocelote"],["ochre_froglight","Ranaluz ocre"],["ominous_bottle","Botella siniestra"],["ominous_trial_key","Llave de desafío siniestra"],["open_eyeblossom","Miraflor abierta"],["orange_banner","Estandarte naranja"],["orange_bed","Cama naranja"],["orange_bundle","Saco naranja"],["orange_candle","Vela naranja"],["orange_carpet","Alfombra naranja"],["orange_concrete","Concreto naranja"],["orange_concrete_powder","Polvo de concreto naranja"],["orange_concrete_slab","Losa de concreto naranja"],["orange_concrete_stairs","Escaleras de concreto naranja"],["orange_cushion","Cojín naranja"],["orange_dye","Tinte naranja"],["orange_glazed_terracotta","Azulejo naranja"],["orange_harness","Arnés naranja"],["orange_poplar_leaves","Hojas de álamo naranjas"],["orange_shulker_box","Caja de shulker naranja"],["orange_stained_glass","Vidrio naranja"],["orange_stained_glass_pane","Panel de vidrio naranja"],["orange_terracotta","Terracota naranja"],["orange_tulip","Tulipán naranja"],["orange_wool","Lana naranja"],["orange_wool_slab","Losa de lana naranja"],["orange_wool_stairs","Escaleras de lana naranja"],["oxeye_daisy","Margarita"],["oxidized_chiseled_copper","Cobre grabado oxidado"],["oxidized_copper","Cobre oxidado"],["oxidized_copper_bars","Barras de cobre oxidado"],["oxidized_copper_bulb","Bombilla de cobre oxidado"],["oxidized_copper_chain","Cadena de cobre oxidado"],["oxidized_copper_chest","Cofre de cobre oxidado"],["oxidized_copper_door","Puerta de cobre oxidado"],["oxidized_copper_golem_statue","Estatua de gólem de cobre oxidado"],["oxidized_copper_grate","Rejilla de cobre oxidado"],["oxidized_copper_lantern","Farol de cobre oxidado"],["oxidized_copper_trapdoor","Trampilla de cobre oxidado"],["oxidized_cut_copper","Cobre cortado oxidado"],["oxidized_cut_copper_slab","Losa de cobre cortado oxidado"],["oxidized_cut_copper_stairs","Escaleras de cobre cortado oxidado"],["oxidized_lightning_rod","Pararrayos oxidado"],["packed_ice","Hielo comprimido"],["packed_mud","Adobe"],["painting","Cuadro"],["pale_hanging_moss","Musgo pálido colgante"],["pale_moss_block","Bloque de musgo pálido"],["pale_moss_carpet","Alfombra de musgo pálido"],["pale_oak_boat","Bote de roble pálido"],["pale_oak_button","Botón de roble pálido"],["pale_oak_chest_boat","Bote de roble pálido con cofre"],["pale_oak_door","Puerta de roble pálido"],["pale_oak_fence","Valla de roble pálido"],["pale_oak_fence_gate","Puerta de valla de roble pálido"],["pale_oak_hanging_sign","Letrero colgante de roble pálido"],["pale_oak_leaves","Hojas de roble pálido"],["pale_oak_log","Tronco de roble pálido"],["pale_oak_planks","Tablones de roble pálido"],["pale_oak_pressure_plate","Placa de presión de roble pálido"],["pale_oak_sapling","Retoño de roble pálido"],["pale_oak_shelf","Repisa de roble pálido"],["pale_oak_sign","Letrero de roble pálido"],["pale_oak_slab","Losa de roble pálido"],["pale_oak_stairs","Escaleras de roble pálido"],["pale_oak_trapdoor","Trampilla de roble pálido"],["pale_oak_wood","Leño de roble pálido"],["panda_spawn_egg","Generar panda"],["paper","Papel"],["parched_spawn_egg","Generar momificado"],["parrot_spawn_egg","Generar loro"],["pearlescent_froglight","Ranaluz nacarada"],["peony","Peonía"],["petrified_oak_slab","Losa de roble petrificada"],["phantom_membrane","Membrana de phantom"],["phantom_spawn_egg","Generar phantom"],["pig_spawn_egg","Generar cerdo"],["piglin_banner_pattern","Diseño de estandarte"],["piglin_brute_spawn_egg","Generar piglin bruto"],["piglin_head","Cabeza de piglin"],["piglin_spawn_egg","Generar piglin"],["pillager_spawn_egg","Generar saqueador"],["pink_banner","Estandarte rosa"],["pink_bed","Cama rosa"],["pink_bundle","Saco rosa"],["pink_candle","Vela rosa"],["pink_carpet","Alfombra rosa"],["pink_concrete","Concreto rosa"],["pink_concrete_powder","Polvo de concreto rosa"],["pink_concrete_slab","Losa de concreto rosa"],["pink_concrete_stairs","Escaleras de concreto rosa"],["pink_cushion","Cojín rosa"],["pink_dye","Tinte rosa"],["pink_glazed_terracotta","Azulejo rosa"],["pink_harness","Arnés rosa"],["pink_petals","Pétalos rosas"],["pink_shulker_box","Caja de shulker rosa"],["pink_stained_glass","Vidrio rosa"],["pink_stained_glass_pane","Panel de vidrio rosa"],["pink_terracotta","Terracota rosa"],["pink_tulip","Tulipán rosa"],["pink_wool","Lana rosa"],["pink_wool_slab","Losa de lana rosa"],["pink_wool_stairs","Escaleras de lana rosa"],["piston","Pistón"],["pitcher_plant","Planta odre"],["pitcher_pod","Espiga de planta odre"],["plains_village_map","Mapa de aldea de llanura"],["player_head","Cabeza de jugador(a)"],["plenty_pottery_sherd","Fragmento de cerámica de abundancia"],["podzol","Podsol"],["pointed_dripstone","Caliza puntiaguda"],["poisonous_potato","Papa venenosa"],["polar_bear_spawn_egg","Generar oso polar"],["polished_andesite","Andesita pulida"],["polished_andesite_slab","Losa de andesita pulida"],["polished_andesite_stairs","Escaleras de andesita pulida"],["polished_basalt","Basalto pulido"],["polished_blackstone","Piedra negra pulida"],["polished_blackstone_brick_slab","Losa de ladrillos de piedra negra pulida"],["polished_blackstone_brick_stairs","Escaleras de ladrillos de piedra negra pulida"],["polished_blackstone_brick_wall","Pared de ladrillos de piedra negra pulida"],["polished_blackstone_bricks","Ladrillos de piedra negra pulida"],["polished_blackstone_button","Botón de piedra negra pulida"],["polished_blackstone_pressure_plate","Placa de presión de piedra negra pulida"],["polished_blackstone_slab","Losa de piedra negra pulida"],["polished_blackstone_stairs","Escaleras de piedra negra pulida"],["polished_blackstone_wall","Pared de piedra negra pulida"],["polished_cinnabar","Cinabrio pulido"],["polished_cinnabar_slab","Losa de cinabrio pulido"],["polished_cinnabar_stairs","Escaleras de cinabrio pulido"],["polished_cinnabar_wall","Pared de cinabrio pulido"],["polished_deepslate","Pizarra profunda pulida"],["polished_deepslate_slab","Losa de pizarra profunda pulida"],["polished_deepslate_stairs","Escaleras de pizarra profunda pulida"],["polished_deepslate_wall","Pared de pizarra profunda pulida"],["polished_diorite","Diorita pulida"],["polished_diorite_slab","Losa de diorita pulida"],["polished_diorite_stairs","Escaleras de diorita pulida"],["polished_granite","Granito pulido"],["polished_granite_slab","Losa de granito pulido"],["polished_granite_stairs","Escaleras de granito pulido"],["polished_sulfur","Azufre pulido"],["polished_sulfur_slab","Losa de azufre pulido"],["polished_sulfur_stairs","Escaleras de azufre pulido"],["polished_sulfur_wall","Pared de azufre pulido"],["polished_tuff","Toba pulida"],["polished_tuff_slab","Losa de toba pulida"],["polished_tuff_stairs","Escaleras de toba pulida"],["polished_tuff_wall","Pared de toba pulida"],["poplar_boat","Bote de álamo"],["poplar_button","Botón de álamo"],["poplar_chest_boat","Bote de álamo con cofre"],["poplar_door","Puerta de álamo"],["poplar_fence","Valla de álamo"],["poplar_fence_gate","Puerta de valla de álamo"],["poplar_hanging_sign","Letrero colgante de álamo"],["poplar_log","Tronco de álamo"],["poplar_planks","Tablones de álamo"],["poplar_pressure_plate","Placa de presión de álamo"],["poplar_sapling","Retoño de álamo"],["poplar_shelf","Repisa de álamo"],["poplar_sign","Letrero de álamo"],["poplar_slab","Losa de álamo"],["poplar_stairs","Escaleras de álamo"],["poplar_trapdoor","Trampilla de álamo"],["poplar_wood","Leño de álamo"],["popped_chorus_fruit","Fruta de chorus asada"],["poppy","Amapola"],["porkchop","Chuleta cruda"],["potato","Papa"],["potent_sulfur","Azufre potente"],["potion","Poción"],["powder_snow_bucket","Cubeta de nieve en polvo"],["powered_rail","Vía propulsora"],["prismarine","Prismarina"],["prismarine_brick_slab","Losa de ladrillos de prismarina"],["prismarine_brick_stairs","Escaleras de ladrillos de prismarina"],["prismarine_bricks","Ladrillos de prismarina"],["prismarine_crystals","Cristales de prismarina"],["prismarine_shard","Fragmento de prismarina"],["prismarine_slab","Losa de prismarina"],["prismarine_stairs","Escaleras de prismarina"],["prismarine_wall","Pared de prismarina"],["prize_pottery_sherd","Fragmento de cerámica de tesoro"],["pufferfish","Pez globo"],["pufferfish_bucket","Cubeta con pez globo"],["pufferfish_spawn_egg","Generar pez globo"],["pumpkin","Calabaza"],["pumpkin_pie","Pastel de calabaza"],["pumpkin_seeds","Semillas de calabaza"],["purple_banner","Estandarte morado"],["purple_bed","Cama morada"],["purple_bundle","Saco morado"],["purple_candle","Vela morada"],["purple_carpet","Alfombra morada"],["purple_concrete","Concreto morado"],["purple_concrete_powder","Polvo de concreto morado"],["purple_concrete_slab","Losa de concreto morado"],["purple_concrete_stairs","Escaleras de concreto morado"],["purple_cushion","Cojín morado"],["purple_dye","Tinte morado"],["purple_glazed_terracotta","Azulejo morado"],["purple_harness","Arnés morado"],["purple_shulker_box","Caja de shulker morada"],["purple_stained_glass","Vidrio morado"],["purple_stained_glass_pane","Panel de vidrio morado"],["purple_terracotta","Terracota morada"],["purple_wool","Lana morada"],["purple_wool_slab","Losa de lana morada"],["purple_wool_stairs","Escaleras de lana morada"],["purpur_block","Purpur"],["purpur_pillar","Pilar de purpur"],["purpur_slab","Losa de purpur"],["purpur_stairs","Escaleras de purpur"],["quartz","Cuarzo del Nether"],["quartz_block","Cuarzo"],["quartz_bricks","Ladrillos de cuarzo"],["quartz_pillar","Pilar de cuarzo"],["quartz_slab","Losa de cuarzo"],["quartz_stairs","Escaleras de cuarzo"],["rabbit","Conejo crudo"],["rabbit_foot","Pata de conejo"],["rabbit_hide","Piel de conejo"],["rabbit_spawn_egg","Generar conejo"],["rabbit_stew","Sopa de conejo"],["rail","Vía"],["raiser_armor_trim_smithing_template","Plantilla de herrería"],["ravager_spawn_egg","Generar devastador"],["raw_copper","Cobre en bruto"],["raw_copper_block","Bloque de cobre en bruto"],["raw_gold","Oro en bruto"],["raw_gold_block","Bloque de oro en bruto"],["raw_iron","Hierro en bruto"],["raw_iron_block","Bloque de hierro en bruto"],["recovery_compass","Brújula de recuperación"],["red_banner","Estandarte rojo"],["red_bed","Cama roja"],["red_bundle","Saco rojo"],["red_candle","Vela roja"],["red_carpet","Alfombra roja"],["red_concrete","Concreto rojo"],["red_concrete_powder","Polvo de concreto rojo"],["red_concrete_slab","Losa de concreto rojo"],["red_concrete_stairs","Escaleras de concreto rojo"],["red_cushion","Cojín rojo"],["red_dye","Tinte rojo"],["red_glazed_terracotta","Azulejo rojo"],["red_harness","Arnés rojo"],["red_mushroom","Hongo rojo"],["red_mushroom_block","Bloque de hongo rojo"],["red_nether_brick_slab","Losa de ladrillos del Nether rojos"],["red_nether_brick_stairs","Escaleras de ladrillos del Nether rojos"],["red_nether_brick_wall","Pared de ladrillos del Nether rojos"],["red_nether_bricks","Ladrillos del Nether rojos"],["red_poplar_leaves","Hojas de álamo rojas"],["red_sand","Arena roja"],["red_sandstone","Arenisca roja"],["red_sandstone_slab","Losa de arenisca roja"],["red_sandstone_stairs","Escaleras de arenisca roja"],["red_sandstone_wall","Pared de arenisca roja"],["red_shrub","Arbusto rojo"],["red_shulker_box","Caja de shulker roja"],["red_stained_glass","Vidrio rojo"],["red_stained_glass_pane","Panel de vidrio rojo"],["red_terracotta","Terracota roja"],["red_tulip","Tulipán rojo"],["red_wool","Lana roja"],["red_wool_slab","Losa de lana roja"],["red_wool_stairs","Escaleras de lana roja"],["redstone","Polvo de redstone"],["redstone_block","Bloque de redstone"],["redstone_lamp","Lámpara"],["redstone_ore","Mineral de redstone"],["redstone_torch","Antorcha de redstone"],["reinforced_deepslate","Pizarra profunda reforzada"],["repeater","Repetidor de redstone"],["repeating_command_block","Bloque de comandos de repetición"],["resin_block","Bloque de resina"],["resin_brick","Ladrillo de resina"],["resin_brick_slab","Losa de ladrillos de resina"],["resin_brick_stairs","Escaleras de ladrillos de resina"],["resin_brick_wall","Pared de ladrillos de resina"],["resin_bricks","Ladrillos de resina"],["resin_clump","Grumo de resina"],["respawn_anchor","Nexo de reaparición"],["rib_armor_trim_smithing_template","Plantilla de herrería"],["rooted_dirt","Tierra enraizada"],["rose_bush","Rosal"],["rotten_flesh","Carne podrida"],["saddle","Silla de montar"],["salmon","Salmón crudo"],["salmon_bucket","Cubeta con salmón"],["salmon_spawn_egg","Generar salmón"],["sand","Arena"],["sandstone","Arenisca"],["sandstone_slab","Losa de arenisca"],["sandstone_stairs","Escaleras de arenisca"],["sandstone_wall","Pared de arenisca"],["savanna_village_map","Mapa de aldea de sabana"],["scaffolding","Andamio"],["scrape_pottery_sherd","Fragmento de cerámica de rasguño"],["sculk","Sculk"],["sculk_catalyst","Catalizador de sculk"],["sculk_sensor","Sensor de sculk"],["sculk_shrieker","Chillador de sculk"],["sculk_vein","Vena de sculk"],["sea_lantern","Linterna marina"],["sea_pickle","Pepino de mar"],["seagrass","Planta marina"],["sentry_armor_trim_smithing_template","Plantilla de herrería"],["shaper_armor_trim_smithing_template","Plantilla de herrería"],["sheaf_pottery_sherd","Fragmento de cerámica de trigo"],["shears","Tijeras"],["sheep_spawn_egg","Generar oveja"],["shelf_mushroom","Políporo"],["shelter_pottery_sherd","Fragmento de cerámica de refugio"],["shield","Escudo"],["short_dry_grass","Pasto seco corto"],["short_grass","Pasto corto"],["shroomlight","Hongo luminoso"],["shulker_box","Caja de shulker"],["shulker_shell","Caparazón de shulker"],["shulker_spawn_egg","Generar shulker"],["silence_armor_trim_smithing_template","Plantilla de herrería"],["silverfish_spawn_egg","Generar pez de plata"],["skeleton_horse_spawn_egg","Generar caballo esquelético"],["skeleton_skull","Cráneo de esqueleto"],["skeleton_spawn_egg","Generar esqueleto"],["skull_banner_pattern","Diseño de estandarte"],["skull_pottery_sherd","Fragmento de cerámica de cráneo"],["slime_ball","Bola de slime"],["slime_block","Bloque de slime"],["slime_spawn_egg","Generar slime"],["small_amethyst_bud","Brote de amatista pequeño"],["small_dripleaf","Plantaforma pequeña"],["smithing_table","Mesa de herrería"],["smoker","Ahumador"],["smooth_basalt","Basalto liso"],["smooth_quartz","Bloque de cuarzo liso"],["smooth_quartz_slab","Losa de cuarzo liso"],["smooth_quartz_stairs","Escaleras de cuarzo liso"],["smooth_red_sandstone","Arenisca roja lisa"],["smooth_red_sandstone_slab","Losa de arenisca roja lisa"],["smooth_red_sandstone_stairs","Escaleras de arenisca roja lisa"],["smooth_sandstone","Arenisca lisa"],["smooth_sandstone_slab","Losa de arenisca lisa"],["smooth_sandstone_stairs","Escaleras de arenisca lisa"],["smooth_stone","Piedra lisa"],["smooth_stone_slab","Losa de piedra lisa"],["sniffer_egg","Huevo de sniffer"],["sniffer_spawn_egg","Generar sniffer"],["snort_pottery_sherd","Fragmento de cerámica de sniffer"],["snout_armor_trim_smithing_template","Plantilla de herrería"],["snow","Nieve"],["snow_block","Bloque de nieve"],["snow_golem_spawn_egg","Generar gólem de nieve"],["snowball","Bola de nieve"],["snowy_village_map","Mapa de aldea de llanura nevada"],["soul_campfire","Fogata de almas"],["soul_lantern","Farol de almas"],["soul_sand","Arena de almas"],["soul_soil","Tierra de almas"],["soul_torch","Antorcha de almas"],["spawner","Generador"],["spectral_arrow","Flecha espectral"],["spider_eye","Ojo de araña"],["spider_spawn_egg","Generar araña"],["spire_armor_trim_smithing_template","Plantilla de herrería"],["splash_potion","Poción arrojadiza"],["sponge","Esponja"],["spore_blossom","Flor de esporas"],["spruce_boat","Bote de abeto"],["spruce_button","Botón de abeto"],["spruce_chest_boat","Bote de abeto con cofre"],["spruce_door","Puerta de abeto"],["spruce_fence","Valla de abeto"],["spruce_fence_gate","Puerta de valla de abeto"],["spruce_hanging_sign","Letrero colgante de abeto"],["spruce_leaves","Hojas de abeto"],["spruce_log","Tronco de abeto"],["spruce_planks","Tablones de abeto"],["spruce_pressure_plate","Placa de presión de abeto"],["spruce_sapling","Retoño de abeto"],["spruce_shelf","Repisa de abeto"],["spruce_sign","Letrero de abeto"],["spruce_slab","Losa de abeto"],["spruce_stairs","Escaleras de abeto"],["spruce_trapdoor","Trampilla de abeto"],["spruce_wood","Leño de abeto"],["spyglass","Catalejo"],["squid_spawn_egg","Generar calamar"],["stick","Palo"],["sticky_piston","Pistón pegajoso"],["stone","Piedra"],["stone_axe","Hacha de piedra"],["stone_brick_slab","Losa de ladrillos de piedra"],["stone_brick_stairs","Escaleras de ladrillos de piedra"],["stone_brick_wall","Pared de ladrillos de piedra"],["stone_bricks","Ladrillos de piedra"],["stone_button","Botón de piedra"],["stone_hoe","Azada de piedra"],["stone_pickaxe","Pico de piedra"],["stone_pressure_plate","Placa de presión de piedra"],["stone_shovel","Pala de piedra"],["stone_slab","Losa de piedra"],["stone_spear","Lanza de piedra"],["stone_stairs","Escaleras de piedra"],["stone_sword","Espada de piedra"],["stonecutter","Cortapiedras"],["straw_bed","Cama de paja"],["stray_spawn_egg","Generar errante"],["strider_spawn_egg","Generar strider"],["string","Hilo"],["stripped_acacia_log","Tronco de acacia sin corteza"],["stripped_acacia_wood","Leño de acacia sin corteza"],["stripped_bamboo_block","Bloque de bambú sin piel"],["stripped_birch_log","Tronco de abedul sin corteza"],["stripped_birch_wood","Leño de abedul sin corteza"],["stripped_cherry_log","Tronco de cerezo sin corteza"],["stripped_cherry_wood","Leño de cerezo sin corteza"],["stripped_crimson_hyphae","Hifas carmesí sin corteza"],["stripped_crimson_stem","Tallo carmesí sin corteza"],["stripped_dark_oak_log","Tronco de roble oscuro sin corteza"],["stripped_dark_oak_wood","Leño de roble oscuro sin corteza"],["stripped_jungle_log","Tronco de jungla sin corteza"],["stripped_jungle_wood","Leño de jungla sin corteza"],["stripped_mangrove_log","Tronco de mangle sin corteza"],["stripped_mangrove_wood","Leño de mangle sin corteza"],["stripped_oak_log","Tronco de roble sin corteza"],["stripped_oak_wood","Leño de roble sin corteza"],["stripped_pale_oak_log","Tronco de roble pálido sin corteza"],["stripped_pale_oak_wood","Leño de roble pálido sin corteza"],["stripped_poplar_log","Tronco de álamo sin corteza"],["stripped_poplar_wood","Leño de álamo sin corteza"],["stripped_spruce_log","Tronco de abeto sin corteza"],["stripped_spruce_wood","Leño de abeto sin corteza"],["stripped_warped_hyphae","Hifas distorsionadas sin corteza"],["stripped_warped_stem","Tallo distorsionado sin corteza"],["structure_block","Bloque estructural"],["structure_void","Vacío estructural"],["sugar","Azúcar"],["sugar_cane","Caña de azúcar"],["sulfur","Azufre"],["sulfur_brick_slab","Losa de ladrillos de azufre"],["sulfur_brick_stairs","Escaleras de ladrillos de azufre"],["sulfur_brick_wall","Pared de ladrillos de azufre"],["sulfur_bricks","Ladrillos de azufre"],["sulfur_cube_bucket","Cubeta con cubo de azufre"],["sulfur_cube_spawn_egg","Generar cubo de azufre"],["sulfur_slab","Losa de azufre"],["sulfur_spike","Azufre puntiagudo"],["sulfur_stairs","Escaleras de azufre"],["sulfur_wall","Pared de azufre"],["sunflower","Girasol"],["suspicious_gravel","Grava sospechosa"],["suspicious_sand","Arena sospechosa"],["suspicious_stew","Sopa sospechosa"],["swamp_hut_map","Mapa de choza de pantano"],["sweet_berries","Bayas dulces"],["tadpole_bucket","Cubeta con renacuajo"],["tadpole_spawn_egg","Generar renacuajo"],["taiga_village_map","Mapa de aldea de taiga"],["tall_dry_grass","Pasto seco alto"],["tall_grass","Pasto alto"],["target","Diana"],["terracotta","Terracota"],["test_block","Bloque de pruebas"],["test_instance_block","Bloque de caso de prueba"],["tide_armor_trim_smithing_template","Plantilla de herrería"],["tinted_glass","Vidrio opaco"],["tipped_arrow","Flecha con efecto"],["tnt","TNT"],["tnt_minecart","Vagón con TNT"],["torch","Antorcha"],["torchflower","Anflorcha"],["torchflower_seeds","Semillas de anflorcha"],["totem_of_undying","Tótem de inmortalidad"],["trader_llama_spawn_egg","Generar llama de comerciante"],["trapped_chest","Cofre trampa"],["trial_key","Llave de desafío"],["trial_spawner","Generador de desafío"],["trident","Tridente"],["tripwire_hook","Gancho de hilo"],["tropical_fish","Pez tropical"],["tropical_fish_bucket","Cubeta con pez tropical"],["tropical_fish_spawn_egg","Generar pez tropical"],["tube_coral","Coral de tubo"],["tube_coral_block","Bloque de coral de tubo"],["tube_coral_fan","Gorgonia de tubo"],["tuff","Toba"],["tuff_brick_slab","Losa de ladrillos de toba"],["tuff_brick_stairs","Escaleras de ladrillos de toba"],["tuff_brick_wall","Pared de ladrillos de toba"],["tuff_bricks","Ladrillos de toba"],["tuff_slab","Losa de toba"],["tuff_stairs","Escaleras de toba"],["tuff_wall","Pared de toba"],["turtle_egg","Huevo de tortuga"],["turtle_helmet","Caparazón de tortuga"],["turtle_scute","Escama de tortuga"],["turtle_spawn_egg","Generar tortuga"],["twisting_vines","Lianas retorcidas"],["vault","Arcón"],["verdant_froglight","Ranaluz verde"],["vex_armor_trim_smithing_template","Plantilla de herrería"],["vex_spawn_egg","Generar vex"],["villager_spawn_egg","Generar aldeano"],["vindicator_spawn_egg","Generar vindicador"],["vine","Lianas"],["wandering_trader_spawn_egg","Generar comerciante nómada"],["ward_armor_trim_smithing_template","Plantilla de herrería"],["warden_spawn_egg","Generar warden"],["warm_ocean_ruins_map","Mapa de ruinas de océano cálido"],["warped_button","Botón distorsionado"],["warped_door","Puerta distorsionada"],["warped_fence","Valla distorsionada"],["warped_fence_gate","Puerta de valla distorsionada"],["warped_fungus","Hongo distorsionado"],["warped_fungus_on_a_stick","Caña con hongo distorsionado"],["warped_hanging_sign","Letrero colgante distorsionado"],["warped_hyphae","Hifas distorsionadas"],["warped_nylium","Nilio distorsionado"],["warped_planks","Tablones distorsionados"],["warped_pressure_plate","Placa de presión distorsionada"],["warped_roots","Raíces distorsionadas"],["warped_shelf","Repisa distorsionada"],["warped_sign","Letrero distorsionado"],["warped_slab","Losa distorsionada"],["warped_stairs","Escaleras distorsionadas"],["warped_stem","Tallo distorsionado"],["warped_trapdoor","Trampilla distorsionada"],["warped_wart_block","Bloque de verrugas distorsionadas"],["water_bucket","Cubeta de agua"],["waxed_chiseled_copper","Cobre grabado encerado"],["waxed_copper_bars","Barras de cobre encerado"],["waxed_copper_block","Bloque de cobre encerado"],["waxed_copper_bulb","Bombilla de cobre encerado"],["waxed_copper_chain","Cadena de cobre encerado"],["waxed_copper_chest","Cofre de cobre encerado"],["waxed_copper_door","Puerta de cobre encerado"],["waxed_copper_golem_statue","Estatua de gólem de cobre encerado"],["waxed_copper_grate","Rejilla de cobre encerado"],["waxed_copper_lantern","Farol de cobre encerado"],["waxed_copper_trapdoor","Trampilla de cobre encerado"],["waxed_cut_copper","Cobre cortado encerado"],["waxed_cut_copper_slab","Losa de cobre cortado encerado"],["waxed_cut_copper_stairs","Escaleras de cobre cortado encerado"],["waxed_exposed_chiseled_copper","Cobre grabado expuesto encerado"],["waxed_exposed_copper","Cobre expuesto encerado"],["waxed_exposed_copper_bars","Barras de cobre expuesto encerado"],["waxed_exposed_copper_bulb","Bombilla de cobre expuesto encerado"],["waxed_exposed_copper_chain","Cadena de cobre expuesto encerado"],["waxed_exposed_copper_chest","Cofre de cobre expuesto encerado"],["waxed_exposed_copper_door","Puerta de cobre expuesto encerado"],["waxed_exposed_copper_golem_statue","Estatua de gólem de cobre expuesto encerado"],["waxed_exposed_copper_grate","Rejilla de cobre expuesto encerado"],["waxed_exposed_copper_lantern","Farol de cobre expuesto encerado"],["waxed_exposed_copper_trapdoor","Trampilla de cobre expuesto encerado"],["waxed_exposed_cut_copper","Cobre cortado expuesto encerado"],["waxed_exposed_cut_copper_slab","Losa de cobre cortado expuesto encerado"],["waxed_exposed_cut_copper_stairs","Escaleras de cobre cortado expuesto encerado"],["waxed_exposed_lightning_rod","Pararrayos expuesto encerado"],["waxed_lightning_rod","Pararrayos encerado"],["waxed_oxidized_chiseled_copper","Cobre grabado oxidado encerado"],["waxed_oxidized_copper","Cobre oxidado encerado"],["waxed_oxidized_copper_bars","Barras de cobre oxidado encerado"],["waxed_oxidized_copper_bulb","Bombilla de cobre oxidado encerado"],["waxed_oxidized_copper_chain","Cadena de cobre oxidado encerado"],["waxed_oxidized_copper_chest","Cofre de cobre oxidado encerado"],["waxed_oxidized_copper_door","Puerta de cobre oxidado encerado"],["waxed_oxidized_copper_golem_statue","Estatua de gólem de cobre oxidado encerado"],["waxed_oxidized_copper_grate","Rejilla de cobre oxidado encerado"],["waxed_oxidized_copper_lantern","Farol de cobre oxidado encerado"],["waxed_oxidized_copper_trapdoor","Trampilla de cobre oxidado encerado"],["waxed_oxidized_cut_copper","Cobre cortado oxidado encerado"],["waxed_oxidized_cut_copper_slab","Losa de cobre cortado oxidado encerado"],["waxed_oxidized_cut_copper_stairs","Escaleras de cobre cortado oxidado encerado"],["waxed_oxidized_lightning_rod","Pararrayos oxidado encerado"],["waxed_weathered_chiseled_copper","Cobre grabado degradado encerado"],["waxed_weathered_copper","Cobre degradado encerado"],["waxed_weathered_copper_bars","Barras de cobre degradado encerado"],["waxed_weathered_copper_bulb","Bombilla de cobre degradado encerado"],["waxed_weathered_copper_chain","Cadena de cobre degradado encerado"],["waxed_weathered_copper_chest","Cofre de cobre degradado encerado"],["waxed_weathered_copper_door","Puerta de cobre degradado encerado"],["waxed_weathered_copper_golem_statue","Estatua de gólem de cobre degradado encerado"],["waxed_weathered_copper_grate","Rejilla de cobre degradado encerado"],["waxed_weathered_copper_lantern","Farol de cobre degradado encerado"],["waxed_weathered_copper_trapdoor","Trampilla de cobre degradado encerado"],["waxed_weathered_cut_copper","Cobre cortado degradado encerado"],["waxed_weathered_cut_copper_slab","Losa de cobre cortado degradado encerado"],["waxed_weathered_cut_copper_stairs","Escaleras de cobre cortado degradado encerado"],["waxed_weathered_lightning_rod","Pararrayos degradado encerado"],["wayfinder_armor_trim_smithing_template","Plantilla de herrería"],["weathered_chiseled_copper","Cobre grabado degradado"],["weathered_copper","Cobre degradado"],["weathered_copper_bars","Barras de cobre degradado"],["weathered_copper_bulb","Bombilla de cobre degradado"],["weathered_copper_chain","Cadena de cobre degradado"],["weathered_copper_chest","Cofre de cobre degradado"],["weathered_copper_door","Puerta de cobre degradado"],["weathered_copper_golem_statue","Estatua de gólem de cobre degradado"],["weathered_copper_grate","Rejilla de cobre degradado"],["weathered_copper_lantern","Farol de cobre degradado"],["weathered_copper_trapdoor","Trampilla de cobre degradado"],["weathered_cut_copper","Cobre cortado degradado"],["weathered_cut_copper_slab","Losa de cobre cortado degradado"],["weathered_cut_copper_stairs","Escaleras de cobre cortado degradado"],["weathered_lightning_rod","Pararrayos degradado"],["weeping_vines","Lianas lloronas"],["wet_sponge","Esponja mojada"],["wheat","Trigo"],["wheat_seeds","Semillas de trigo"],["white_banner","Estandarte blanco"],["white_bed","Cama blanca"],["white_bundle","Saco blanco"],["white_candle","Vela blanca"],["white_carpet","Alfombra blanca"],["white_concrete","Concreto blanco"],["white_concrete_powder","Polvo de concreto blanco"],["white_concrete_slab","Losa de concreto blanco"],["white_concrete_stairs","Escaleras de concreto blanco"],["white_cushion","Cojín blanco"],["white_dye","Tinte blanco"],["white_glazed_terracotta","Azulejo blanco"],["white_harness","Arnés blanco"],["white_shulker_box","Caja de shulker blanca"],["white_stained_glass","Vidrio blanco"],["white_stained_glass_pane","Panel de vidrio blanco"],["white_terracotta","Terracota blanca"],["white_tulip","Tulipán blanco"],["white_wool","Lana blanca"],["white_wool_slab","Losa de lana blanca"],["white_wool_stairs","Escaleras de lana blanca"],["wild_armor_trim_smithing_template","Plantilla de herrería"],["wildflowers","Flores silvestres"],["wind_charge","Carga de viento"],["witch_spawn_egg","Generar bruja"],["wither_rose","Rosa del Wither"],["wither_skeleton_skull","Cráneo de Wither"],["wither_skeleton_spawn_egg","Generar esqueleto del Wither"],["wither_spawn_egg","Generar Wither"],["wolf_armor","Armadura para lobo"],["wolf_spawn_egg","Generar lobo"],["wooden_axe","Hacha de madera"],["wooden_hoe","Azada de madera"],["wooden_pickaxe","Pico de madera"],["wooden_shovel","Pala de madera"],["wooden_spear","Lanza de madera"],["wooden_sword","Espada de madera"],["woodland_mansion_map","Mapa de mansión del bosque"],["writable_book","Libro y pluma"],["written_book","Libro escrito"],["yellow_banner","Estandarte amarillo"],["yellow_bed","Cama amarilla"],["yellow_bundle","Saco amarillo"],["yellow_candle","Vela amarilla"],["yellow_carpet","Alfombra amarilla"],["yellow_concrete","Concreto amarillo"],["yellow_concrete_powder","Polvo de concreto amarillo"],["yellow_concrete_slab","Losa de concreto amarillo"],["yellow_concrete_stairs","Escaleras de concreto amarillo"],["yellow_cushion","Cojín amarillo"],["yellow_dye","Tinte amarillo"],["yellow_glazed_terracotta","Azulejo amarillo"],["yellow_harness","Arnés amarillo"],["yellow_poplar_leaves","Hojas de álamo amarillas"],["yellow_shulker_box","Caja de shulker amarilla"],["yellow_stained_glass","Vidrio amarillo"],["yellow_stained_glass_pane","Panel de vidrio amarillo"],["yellow_terracotta","Terracota amarilla"],["yellow_wool","Lana amarilla"],["yellow_wool_slab","Losa de lana amarilla"],["yellow_wool_stairs","Escaleras de lana amarilla"],["zoglin_spawn_egg","Generar zoglin"],["zombie_head","Cabeza de zombi"],["zombie_horse_spawn_egg","Generar caballo zombi"],["zombie_nautilus_spawn_egg","Generar nautilo zombi"],["zombie_spawn_egg","Generar zombi"],["zombie_villager_spawn_egg","Generar aldeano zombi"],["zombified_piglin_spawn_egg","Generar piglin zombificado"]],"entities":[["acacia_boat","Bote de acacia"],["acacia_chest_boat","Bote de acacia con cofre"],["allay","Allay"],["area_effect_cloud","Nube de efecto persistente"],["armadillo","Armadillo"],["armor_stand","Soporte para armadura"],["arrow","Flecha"],["axolotl","Ajolote"],["bamboo_chest_raft","Balsa de bambú con cofre"],["bamboo_raft","Balsa de bambú"],["bat","Murciélago"],["bee","Abeja"],["birch_boat","Bote de abedul"],["birch_chest_boat","Bote de abedul con cofre"],["blaze","Blaze"],["block_display","Holograma de bloque"],["bogged","Ciénago"],["breeze","Breeze"],["breeze_wind_charge","Carga de viento"],["camel","Camello"],["camel_husk","Camello disecado"],["cat","Gato"],["cave_spider","Araña de cueva"],["cherry_boat","Bote de cerezo"],["cherry_chest_boat","Bote de cerezo con cofre"],["chest_minecart","Vagón con cofre"],["chicken","Gallina"],["cod","Bacalao"],["command_block_minecart","Vagón con bloque de comandos"],["copper_golem","Gólem de cobre"],["cow","Vaca"],["creaking","Crepitante"],["creeper","Creeper"],["cushion","Cojín"],["dark_oak_boat","Bote de roble oscuro"],["dark_oak_chest_boat","Bote de roble oscuro con cofre"],["dolphin","Delfín"],["donkey","Burro"],["dragon_fireball","Bola de fuego de dragón"],["drowned","Ahogado"],["egg","Huevo lanzado"],["elder_guardian","Guardián anciano"],["end_crystal","Cristal del End"],["ender_dragon","Enderdragón"],["ender_pearl","Perla de ender lanzada"],["enderman","Enderman"],["endermite","Endermite"],["evoker","Evocador"],["evoker_fangs","Colmillos de evocador"],["experience_bottle","Botella de experiencia lanzada"],["experience_orb","Esfera de experiencia"],["eye_of_ender","Ojo de ender"],["falling_block","Bloque en caída"],["fireball","Bola de fuego"],["firework_rocket","Cohete de fuego artificial"],["fishing_bobber","Corcho de pesca"],["fox","Zorro"],["frog","Rana"],["furnace_minecart","Vagón con horno"],["ghast","Ghast"],["giant","Zombi gigante"],["glow_item_frame","Marco brillante"],["glow_squid","Calamar luminoso"],["goat","Cabra"],["guardian","Guardián"],["happy_ghast","Ghast feliz"],["hoglin","Hoglin"],["hopper_minecart","Vagón con tolva"],["horse","Caballo"],["husk","Disecado"],["illusioner","Ilusionista"],["interaction","Interacción"],["iron_golem","Gólem de hierro"],["item","Ítem"],["item_display","Holograma de ítem"],["item_frame","Marco"],["jungle_boat","Bote de jungla"],["jungle_chest_boat","Bote de jungla con cofre"],["leash_knot","Nudo de correa"],["lightning_bolt","Rayo"],["lingering_potion","Poción persistente"],["llama","Llama"],["llama_spit","Escupitajo de llama"],["magma_cube","Cubo de magma"],["mangrove_boat","Bote de mangle"],["mangrove_chest_boat","Bote de mangle con cofre"],["mannequin","Maniquí"],["marker","Marcador"],["minecart","Vagón"],["mooshroom","Mooshroom"],["mule","Mula"],["nautilus","Nautilo"],["oak_boat","Bote de roble"],["oak_chest_boat","Bote de roble con cofre"],["ocelot","Ocelote"],["ominous_item_spawner","Generador de ítems siniestro"],["painting","Cuadro"],["pale_oak_boat","Bote de roble pálido"],["pale_oak_chest_boat","Bote de roble pálido con cofre"],["panda","Panda"],["parched","Momificado"],["parrot","Loro"],["phantom","Phantom"],["pig","Cerdo"],["piglin","Piglin"],["piglin_brute","Piglin bruto"],["pillager","Saqueador"],["player","Jugador(a)"],["polar_bear","Oso polar"],["poplar_boat","Bote de álamo"],["poplar_chest_boat","Bote de álamo con cofre"],["pufferfish","Pez globo"],["rabbit","Conejo"],["ravager","Devastador"],["salmon","Salmón"],["sheep","Oveja"],["shulker","Shulker"],["shulker_bullet","Proyectil de shulker"],["silverfish","Pez de plata"],["skeleton","Esqueleto"],["skeleton_horse","Caballo esquelético"],["slime","Slime"],["small_fireball","Bola de fuego pequeña"],["sniffer","Sniffer"],["snow_golem","Gólem de nieve"],["snowball","Bola de nieve"],["spawner_minecart","Vagón con generador"],["spectral_arrow","Flecha espectral"],["spider","Araña"],["splash_potion","Poción arrojadiza"],["spruce_boat","Bote de abeto"],["spruce_chest_boat","Bote de abeto con cofre"],["squid","Calamar"],["stray","Errante"],["strider","Strider"],["sulfur_cube","Cubo de azufre"],["tadpole","Renacuajo"],["text_display","Holograma de texto"],["tnt","TNT activada"],["tnt_minecart","Vagón con TNT"],["trader_llama","Llama de comerciante"],["trident","Tridente"],["tropical_fish","Pez tropical"],["turtle","Tortuga"],["vex","Vex"],["villager","Aldeano"],["vindicator","Vindicador"],["wandering_trader","Comerciante nómada"],["warden","Warden"],["wind_charge","Carga de viento"],["witch","Bruja"],["wither","Wither"],["wither_skeleton","Esqueleto del Wither"],["wither_skull","Proyectil del Wither"],["wolf","Lobo"],["zoglin","Zoglin"],["zombie","Zombi"],["zombie_horse","Caballo zombi"],["zombie_nautilus","Nautilo zombi"],["zombie_villager","Aldeano zombi"],["zombified_piglin","Piglin zombificado"]],"enchantments":[["aqua_affinity","Afinidad acuática"],["bane_of_arthropods","Perdición de los artrópodos"],["binding_curse","Maldición de ligamiento"],["blast_protection","Protección contra explosiones"],["breach","Fisura"],["channeling","Conductividad"],["density","Densidad"],["depth_strider","Agilidad acuática"],["efficiency","Eficiencia"],["feather_falling","Caída de pluma"],["fire_aspect","Aspecto de fuego"],["fire_protection","Protección contra el fuego"],["flame","Fuego"],["fortune","Fortuna"],["frost_walker","Paso helado"],["impaling","Empalamiento"],["infinity","Infinidad"],["knockback","Empuje"],["looting","Saqueo"],["loyalty","Lealtad"],["luck_of_the_sea","Suerte marina"],["lunge","Estocada"],["lure","Atracción"],["mending","Reparación"],["multishot","Multidisparo"],["piercing","Perforación"],["power","Poder"],["projectile_protection","Protección contra proyectiles"],["protection","Protección"],["punch","Retroceso"],["quick_charge","Carga rápida"],["respiration","Respiración"],["riptide","Propulsión acuática"],["sharpness","Filo"],["silk_touch","Toque de seda"],["smite","Castigo"],["soul_speed","Velocidad de alma"],["sweeping_edge","Barrido"],["swift_sneak","Sigilo rápido"],["thorns","Espinas"],["unbreaking","Irrompibilidad"],["vanishing_curse","Maldición de desaparición"],["wind_burst","Aeroimpulso"]],"effects":[["absorption","Absorción"],["bad_omen","Mal presagio"],["blindness","Ceguera"],["breath_of_the_nautilus","Respiración de nautilo"],["conduit_power","Canalización"],["darkness","Oscuridad"],["dolphins_grace","Gracia delfina"],["fire_resistance","Resistencia al fuego"],["glowing","Luminiscencia"],["haste","Prisa minera"],["health_boost","Salud mejorada"],["hero_of_the_village","Héroe de la aldea"],["hunger","Hambre"],["infested","Infestación"],["instant_damage","Daño instantáneo"],["instant_health","Curación instantánea"],["invisibility","Invisibilidad"],["jump_boost","Supersalto"],["levitation","Levitación"],["luck","Suerte"],["mining_fatigue","Fatiga minera"],["nausea","Náuseas"],["night_vision","Visión nocturna"],["oozing","Mucosidad"],["poison","Veneno"],["raid_omen","Presagio de invasión"],["regeneration","Regeneración"],["resistance","Resistencia"],["saturation","Saturación"],["slow_falling","Caída lenta"],["slowness","Lentitud"],["speed","Velocidad"],["strength","Fuerza"],["trial_omen","Presagio de desafío"],["unluck","Mala suerte"],["water_breathing","Respiración acuática"],["weakness","Debilidad"],["weaving","Tejedura"],["wind_charged","Vendaval"],["wither","Descomposición"]],"attributes":[["air_drag_modifier","Modificador de resistencia aerodinámica"],["armor","Armadura"],["armor_toughness","Resistencia de armadura"],["attack_damage","Daño por golpe"],["attack_knockback","Empuje"],["attack_speed","Velocidad de ataque"],["below_name_distance","Distancia del marcador de puntaje"],["block_break_speed","Velocidad al minar"],["block_interaction_range","Rango de interacción con bloques"],["bounciness","Rebote"],["burning_time","Tiempo en llamas"],["camera_distance","Distancia de la cámara"],["entity_interaction_range","Rango de interacción con entidades"],["explosion_knockback_resistance","Resistencia al empuje por explosiones"],["fall_damage_multiplier","Multiplicador de daño por caída"],["flying_speed","Velocidad de vuelo"],["follow_range","Rango de seguimiento de criaturas"],["friction_modifier","Modificador de fricción"],["gravity","Gravedad"],["jump_strength","Fuerza de salto"],["knockback_resistance","Resistencia al empuje"],["luck","Suerte"],["max_absorption","Absorción máxima"],["max_health","Salud máxima"],["mining_efficiency","Eficiencia al romper bloques"],["movement_efficiency","Eficiencia de movimiento"],["movement_speed","Velocidad"],["name_tag_distance",""],["oxygen_bonus","Oxígeno extra"],["safe_fall_distance","Distancia de caída segura"],["scale","Escala"],["sneaking_speed","Velocidad al agacharse"],["spawn_reinforcements","Refuerzos zombi"],["step_height","Altura de paso"],["submerged_mining_speed","Velocidad al romper bloques sumergido"],["sweeping_damage_ratio","Razón de daño de barrido"],["tempt_range","Rango de atracción de criaturas"],["water_movement_efficiency","Eficiencia de movimiento acuático"],["waypoint_receive_range","Alcance de detección del waypoint"],["waypoint_transmit_range","Alcance de transmisión del waypoint"]],"professions":[["armorer","Escudero"],["butcher","Carnicero"],["cartographer","Cartógrafo"],["cleric","Sacerdote"],["farmer","Agricultor"],["fisherman","Pescador"],["fletcher","Flechero"],["leatherworker","Peletero"],["librarian","Librero"],["mason","Albañil"],["nitwit","Holgazán"],["none","Aldeano"],["shepherd","Pastor"],["toolsmith","Herrero"],["weaponsmith","Armero"]],"potions":[["awkward","Poción rara"],["fire_resistance","Poción de resistencia al fuego"],["harming","Poción de daño"],["healing","Poción de curación"],["infested","Poción de infestación"],["invisibility","Poción de invisibilidad"],["leaping","Poción de salto"],["long_fire_resistance",""],["long_invisibility",""],["long_leaping",""],["long_night_vision",""],["long_poison",""],["long_regeneration",""],["long_slow_falling",""],["long_slowness",""],["long_strength",""],["long_swiftness",""],["long_turtle_master",""],["long_water_breathing",""],["long_weakness",""],["luck","Poción de suerte"],["mundane","Poción banal"],["night_vision","Poción de visión nocturna"],["oozing","Poción de mucosidad"],["poison","Poción de veneno"],["regeneration","Poción de regeneración"],["slow_falling","Poción de caída lenta"],["slowness","Poción de lentitud"],["strength","Poción de fuerza"],["strong_harming",""],["strong_healing",""],["strong_leaping",""],["strong_poison",""],["strong_regeneration",""],["strong_slowness",""],["strong_strength",""],["strong_swiftness",""],["strong_turtle_master",""],["swiftness","Poción de velocidad"],["thick","Poción espesa"],["turtle_master","Poción del maestro tortuga"],["water","Botella de agua"],["water_breathing","Poción de respiración acuática"],["weakness","Poción de debilidad"],["weaving","Poción de tejedura"],["wind_charged","Poción de vendaval"]],"rarity":{"angler_pottery_sherd":"uncommon","archer_pottery_sherd":"uncommon","arms_up_pottery_sherd":"uncommon","barrier":"epic","beacon":"rare","blade_pottery_sherd":"uncommon","bolt_armor_trim_smithing_template":"uncommon","brewer_pottery_sherd":"uncommon","burn_pottery_sherd":"uncommon","chain_command_block":"epic","chainmail_boots":"uncommon","chainmail_chestplate":"uncommon","chainmail_helmet":"uncommon","chainmail_leggings":"uncommon","coast_armor_trim_smithing_template":"uncommon","command_block":"epic","command_block_minecart":"epic","conduit":"uncommon","creeper_banner_pattern":"uncommon","creeper_head":"uncommon","danger_pottery_sherd":"uncommon","debug_stick":"epic","disc_fragment_5":"uncommon","dragon_breath":"uncommon","dragon_egg":"epic","dragon_head":"epic","dune_armor_trim_smithing_template":"uncommon","echo_shard":"uncommon","elytra":"epic","enchanted_book":"rare","enchanted_golden_apple":"rare","experience_bottle":"uncommon","explorer_pottery_sherd":"uncommon","eye_armor_trim_smithing_template":"rare","flow_armor_trim_smithing_template":"uncommon","flow_banner_pattern":"rare","flow_pottery_sherd":"uncommon","friend_pottery_sherd":"uncommon","goat_horn":"uncommon","guster_banner_pattern":"rare","guster_pottery_sherd":"uncommon","heart_of_the_sea":"uncommon","heart_pottery_sherd":"uncommon","heartbreak_pottery_sherd":"uncommon","heavy_core":"epic","host_armor_trim_smithing_template":"uncommon","howl_pottery_sherd":"uncommon","jigsaw":"epic","knowledge_book":"epic","light":"epic","mace":"epic","miner_pottery_sherd":"uncommon","mojang_banner_pattern":"rare","mourner_pottery_sherd":"uncommon","music_disc_11":"uncommon","music_disc_13":"uncommon","music_disc_5":"uncommon","music_disc_blocks":"uncommon","music_disc_bounce":"uncommon","music_disc_cat":"uncommon","music_disc_chirp":"uncommon","music_disc_creator":"rare","music_disc_creator_music_box":"uncommon","music_disc_far":"uncommon","music_disc_lava_chicken":"rare","music_disc_mall":"uncommon","music_disc_mellohi":"uncommon","music_disc_otherside":"rare","music_disc_pigstep":"rare","music_disc_precipice":"uncommon","music_disc_relic":"uncommon","music_disc_stal":"uncommon","music_disc_strad":"uncommon","music_disc_tears":"uncommon","music_disc_wait":"uncommon","music_disc_ward":"uncommon","nautilus_shell":"uncommon","nether_star":"rare","netherite_upgrade_smithing_template":"uncommon","ominous_bottle":"uncommon","piglin_banner_pattern":"uncommon","piglin_head":"uncommon","player_head":"uncommon","plenty_pottery_sherd":"uncommon","prize_pottery_sherd":"uncommon","raiser_armor_trim_smithing_template":"uncommon","recovery_compass":"uncommon","repeating_command_block":"epic","rib_armor_trim_smithing_template":"uncommon","scrape_pottery_sherd":"uncommon","sentry_armor_trim_smithing_template":"uncommon","shaper_armor_trim_smithing_template":"uncommon","sheaf_pottery_sherd":"uncommon","shelter_pottery_sherd":"uncommon","silence_armor_trim_smithing_template":"epic","skeleton_skull":"uncommon","skull_banner_pattern":"rare","skull_pottery_sherd":"uncommon","sniffer_egg":"uncommon","snort_pottery_sherd":"uncommon","snout_armor_trim_smithing_template":"uncommon","spire_armor_trim_smithing_template":"rare","structure_block":"epic","structure_void":"epic","test_block":"epic","test_instance_block":"epic","tide_armor_trim_smithing_template":"uncommon","totem_of_undying":"uncommon","trident":"rare","vex_armor_trim_smithing_template":"rare","ward_armor_trim_smithing_template":"rare","wayfinder_armor_trim_smithing_template":"uncommon","wild_armor_trim_smithing_template":"uncommon","wither_skeleton_skull":"rare","zombie_head":"uncommon"},"damageable":["bow","brush","carrot_on_a_stick","chainmail_boots","chainmail_chestplate","chainmail_helmet","chainmail_leggings","copper_axe","copper_boots","copper_chestplate","copper_helmet","copper_hoe","copper_leggings","copper_pickaxe","copper_shovel","copper_spear","copper_sword","crossbow","diamond_axe","diamond_boots","diamond_chestplate","diamond_helmet","diamond_hoe","diamond_leggings","diamond_pickaxe","diamond_shovel","diamond_spear","diamond_sword","elytra","fishing_rod","flint_and_steel","golden_axe","golden_boots","golden_chestplate","golden_helmet","golden_hoe","golden_leggings","golden_pickaxe","golden_shovel","golden_spear","golden_sword","iron_axe","iron_boots","iron_chestplate","iron_helmet","iron_hoe","iron_leggings","iron_pickaxe","iron_shovel","iron_spear","iron_sword","leather_boots","leather_chestplate","leather_helmet","leather_leggings","mace","netherite_axe","netherite_boots","netherite_chestplate","netherite_helmet","netherite_hoe","netherite_leggings","netherite_pickaxe","netherite_shovel","netherite_spear","netherite_sword","shears","shield","stone_axe","stone_hoe","stone_pickaxe","stone_shovel","stone_spear","stone_sword","trident","turtle_helmet","warped_fungus_on_a_stick","wolf_armor","wooden_axe","wooden_hoe","wooden_pickaxe","wooden_shovel","wooden_spear","wooden_sword"]};
 
@@ -598,10 +725,305 @@ function itemWarnings(m) {
 }
 
 /* =====================================================================
+   TEXTURAS — se leen del .jar del cliente o de un resource pack (.zip)
+   y se guardan en IndexedDB. Aquí también se dibujan los iconos de items
+   a partir de los modelos reales (items/*.json → models/*.json).
+   ===================================================================== */
+const IDB = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('mccmdforge', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('files');
+      r.onsuccess = () => res(this.db = r.result);
+      r.onerror = () => rej(r.error);
+    });
+  },
+  req: r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }),
+  async all() {
+    const st = this.db.transaction('files').objectStore('files');
+    const [keys, vals] = await Promise.all([this.req(st.getAllKeys()), this.req(st.getAll())]);
+    return keys.map((k, i) => [k, vals[i]]);
+  },
+  putMany(entries) {
+    return new Promise((res, rej) => {
+      const tx = this.db.transaction('files', 'readwrite'), st = tx.objectStore('files');
+      for (const [k, v] of entries) st.put(v, k);
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    });
+  },
+  clear() { return this.req(this.db.transaction('files', 'readwrite').objectStore('files').clear()); }
+};
+
+const TEX = {
+  files: new Map(),        // "ns/textures/item/x.png" → Blob, "ns/models/..json" → string
+  packs: [],               // nombres de los archivos cargados, en orden
+  persistent: false,       // false si el navegador no deja usar IndexedDB (se queda en memoria)
+  bmpCache: new Map(), jsonCache: new Map(), iconCache: new Map(),
+  get count() { let n = 0; for (const k of this.files.keys()) if (k.endsWith('.png')) n++; return n; },
+
+  async init() {
+    try {
+      await IDB.open(); this.persistent = true;
+      for (const [k, v] of await IDB.all()) {
+        if (k === '__packs') this.packs = JSON.parse(v); else this.files.set(k, v);
+      }
+    } catch (e) { console.warn('IndexedDB no disponible:', e); }
+  },
+  resetCaches() { this.bmpCache.clear(); this.jsonCache.clear(); this.iconCache.clear(); },
+
+  // Lee un .jar / .zip y guarda solo lo necesario (modelos, definiciones de items y texturas)
+  async loadArchive(file, onProgress) {
+    if (typeof JSZip === 'undefined') throw new Error('No se pudo cargar JSZip (¿sin internet?)');
+    const zip = await JSZip.loadAsync(file);
+    const WANT = /^([a-z0-9_.\-]+)\/(items\/.+\.json|models\/.+\.json|textures\/(?:item|block|entity|trims|models)\/.+\.png)$/;
+    const jobs = [];
+    zip.forEach((path, f) => {
+      if (f.dir) return;
+      const i = path.startsWith('assets/') ? 0 : path.indexOf('/assets/') + 1; // packs comprimidos dentro de una carpeta
+      if (i < 0 || (i === 0 && !path.startsWith('assets/'))) return;
+      const inner = path.slice(i + 'assets/'.length);
+      if (WANT.test(inner)) jobs.push([inner, f]);
+    });
+    if (!jobs.length) throw new Error('No encontré la carpeta assets/ con modelos o texturas en ese archivo');
+    let batch = [], done = 0;
+    for (const [key, f] of jobs) {
+      const val = key.endsWith('.png') ? new Blob([await f.async('uint8array')], { type: 'image/png' }) : await f.async('string');
+      this.files.set(key, val); batch.push([key, val]); done++;
+      if (batch.length >= 400) { if (this.persistent) await IDB.putMany(batch); batch = []; onProgress?.(done, jobs.length); }
+    }
+    this.packs = this.packs.filter(p => p !== file.name).concat(file.name);
+    batch.push(['__packs', JSON.stringify(this.packs)]);
+    if (this.persistent) await IDB.putMany(batch);
+    onProgress?.(done, jobs.length);
+    this.resetCaches();
+    return done;
+  },
+  async clear() {
+    this.files.clear(); this.packs = []; this.resetCaches();
+    if (this.persistent) await IDB.clear();
+  },
+
+  // ---------- lectura ----------
+  ref(r) { r = String(r || ''); const i = r.indexOf(':'); return i < 0 ? { ns: 'minecraft', p: r } : { ns: r.slice(0, i), p: r.slice(i + 1) }; },
+  json(key) {
+    if (this.jsonCache.has(key)) return this.jsonCache.get(key);
+    let v = null; const s = this.files.get(key);
+    if (typeof s === 'string') try { v = JSON.parse(s); } catch {}
+    this.jsonCache.set(key, v); return v;
+  },
+  bitmap(texRef) {
+    const { ns, p } = this.ref(texRef), key = `${ns}/textures/${p}.png`;
+    if (!this.bmpCache.has(key)) {
+      const blob = this.files.get(key);
+      this.bmpCache.set(key, blob instanceof Blob ? createImageBitmap(blob).catch(() => null) : Promise.resolve(null));
+    }
+    return this.bmpCache.get(key);
+  },
+  // Busca una textura de entidad por nombre si la ruta exacta cambió entre versiones
+  findTexture(candidates, fileName) {
+    for (const c of candidates) if (this.files.has(`minecraft/textures/${c}.png`)) return c;
+    for (const k of this.files.keys()) if (k.startsWith('minecraft/textures/entity/') && k.endsWith('/' + fileName + '.png')) return k.slice('minecraft/textures/'.length, -4);
+    return null;
+  },
+
+  // Recorre la cadena de "parent" juntando texturas y elementos
+  resolveModel(ref) {
+    let textures = {}, elements = null, generated = false, entity = false, cur = ref, guard = 0;
+    while (cur && guard++ < 25) {
+      const { ns, p } = this.ref(cur);
+      if (p === 'builtin/generated') { generated = true; break; }
+      if (p === 'builtin/entity') { entity = true; break; }
+      const j = this.json(`${ns}/models/${p}.json`);
+      if (!j) break;
+      textures = { ...(j.textures || {}), ...textures };
+      if (!elements && j.elements) elements = j.elements;
+      cur = j.parent;
+    }
+    return { textures, elements, generated, entity };
+  },
+  texVar(textures, v, guard = 0) {
+    // En 26.x una textura puede venir como objeto { sprite: "...", force_translucent: true }
+    const norm = x => (x && typeof x === 'object') ? x.sprite : x;
+    v = norm(v);
+    while (typeof v === 'string' && v.startsWith('#') && guard++ < 10) v = norm(textures[v.slice(1)]);
+    return typeof v === 'string' ? v : null;
+  },
+  // De una definición de item (1.21.4+) saca el modelo "normal"
+  pickModel(node) {
+    if (!node) return null;
+    const t = stripNs(node.type);
+    if (t === 'model') return { model: node.model, tints: node.tints || [] };
+    if (t === 'special') return { model: node.base, tints: [], special: node.model };
+    if (t === 'composite') return this.pickModel(node.models?.[0]);
+    if (t === 'condition') return this.pickModel(node.on_false);
+    if (t === 'select') return this.pickModel(node.fallback || node.cases?.[0]?.model);
+    if (t === 'range_dispatch') return this.pickModel(node.fallback || node.entries?.[0]?.model);
+    return null;
+  },
+
+  /* Icono de un item. ctx = { id, itemModel, dye, headMode, headValue }
+     Devuelve { src, pixel } o null si no hay texturas. */
+  icon(ctx) {
+    const key = JSON.stringify(ctx);
+    if (!this.iconCache.has(key)) this.iconCache.set(key, this._icon(ctx).catch(e => { console.warn(e); return null; }));
+    return this.iconCache.get(key);
+  },
+  async _icon(ctx) {
+    const id = stripNs(ctx.id);
+    // Cabezas de jugador: se usa mc-heads.net (necesita internet)
+    if (id === 'player_head' && ctx.headMode && ctx.headValue) {
+      let who = ctx.headValue.trim();
+      if (ctx.headMode === 'texture') {
+        try { who = JSON.parse(atob(who)).textures.SKIN.url.split('/').pop(); } catch { who = ''; }
+      }
+      if (who) return { src: `https://mc-heads.net/head/${encodeURIComponent(who)}/64`, pixel: false };
+    }
+    if (!this.files.size) return null;
+    const { ns, p } = this.ref(ctx.itemModel?.trim() || id);
+    const def = this.json(`${ns}/items/${p}.json`);
+    let pick = def ? this.pickModel(def.model) : { model: `${ns}:item/${p}`, tints: [] }; // packs viejos sin items/
+    if (!pick) return null;
+    if (pick.special) {
+      const s = await this.drawSpecial(pick.special, id);
+      if (s) return s;
+    }
+    const m = this.resolveModel(pick.model);
+    const tint = i => this.tintColor(pick.tints[i], ctx);
+    if (m.generated) return this.drawFlat(m.textures, tint);
+    if (m.elements) return this.drawBlock(m.elements, m.textures, tint);
+    const part = this.texVar(m.textures, m.textures.particle || Object.values(m.textures)[0]);
+    return part ? this.drawFlat({ layer0: part }, () => null) : null;
+  },
+  tintColor(t, ctx) {
+    if (!t) return null;
+    const ty = stripNs(t.type);
+    let c = ty === 'dye' ? (ctx.dye != null ? ctx.dye : t.default)
+      : ty === 'constant' ? t.value
+      : ty === 'potion' ? (ctx.potion != null ? ctx.potion : t.default)
+      : ty === 'grass' ? 0x7CBD6B : ty === 'foliage' ? 0x48B518 : t.default;
+    return c == null ? null : (c & 0xFFFFFF);
+  },
+
+  // Recorta una zona de la textura (primer frame si es animada), con tinte y sombra
+  faceCanvas(bmp, uv, tintRGB, shade) {
+    const fw = bmp.width, s = fw / 16;               // frames animados: altura > ancho → usar el primero
+    let [u1, v1, u2, v2] = uv;
+    const sx = Math.min(u1, u2) * s, sy = Math.min(v1, v2) * s;
+    const sw = Math.max(1, Math.abs(u2 - u1) * s), sh = Math.max(1, Math.abs(v2 - v1) * s);
+    const c = document.createElement('canvas'); c.width = Math.round(sw); c.height = Math.round(sh);
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    g.save();
+    if (u1 > u2) { g.translate(c.width, 0); g.scale(-1, 1); }
+    if (v1 > v2) { g.translate(0, c.height); g.scale(1, -1); }
+    g.drawImage(bmp, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    g.restore();
+    if (tintRGB != null) {
+      g.globalCompositeOperation = 'multiply'; g.fillStyle = '#' + tintRGB.toString(16).padStart(6, '0'); g.fillRect(0, 0, c.width, c.height);
+      g.globalCompositeOperation = 'destination-in'; g.drawImage(bmp, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    }
+    if (shade < 1) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = `rgba(0,0,0,${1 - shade})`; g.fillRect(0, 0, c.width, c.height); }
+    return c;
+  },
+
+  // Items planos (layer0, layer1…) como espadas, comida, etc.
+  async drawFlat(textures, tint) {
+    const layers = [];
+    for (let i = 0; i < 8; i++) {
+      const r = this.texVar(textures, textures['layer' + i]); if (!r) break;
+      const b = await this.bitmap(r); if (b) layers.push([b, tint(i)]);
+    }
+    if (!layers.length) return null;
+    const size = layers[0][0].width;
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    for (const [b, t] of layers) g.drawImage(this.faceCanvas(b, [0, 0, 16, 16], t, 1), 0, 0, size, size);
+    return { src: c.toDataURL(), pixel: true };
+  },
+
+  /* Bloques: proyección isométrica como en el inventario.
+     Se ven las caras de arriba, norte (izquierda) y oeste (derecha). */
+  async drawBlock(elements, textures, tint) {
+    const W = 128, k = 54 / 16, kv = 56 / 16;
+    const P = (x, y, z) => ({ x: 64 + k * (z - x), y: 33 + (k / 2) * (32 - x - z) - k * 8 + kv * (16 - y) });
+    const c = document.createElement('canvas'); c.width = c.height = W;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    // Orden de pintado: primero lo más lejano
+    const els = [...elements].sort((a, b) => (b.from[0] + b.from[2]) - (a.from[0] + a.from[2]) || a.from[1] - b.from[1]);
+    let drew = false;
+    for (const e of els) {
+      const [x1, y1, z1] = e.from, [x2, y2, z2] = e.to, f = e.faces || {};
+      const faces = [
+        ['up', 1.0, P(x1, y2, z1), P(x2, y2, z1), P(x1, y2, z2), [x1, z1, x2, z2]],
+        ['north', 0.8, P(x2, y2, z1), P(x1, y2, z1), P(x2, y1, z1), [16 - x2, 16 - y2, 16 - x1, 16 - y1]],
+        ['west', 0.62, P(x1, y2, z1), P(x1, y2, z2), P(x1, y1, z1), [z1, 16 - y2, z2, 16 - y1]]
+      ];
+      for (const [name, shade, O, U, V, defUV] of faces) {
+        const face = f[name]; if (!face) continue;
+        const r = this.texVar(textures, face.texture); if (!r) continue;
+        const b = await this.bitmap(r); if (!b) continue;
+        const fc = this.faceCanvas(b, face.uv || defUV, face.tintindex != null ? tint(face.tintindex) : null, shade);
+        g.setTransform((U.x - O.x) / fc.width, (U.y - O.y) / fc.width, (V.x - O.x) / fc.height, (V.y - O.y) / fc.height, O.x, O.y);
+        g.drawImage(fc, 0, 0); drew = true;
+      }
+    }
+    return drew ? { src: c.toDataURL(), pixel: true } : null;
+  },
+
+  // Cabezas de mobs y jugador (modelo "special"): cubo con la cara de la textura de la entidad
+  async drawSpecial(spec, id) {
+    const t = stripNs(spec.type);
+    let tex = null;
+    if (t === 'player_head') tex = this.findTexture(['entity/player/wide/steve'], 'steve');
+    else if (t === 'head') {
+      const kind = spec.kind, map = {
+        skeleton: [['entity/skeleton/skeleton'], 'skeleton'], wither_skeleton: [['entity/skeleton/wither_skeleton'], 'wither_skeleton'],
+        zombie: [['entity/zombie/zombie'], 'zombie'], creeper: [['entity/creeper/creeper'], 'creeper'],
+        piglin: [['entity/piglin/piglin'], 'piglin']
+      }[kind];
+      if (map) tex = this.findTexture(...map);
+    }
+    if (!tex) return null;
+    const b = await this.bitmap(tex); if (!b) return null;
+    // Uvs de la cabeza (textura 64 px de ancho; se escala si es HD). 16 = una textura "unidad" en faceCanvas
+    const sc = 64 / 16, uv = (x, y, w, h) => [x / sc, y / sc, (x + w) / sc, (y + h) / sc];
+    const isPiglin = stripNs(spec.kind) === 'piglin';
+    const W = 128, k = 54 / 16, kv = 56 / 16;
+    const P = (x, y, z) => ({ x: 64 + k * (z - x), y: 33 + (k / 2) * (32 - x - z) - k * 8 + kv * (16 - y) });
+    const c = document.createElement('canvas'); c.width = c.height = W;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    const cube = (x1, y1, z1, x2, y2, z2, U) => {
+      for (const [O, Uu, V, rect, shade] of [
+        [P(x1, y2, z1), P(x2, y2, z1), P(x1, y2, z2), U.top, 1],
+        [P(x2, y2, z1), P(x1, y2, z1), P(x2, y1, z1), U.front, .8],
+        [P(x1, y2, z1), P(x1, y2, z2), P(x1, y1, z1), U.side, .62]]) {
+        const fc = this.faceCanvas(b, rect, null, shade);
+        g.setTransform((Uu.x - O.x) / fc.width, (Uu.y - O.y) / fc.width, (V.x - O.x) / fc.height, (V.y - O.y) / fc.height, O.x, O.y);
+        g.drawImage(fc, 0, 0);
+      }
+    };
+    // Tamaño parecido al del inventario (más grande que la cabeza real)
+    if (isPiglin) cube(0.5, 2, 2, 15.5, 14, 14, { top: uv(8, 0, 10, 8), front: uv(8, 8, 10, 8), side: uv(18, 8, 8, 8) });
+    else {
+      cube(1.5, 1.5, 1.5, 14.5, 14.5, 14.5, { top: uv(8, 0, 8, 8), front: uv(8, 8, 8, 8), side: uv(16, 8, 8, 8) });
+      cube(1, 1, 1, 15, 15, 15, { top: uv(40, 0, 8, 8), front: uv(40, 8, 8, 8), side: uv(48, 8, 8, 8) }); // capa del sombrero
+    }
+    return { src: c.toDataURL(), pixel: true };
+  }
+};
+
+/* =====================================================================
    7. COMPONENTES DE INTERFAZ
    ===================================================================== */
+// Icono pequeño para la lista del buscador (se rellena cuando está listo)
+function acIcon(id) {
+  const img = el('img', { class: 'ico', alt: '', width: 20, height: 20 });
+  img.style.visibility = 'hidden';
+  TEX.icon({ id }).then(r => { if (r) { img.src = r.src; img.style.visibility = ''; } });
+  return img;
+}
 // --- Autocompletado: list = [[id, nombre]], onPick(id) ---
-function autocomplete(list, value, onChange, placeholder = '') {
+function autocomplete(list, value, onChange, placeholder = '', withIcons = false) {
   const wrap = el('div', { class: 'ac' });
   const input = el('input', { type: 'text', value: value || '', placeholder, autocomplete: 'off', spellcheck: 'false' });
   const box = el('div', { class: 'ac-list' });
@@ -613,7 +1035,7 @@ function autocomplete(list, value, onChange, placeholder = '') {
       .sort((a, b) => (norm(a[0]).startsWith(q) ? 0 : 1) - (norm(b[0]).startsWith(q) ? 0 : 1)).slice(0, 60);
     box.replaceChildren(...shown.map(([id, n], i) => el('div', {
       class: 'ac-item' + (i === sel ? ' sel' : ''), onmousedown: e => { e.preventDefault(); pick(id); }
-    }, el('span', {}, id), el('small', {}, n))));
+    }, el('span', { class: 'lft' }, withIcons ? acIcon(id) : null, el('span', {}, id)), el('small', {}, n))));
     box.classList.toggle('open', shown.length > 0 && document.activeElement === input);
   }
   function pick(id) { input.value = id; box.classList.remove('open'); sel = -1; onChange(id); }
@@ -694,7 +1116,7 @@ setInterval(() => $$('[data-obf]').forEach(s => {
    ===================================================================== */
 let item = loadDraft('item') || newItem();
 const itemForm = $('#itemForm');
-const acItem = autocomplete(DATA.items, item.id, v => { item.id = v; updateItem(); }, 'diamond_sword');
+const acItem = autocomplete(DATA.items, item.id, v => { item.id = v; updateItem(); }, 'diamond_sword', true);
 $('#acItem').append(acItem);
 
 // Campos simples con data-k
@@ -836,10 +1258,34 @@ function renderItemPreview() {
   tip.style.opacity = m.hideAll ? '.35' : '1';
   tip.title = m.hideAll ? 'Tooltip oculto en el juego' : '';
   // Ranura con el nombre del item (las texturas llegan en la fase 3)
-  const slot = $('#itemSlot'); slot.replaceChildren(el('span', {}, (NAMES.items[id] || id).slice(0, 18)));
-  if (+m.count > 1) slot.append(el('span', { class: 'cnt' }, m.count));
   const glow = m.glint === 'true' || (m.glint !== 'false' && m.enchants.some(e => e.id));
-  slot.classList.toggle('glint', glow);
+  renderSlot($('#itemSlot'), m, glow);
+}
+
+// Dibuja el icono del item en una ranura. Mientras no haya texturas muestra el nombre.
+function renderSlot(slot, m, glow) {
+  const id = stripNs(m.id), token = slot._token = (slot._token || 0) + 1;
+  const fallback = () => {
+    slot.replaceChildren(el('span', {}, (NAMES.items[id] || id).slice(0, 18)));
+    if (!TEX.count && !(id === 'player_head' && m.headMode)) slot.append(el('button', { class: 'btn sm', type: 'button', style: 'position:absolute;inset:auto 0 -34px 0;font-size:10px;min-height:24px;padding:2px', onclick: openTex }, 'Cargar texturas'));
+    addCount();
+  };
+  const addCount = () => { if (+m.count > 1) slot.append(el('span', { class: 'cnt' }, m.count)); };
+  TEX.icon({ id, itemModel: m.itemModel, dye: m.dyeOn ? parseInt(m.dye.slice(1), 16) : null, headMode: m.headMode, headValue: m.headValue, potion: m.potionColor })
+    .then(r => {
+      if (token !== slot._token) return;           // llegó otra actualización antes
+      if (!r) return fallback();
+      const img = el('img', { class: 'ico', src: r.src, alt: NAMES.items[id] || id });
+      if (!r.pixel) img.style.imageRendering = 'auto';
+      slot.replaceChildren(img);
+      if (glow) {
+        const fx = el('div', { class: 'glint-fx' });
+        fx.style.webkitMaskImage = fx.style.maskImage = `url("${r.src}")`;
+        slot.append(fx);
+      }
+      addCount();
+    });
+  slot.classList.toggle('glint', false);
 }
 
 function updateItem() {
@@ -905,7 +1351,7 @@ const LIB_TYPES = { items: 'Items', potions: 'Pociones', mobs: 'Mobs', villagers
 function libLoad() { try { return JSON.parse(localStorage.getItem(LIB_KEY)) || {}; } catch { return {}; } }
 function libSave(lib) { try { localStorage.setItem(LIB_KEY, JSON.stringify(lib)); } catch { toast('No se pudo guardar (almacenamiento lleno o bloqueado)'); } }
 function saveDraft(k, m) { try { localStorage.setItem('mccmdforge.draft.' + k, JSON.stringify(m)); } catch {} }
-function loadDraft(k) { try { const d = JSON.parse(localStorage.getItem('mccmdforge.draft.' + k)); return d ? { ...newItem(), ...d } : null; } catch { return null; } }
+function loadDraft(k, factory = newItem) { try { const d = JSON.parse(localStorage.getItem('mccmdforge.draft.' + k)); return d ? { ...factory(), ...d } : null; } catch { return null; } }
 
 $('#saveBtn').onclick = () => {
   const t = TABS[currentTab]; if (!t) return;
@@ -924,7 +1370,7 @@ function renderLib() {
     if (!arr.length) continue;
     list.append(el('div', { class: 'lib-group' }, el('h3', {}, `${label} (${arr.length})`),
       ...arr.map(entry => el('div', { class: 'lib-item inset' },
-        el('div', { class: 'nm' }, entry.name, el('small', {}, stripNs(entry.data.id || '') + ' · ' + new Date(entry.savedAt).toLocaleDateString())),
+        el('div', { class: 'nm' }, entry.name, el('small', {}, stripNs(entry.data.id || entry.data.kind || '') + ' · ' + new Date(entry.savedAt).toLocaleDateString())),
         el('button', { class: 'btn sm', type: 'button', onclick: () => libOpen(type, entry) }, 'Abrir'),
         el('button', { class: 'btn sm icon', type: 'button', title: 'Copiar comando', onclick: async () => { await copyText(libCommand(type, entry.data)); toast('Comando copiado'); } }, '📋'),
         el('button', { class: 'btn sm icon danger', type: 'button', title: 'Eliminar', onclick: () => {
@@ -936,10 +1382,12 @@ function renderLib() {
 }
 function libCommand(type, data) {
   if (type === 'items') return buildItemCommand({ ...newItem(), ...data });
+  if (type === 'potions') return buildPotionCommand({ ...newPotion(), ...data });
   return '';
 }
 function libOpen(type, entry) {
   if (type === 'items') { item = { ...newItem(), ...clone(entry.data) }; renderItemForm(); }
+  if (type === 'potions') { potion = { ...newPotion(), ...clone(entry.data) }; renderPotionForm(); }
   switchTab(type); closeLib(); toast(`"${entry.name}" cargado`);
 }
 const openLib = () => { renderLib(); $('#lib').classList.add('open'); $('#backdrop').classList.add('open'); };
@@ -967,6 +1415,238 @@ $('#libImport').onchange = async e => {
 };
 
 /* =====================================================================
+   8b. PESTAÑA POCIONES
+   ===================================================================== */
+const POTION_TYPES = [
+  ['potion', 'Bebible', 1], ['splash_potion', 'Arrojadiza', 1],
+  ['lingering_potion', 'Persistente', 0.25], ['tipped_arrow', 'Flecha', 0.125]
+];
+const POTION_TYPE_NAME = { potion: 'Poción', splash_potion: 'Poción arrojadiza', lingering_potion: 'Poción persistente', tipped_arrow: 'Flecha con efecto' };
+// Efectos perjudiciales (se muestran en rojo en el tooltip) y neutrales
+const HARMFUL = new Set(['slowness', 'mining_fatigue', 'instant_damage', 'nausea', 'blindness', 'hunger', 'weakness', 'poison', 'wither', 'levitation', 'unluck', 'darkness', 'infested', 'oozing', 'weaving', 'wind_charged']);
+const NEUTRAL = new Set(['glowing', 'bad_omen', 'trial_omen', 'raid_omen']);
+// Colores aproximados de cada efecto (para mezclar el color automático de la poción)
+const EFFECT_COLORS = {
+  speed: 0x33EBFF, slowness: 0x8BAFE0, haste: 0xD9C043, mining_fatigue: 0x4A4217, strength: 0xFFC700,
+  instant_health: 0xF82423, instant_damage: 0xA9656A, jump_boost: 0xFDFF84, nausea: 0x551D4A, regeneration: 0xCD5CAB,
+  resistance: 0x9146F0, fire_resistance: 0xFF9900, water_breathing: 0x98DAC0, invisibility: 0xF6F6F6, blindness: 0x1F1F23,
+  night_vision: 0xC2FF66, hunger: 0x587653, weakness: 0x484D48, poison: 0x87A363, wither: 0x736156,
+  health_boost: 0xF87D23, absorption: 0x2552A5, saturation: 0xF82423, glowing: 0x94A061, levitation: 0xCEFFFF,
+  luck: 0x59C106, unluck: 0xC0A44D, slow_falling: 0xF3CFB9, conduit_power: 0x1DC2D1, dolphins_grace: 0x88A3BE,
+  bad_omen: 0x0B6138, hero_of_the_village: 0x44FF44, darkness: 0x292721, trial_omen: 0x16A6A6, raid_omen: 0xDE4058,
+  wind_charged: 0xBDC9FF, weaving: 0x78695A, oozing: 0x99FFA3, infested: 0x8C9B8C, breath_of_the_nautilus: 0x3E8EDE
+};
+const newEffect = (id = '') => ({ id, lvl: 1, secs: 60, inf: false, particles: true, icon: true, ambient: false });
+function newPotion() {
+  return {
+    kind: 'potion', count: 1, target: '@p',
+    name: newText(''), noItalic: true, lore: [],
+    effects: [newEffect('speed')], base: '',
+    colorOn: false, color: '#FF00AA',
+    exactDuration: true, hideEffects: false, glint: false
+  };
+}
+const effectAmp = e => Math.max(0, Math.min(255, (parseInt(e.lvl) || 1) - 1));
+const effectTicks = e => e.inf ? -1 : Math.max(1, Math.round((+e.secs || 0) * 20));
+const potScale = m => (POTION_TYPES.find(t => t[0] === m.kind) || [, , 1])[2];
+// Color que el juego calcularía: promedio de los colores de los efectos (ponderado por nivel)
+function autoPotionColor(m) {
+  let r = 0, g = 0, b = 0, n = 0;
+  for (const e of m.effects) {
+    const c = EFFECT_COLORS[stripNs(e.id)]; if (c == null) continue;
+    const w = effectAmp(e) + 1;
+    r += (c >> 16 & 255) * w; g += (c >> 8 & 255) * w; b += (c & 255) * w; n += w;
+  }
+  if (!n) return m.base ? null : 0x385DC6;   // sin efectos: color del agua
+  return (Math.round(r / n) << 16) | (Math.round(g / n) << 8) | Math.round(b / n);
+}
+const potColorInt = m => m.colorOn ? parseInt(m.color.slice(1), 16) || 0 : null;
+
+// Componentes de la poción (los perfiles de versión deciden el formato)
+function potionContents(m) {
+  const pc = {};
+  if (m.base.trim()) pc.potion = stripNs(m.base);
+  const c = potColorInt(m);
+  if (c != null) pc.custom_color = c;
+  const eff = m.effects.filter(e => e.id.trim()).map(e => {
+    const o = { id: stripNs(e.id), amplifier: effectAmp(e), duration: effectTicks(e) };
+    if (e.ambient) o.ambient = true;
+    if (!e.particles) o.show_particles = false;
+    if (!e.icon) o.show_icon = false;
+    return o;
+  });
+  if (eff.length) pc.custom_effects = eff;
+  return pc;
+}
+VERSIONS.modern.potionComponents = function (m) {
+  const out = [], root = m.noItalic ? { italic: false } : {};
+  const name = textComponent(m.name, root);
+  if (name) out.push(['custom_name', SNBT.val(name)]);
+  if (m.lore.length) out.push(['lore', '[' + m.lore.map(l => SNBT.val(textComponent(l, root) || { text: '' })).join(',') + ']']);
+  out.push(['potion_contents', SNBT.val(potionContents(m))]);
+  if (m.exactDuration && potScale(m) !== 1) out.push(['potion_duration_scale', '1']);
+  if (m.glint) out.push(['enchantment_glint_override', 'true']);
+  if (m.hideEffects) out.push(['tooltip_display', SNBT.val({ hidden_components: ['potion_contents'] })]);
+  return out;
+};
+VERSIONS.v1214.potionComponents = function (m) {
+  const out = [], root = m.noItalic ? { italic: false } : {};
+  const name = textComponent(m.name, root);
+  if (name) out.push(['custom_name', jsonInSnbt(name)]);
+  if (m.lore.length) out.push(['lore', '[' + m.lore.map(l => jsonInSnbt(textComponent(l, root) || { text: '' })).join(',') + ']']);
+  out.push(['potion_contents', SNBT.val(potionContents(m))]);
+  if (m.glint) out.push(['enchantment_glint_override', 'true']);
+  if (m.hideEffects) out.push(['hide_additional_tooltip', '{}']);
+  return out;
+};
+function buildPotionCommand(m, ver = VERSION) {
+  const comps = VERSIONS[ver].potionComponents(m);
+  const count = Math.max(1, parseInt(m.count) || 1);
+  return `/give ${m.target.trim() || '@p'} ${m.kind}[${comps.map(([k, v]) => k + '=' + v).join(',')}]${count > 1 ? ' ' + count : ''}`;
+}
+// /effect give <objetivo> <efecto> <segundos|infinite> <amplificador> <ocultarPartículas>
+function buildEffectCommands(m) {
+  const t = m.target.trim() || '@p';
+  return m.effects.filter(e => e.id.trim()).map(e => {
+    const dur = e.inf ? 'infinite' : String(Math.max(1, Math.round(+e.secs || 0)));
+    return `/effect give ${t} ${stripNs(e.id)} ${dur} ${effectAmp(e)} ${e.particles ? 'false' : 'true'}`;
+  });
+}
+function potionWarnings(m) {
+  const w = [];
+  if (!m.effects.some(e => e.id.trim()) && !m.base.trim()) w.push(['warn', 'La poción no tiene efectos: será una botella de agua.']);
+  m.effects.forEach(e => {
+    const id = stripNs(e.id);
+    if (e.id && !NAMES.effects[id] && !e.id.includes(':')) w.push(['err', `Efecto desconocido: ${e.id}`]);
+    if ((parseInt(e.lvl) || 1) > 256 || (parseInt(e.lvl) || 1) < 1) w.push(['err', `${id}: el nivel debe estar entre 1 y 256.`]);
+    if (!e.inf && (+e.secs || 0) * 20 > 2147483647) w.push(['err', `${id}: duración demasiado larga; usa infinito.`]);
+    if (!e.inf && (+e.secs || 0) <= 0) w.push(['warn', `${id}: duración 0, se usará 1 segundo.`]);
+    if (/^instant_/.test(id) && (e.inf || +e.secs > 1)) w.push(['warn', `${id} es instantáneo: la duración no importa.`]);
+  });
+  if (m.base && !NAMES.potions[stripNs(m.base)]) w.push(['err', `Poción base desconocida: ${m.base}`]);
+  if (m.kind === 'tipped_arrow' && +m.count > 64) w.push(['err', 'Las flechas se apilan hasta 64.']);
+  if (m.kind !== 'tipped_arrow' && +m.count > 1) w.push(['warn', 'Las pociones no se apilan: recibirás varias ranuras con una cada una.']);
+  if (VERSION === 'v1214' && potScale(m) !== 1 && m.effects.some(e => e.id && !e.inf))
+    w.push(['warn', `En 1.21.4 no existe potion_duration_scale: esta ${m.kind === 'tipped_arrow' ? 'flecha dura 1/8' : 'nube dura 1/4'} de lo que pusiste.`]);
+  if (VERSION === 'v1214' && m.hideEffects) w.push(['warn', 'En 1.21.4 "ocultar efectos" usa hide_additional_tooltip, que también oculta otras líneas extra.']);
+  return w;
+}
+
+// ---------- Interfaz ----------
+let potion = loadDraft('potion', newPotion) || newPotion();
+const potForm = $('#potForm');
+bindSimpleFields(potForm, () => potion, k => {
+  // sincroniza el selector de color y el campo hex cuando el valor es válido
+  if (k === 'color' && /^#[0-9a-fA-F]{6}$/.test(potion.color)) $$('[data-k=color]', potForm).forEach(i => { if (i.value.toLowerCase() !== potion.color.toLowerCase()) i.value = potion.color; });
+  updatePotion();
+});
+// Botones de tipo
+POTION_TYPES.forEach(([id, label]) => $('#potTypes').append(el('button', {
+  type: 'button', class: 'btn sm', 'data-kind': id,
+  onclick: () => { potion.kind = id; markKind(); updatePotion(); }
+}, label)));
+function markKind() { $$('#potTypes [data-kind]').forEach(b => b.classList.toggle('green', b.dataset.kind === potion.kind)); }
+const acPotion = autocomplete(DATA.potions.filter(([, n]) => n), potion.base, v => { potion.base = v; updatePotion(); }, 'Ninguna');
+$('#acPotion').append(acPotion);
+
+function renderPotName() { $('#potNameEditor').replaceChildren(textEditor(potion.name, updatePotion, { placeholder: 'Nombre de la poción' })); }
+function renderPotLore() {
+  $('#potLoreList').replaceChildren(...potion.lore.map((ln, i) => el('div', {},
+    el('div', { class: 'te-line-head' }, `Línea ${i + 1}`, el('span', { class: 'sp' }),
+      el('button', { class: 'btn sm icon danger', type: 'button', title: 'Quitar línea', onclick: () => { potion.lore.splice(i, 1); renderPotLore(); updatePotion(); } }, '✕')),
+    textEditor(ln, updatePotion, { placeholder: 'Texto del lore' }))));
+  $('#potLoreBadge').textContent = potion.lore.length;
+}
+$('#potLoreAdd').onclick = () => { potion.lore.push(newText('')); renderPotLore(); updatePotion(); };
+
+function renderEffects() {
+  $('#effList').replaceChildren(...potion.effects.map((e, i) => {
+    const secs = el('input', { type: 'number', min: 1, step: 'any', value: e.secs, disabled: e.inf, oninput: ev => { e.secs = ev.target.value; updatePotion(); } });
+    const chk = (k, label, title) => el('label', { class: 'chk', title }, el('input', { type: 'checkbox', checked: e[k], onchange: ev => {
+      e[k] = ev.target.checked; if (k === 'inf') secs.disabled = e.inf; updatePotion(); } }), label);
+    return el('div', { class: 'list-row' },
+      autocomplete(DATA.effects, e.id, v => { e.id = v; updatePotion(); }, 'speed'),
+      el('div', { class: 'f' }, el('span', {}, 'Nivel'), el('input', { type: 'number', min: 1, max: 256, value: e.lvl, oninput: ev => { e.lvl = ev.target.value; updatePotion(); } })),
+      el('div', { class: 'f' }, el('span', {}, 'Segundos'), secs),
+      chk('inf', '∞', 'Duración infinita'),
+      chk('particles', 'Partículas'), chk('icon', 'Icono'), chk('ambient', 'Ambiental', 'Partículas suaves como las de un faro'),
+      el('button', { class: 'btn icon danger', type: 'button', title: 'Quitar', onclick: () => { potion.effects.splice(i, 1); renderEffects(); updatePotion(); } }, '✕'));
+  }));
+  $('#effBadge').textContent = potion.effects.length;
+}
+$('#effAdd').onclick = () => { potion.effects.push(newEffect('')); renderEffects(); updatePotion(); };
+
+function renderPotionForm() {
+  fillSimpleFields(potForm, potion); acPotion.setValue(potion.base);
+  markKind(); renderPotName(); renderPotLore(); renderEffects(); updatePotion();
+}
+
+// Formato de duración como en el juego (mm:ss o h:mm:ss)
+function fmtDuration(ticks) {
+  if (ticks < 0) return '∞';
+  const s = Math.floor(ticks / 20), h = Math.floor(s / 3600), mm = Math.floor(s % 3600 / 60), ss = s % 60;
+  const p = n => String(n).padStart(2, '0');
+  return h ? `${h}:${p(mm)}:${p(ss)}` : `${mm}:${p(ss)}`;
+}
+function renderPotionPreview() {
+  const m = potion, tip = $('#potTooltip'); tip.replaceChildren();
+  const line = (parts, base) => { const d = el('div', { class: 'ln' }); renderParts(d, parts, base); tip.append(d); return d; };
+  const nameParts = textParts(m.name);
+  const baseName = POTION_TYPE_NAME[m.kind];
+  line(nameParts.length ? nameParts : [{ text: m.base ? (NAMES.potions[stripNs(m.base)] || baseName) : baseName }],
+    { color: 'white', italic: nameParts.length ? !m.noItalic : false }).classList.add('first');
+  if (!m.hideEffects) {
+    const scale = (m.exactDuration && VERSION === 'modern') ? 1 : potScale(m);
+    const effs = m.effects.filter(e => e.id.trim());
+    if (!effs.length && !m.base) line([{ text: 'Sin efectos' }], { color: 'gray' });
+    effs.forEach(e => {
+      const id = stripNs(e.id), amp = effectAmp(e), t = effectTicks(e);
+      let txt = NAMES.effects[id] || id;
+      if (amp > 0) txt += ' ' + ROMAN(amp + 1);
+      if (!/^instant_/.test(id)) txt += ` (${fmtDuration(t < 0 ? t : Math.max(1, Math.round(t * scale)))})`;
+      line([{ text: txt }], { color: HARMFUL.has(id) ? 'red' : NEUTRAL.has(id) ? 'gray' : 'blue' });
+    });
+    if (m.base) line([{ text: '+ efectos de ' + (NAMES.potions[stripNs(m.base)] || m.base) }], { color: 'dark_gray' });
+  }
+  m.lore.forEach(l => line(textParts(l), { color: 'dark_purple', italic: !m.noItalic }));
+  line([{ text: 'minecraft:' + m.kind }], { color: 'dark_gray' });
+  // Icono con el color de la poción
+  const auto = autoPotionColor(m);
+  const color = potColorInt(m) ?? auto;
+  $('#potAutoColor').textContent = m.colorOn ? '' : (auto != null ? `Color automático (mezcla de efectos, aprox.): #${auto.toString(16).padStart(6, '0').toUpperCase()}` : 'Color automático: el de la poción base.');
+  renderSlot($('#potSlot'), { id: m.kind, count: m.count, potionColor: color }, m.glint);
+  // Comandos /effect
+  const cmds = buildEffectCommands(m);
+  $('#effCmds').replaceChildren(...(cmds.length ? cmds.map(c => el('div', { class: 'row', style: 'margin:0 0 6px;align-items:center;flex-wrap:nowrap' },
+    el('code', { style: 'flex:1;min-width:0;overflow-wrap:anywhere;font-size:12px' }, c),
+    el('button', { class: 'btn sm icon', type: 'button', title: 'Copiar', onclick: async () => { await copyText(c); toast('Copiado'); } }, '📋')))
+    : [el('p', { class: 'hint', style: 'margin:0' }, 'Añade al menos un efecto.')]));
+}
+$('#effCopyAll').onclick = async () => { const c = buildEffectCommands(potion); if (!c.length) return; await copyText(c.join('\n')); toast(`${c.length} comandos copiados`); };
+
+function updatePotion() {
+  renderPotionPreview();
+  $('#potWarns').replaceChildren(...potionWarnings(potion).map(([lvl, t]) => el('div', { class: 'warn' + (lvl === 'err' ? ' err' : '') }, t)));
+  saveDraft('potion', potion);
+  refreshCommand();
+}
+const POTION_EXAMPLE = () => Object.assign(newPotion(), {
+  kind: 'splash_potion', colorOn: true, color: '#8A2BE2', glint: true,
+  name: { segs: [{ ...newSeg('Elixir del Vacío'), cm: 'grad', hex: '#AA00FF', hex2: '#55FFFF', b: true }] },
+  lore: [{ segs: [{ ...newSeg('Rómpela y desaparece'), cm: 'gray', i: true }] }],
+  effects: [
+    { ...newEffect('invisibility'), secs: 120, particles: false },
+    { ...newEffect('speed'), lvl: 3, secs: 90 },
+    { ...newEffect('slow_falling'), inf: true, icon: false },
+    { ...newEffect('instant_health'), lvl: 2, secs: 1 }
+  ]
+});
+$('#potExample').onclick = () => { potion = POTION_EXAMPLE(); renderPotionForm(); toast('Ejemplo cargado'); };
+$('#potReset').onclick = () => { potion = newPotion(); renderPotionForm(); };
+
+TABS.potions = { command: () => buildPotionCommand(potion), model: () => potion, label: m => textPlain(m.name) || POTION_TYPE_NAME[m.kind] };
+
+/* =====================================================================
    11. PESTAÑAS Y VERSIÓN
    ===================================================================== */
 function switchTab(name) {
@@ -980,10 +1660,44 @@ for (const [k, v] of Object.entries(VERSIONS)) $('#verSel').append(el('option', 
 try { VERSION = localStorage.getItem('mccmdforge.version') || 'modern'; } catch {}
 if (!VERSIONS[VERSION]) VERSION = 'modern';
 $('#verSel').value = VERSION;
-$('#verSel').onchange = e => { VERSION = e.target.value; try { localStorage.setItem('mccmdforge.version', VERSION); } catch {} refreshCommand(); };
+$('#verSel').onchange = e => { VERSION = e.target.value; try { localStorage.setItem('mccmdforge.version', VERSION); } catch {} updateItem(); updatePotion(); };
 
-// Arranque
+// ---------- Diálogo de texturas ----------
+function texStatus() {
+  const n = TEX.count;
+  $('#texStatus').replaceChildren(n
+    ? el('span', {}, `✔ ${n.toLocaleString()} texturas listas de: `, el('b', {}, TEX.packs.join(', ') || '—'))
+    : el('span', { style: 'color:var(--warn)' }, 'No hay texturas cargadas. Los items se muestran por nombre.'));
+  if (!TEX.persistent) $('#texStatus').append(el('div', { class: 'hint' }, 'Este navegador no deja guardarlas al abrir el archivo localmente: tendrás que cargarlas cada vez (en Chrome/Edge sí se guardan).'));
+}
+function openTex() { texStatus(); $('#texProgress').textContent = ''; $('#texDlg').showModal(); }
+$('#texBtn').onclick = openTex;
+$('#texClose').onclick = () => $('#texDlg').close();
+async function loadTexFiles(files) {
+  for (const f of files) {
+    const prog = $('#texProgress');
+    try {
+      prog.textContent = `Abriendo ${f.name}…`;
+      const n = await TEX.loadArchive(f, (d, t) => prog.textContent = `${f.name}: ${d} / ${t} archivos`);
+      prog.textContent = `${f.name}: ${n} archivos cargados`;
+    } catch (e) { prog.textContent = '✖ ' + e.message; }
+  }
+  texStatus(); renderItemPreview(); renderPotionPreview();
+}
+$('#texFile').onchange = e => { loadTexFiles([...e.target.files]); e.target.value = ''; };
+const drop = $('#texDrop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); loadTexFiles([...e.dataTransfer.files]); });
+$('#texClear').onclick = async () => {
+  if (!confirm('¿Borrar todas las texturas guardadas en este navegador?')) return;
+  await TEX.clear(); texStatus(); renderItemPreview(); renderPotionPreview(); toast('Texturas borradas');
+};
+
+// Arranque: primero la interfaz, luego las texturas guardadas
 renderItemForm();
+renderPotionForm();
+TEX.init().then(() => { if (TEX.count) { renderItemPreview(); renderPotionPreview(); } });
 </script>
 </body>
 </html>
