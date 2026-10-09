@@ -1478,7 +1478,6 @@ function renderSlot(slot, m, glow) {
   const id = stripNs(m.id), token = slot._token = (slot._token || 0) + 1;
   const fallback = () => {
     slot.replaceChildren(el('span', {}, (NAMES.items[id] || id).slice(0, 18)));
-    if (!TEX.count && !slot.classList.contains('sm-slot') && !(id === 'player_head' && m.headMode)) slot.append(el('button', { class: 'btn sm', type: 'button', style: 'position:absolute;inset:auto 0 -34px 0;font-size:10px;min-height:24px;padding:2px', onclick: openTex }, 'Cargar texturas'));
     addCount();
   };
   const addCount = () => { if (+m.count > 1) slot.append(el('span', { class: 'cnt' }, m.count)); };
