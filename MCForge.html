@@ -412,6 +412,7 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
         <div class="sec-body">
           <div id="mobEffList"></div>
           <button class="btn sm" type="button" id="mobEffAdd">+ Efecto</button>
+          <p class="hint">Se ven en la vista 3D: partículas del color de cada efecto, invisibilidad, luminiscencia y levitación.</p>
         </div>
       </details>
 
@@ -2495,6 +2496,7 @@ const Viewer = {
     const sun = new THREE.DirectionalLight(0xffffff, 0.5); sun.position.set(30, 60, 50); this.scene.add(sun);
     const back = new THREE.DirectionalLight(0xffffff, 0.18); back.position.set(-40, 20, -50); this.scene.add(back);
     this.root = new THREE.Group(); this.scene.add(this.root);
+    this.initFx();
     const ro = new ResizeObserver(() => this.resize()); Object.values(this.hosts).forEach(([q]) => ro.observe($(q)));
     this.resize(); this.controls(this.renderer.domElement);
     this.ready = true;
@@ -2531,8 +2533,9 @@ const Viewer = {
   zoom(f) { this.dist = Math.max(20, Math.min(260, this.dist * f)); },
   frame(t) {
     if (!this.ready || (currentTab !== 'mobs' && currentTab !== 'villagers')) return;
-    const s = t / 1000;
+    const s = t / 1000, dt = Math.min(0.1, (t - (this._lastT ?? t)) / 1000); this._lastT = t;
     if (this.auto && this.model) this.model.rotation.y += 0.006;
+    this.stepFx(s, dt);
     // Animación idle: balanceo suave de brazos y piernas
     const P = this.parts;
     if (P) {
@@ -2604,6 +2607,7 @@ const Viewer = {
       const color = opts.color || (opts.colors ? opts.colors[{ head: 0, body: 1, right_arm: 2, left_arm: 2, right_leg: 3, left_leg: 3 }[b.p]] : '#888');
       if (!tex && opts.skipIfNoTex) continue;
       const mesh = this.boxMesh(b, tw, th, this.material(tex, color));
+      if (opts.body) mesh.userData.body = true;   // piel del mob (no armadura): se oculta con invisibilidad
       if (b.pivot) {   // sub-parte con su propio giro
         const g = new THREE.Group(); g.position.set(b.pivot[0], -b.pivot[1], -b.pivot[2]);
         g.rotation.set(b.rot[0], -b.rot[1], -b.rot[2]); g.add(mesh); target.add(g);
@@ -2617,22 +2621,60 @@ const Viewer = {
     if (!icon) return;
     const img = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = icon.src; });
     if (!img) return;
-    const tx = new THREE.Texture(img); tx.needsUpdate = true;
+    // Refleja el sprite sobre su diagonal (mango abajo-izq → punta arriba-der): el mango y la punta no se mueven,
+    // pero la cabeza de hachas/picos/azadas queda del lado correcto, como en el juego.
+    const W = img.naturalWidth || 16, H = img.naturalHeight || 16, flip = document.createElement('canvas');
+    flip.width = W; flip.height = H;
+    const fg = flip.getContext('2d'); fg.imageSmoothingEnabled = false;
+    fg.setTransform(0, -H / W, -W / H, 0, W, H);   // (x, y) → (W - y, H - x)
+    fg.drawImage(img, 0, 0);
+    const tx = new THREE.CanvasTexture(flip); tx.needsUpdate = true;
     tx.magFilter = THREE.NearestFilter; tx.minFilter = THREE.NearestFilter; tx.generateMipmaps = false; tx.encoding = THREE.sRGBEncoding;
-    const mat = new THREE.MeshLambertMaterial({ map: tx, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide });
+    const mat = new THREE.MeshLambertMaterial({ map: tx, alphaTest: 0.1, side: THREE.DoubleSide });
     const g = new THREE.Group(), size = 11;
-    for (let k = -1; k <= 1; k++) {        // tres planos juntos = 1 px de grosor
-      const pl = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
-      pl.position.x = k * 0.35; g.add(pl);
+    let geo = null;
+    try { geo = this.extrudedItem(fg.getImageData(0, 0, W, H).data, W, H, size); } catch { /* imagen externa (cabezas): sin datos de píxeles */ }
+    const item3d = new THREE.Mesh(geo || new THREE.PlaneGeometry(size, size), mat);
+    // El sprite queda vertical a lo largo de la dirección en que mira el mob (se ve de lado, como en el juego).
+    // En el sprite la punta va arriba-derecha y el mango abajo-izquierda; tras el giro, "derecha" = hacia el frente.
+    item3d.rotation.y = -Math.PI / 2;
+    g.add(item3d);
+    const grip = new THREE.Group();
+    g.position.set(0, size * 0.42, size * 0.42);   // mueve el sprite para que el mango quede justo en el origen (el puño)
+    grip.add(g);
+    grip.position.set(isLeft ? 1 : -1, -9, 0);     // puño = parte baja del brazo
+    grip.rotation.x = deg(35);                     // baja la diagonal de 45° a ~10°: la hoja apunta al frente y un poco arriba
+    arm.add(grip);
+  },
+  /* Item "extruido" como en Minecraft: cada píxel opaco es un cubito de 1 px de grosor.
+     Frente y reverso usan la textura completa; en la orilla de cada píxel se añade una cara lateral
+     que toma el color de ese píxel. px = datos RGBA, W×H = tamaño de la textura, size = tamaño final. */
+  extrudedItem(px, W, H, size) {
+    const P = [], N = [], U = [], I = [], ps = size / W, t = ps / 2, h = size / 2;
+    const solid = (x, y) => x >= 0 && y >= 0 && x < W && y < H && px[(y * W + x) * 4 + 3] > 25;
+    const quad = (v, n, uv) => {
+      const base = P.length / 3;
+      v.forEach((p, i) => { P.push(...p); N.push(...n); U.push(...uv[i]); });
+      I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    };
+    const full = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    quad([[-h, -h, t], [h, -h, t], [h, h, t], [-h, h, t]], [0, 0, 1], full);      // frente
+    quad([[h, -h, -t], [-h, -h, -t], [-h, h, -t], [h, h, -t]], [0, 0, -1], [[1, 0], [0, 0], [0, 1], [1, 1]]); // reverso
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!solid(x, y)) continue;
+      const x0 = -h + x * ps, x1 = x0 + ps, y1 = h - y * ps, y0 = y1 - ps;
+      const c = [(x + 0.5) / W, 1 - (y + 0.5) / H], uv = [c, c, c, c];   // el color de este píxel
+      if (!solid(x - 1, y)) quad([[x0, y0, -t], [x0, y0, t], [x0, y1, t], [x0, y1, -t]], [-1, 0, 0], uv);
+      if (!solid(x + 1, y)) quad([[x1, y0, t], [x1, y0, -t], [x1, y1, -t], [x1, y1, t]], [1, 0, 0], uv);
+      if (!solid(x, y - 1)) quad([[x0, y1, t], [x1, y1, t], [x1, y1, -t], [x0, y1, -t]], [0, 1, 0], uv);
+      if (!solid(x, y + 1)) quad([[x0, y0, -t], [x1, y0, -t], [x1, y0, t], [x0, y0, t]], [0, -1, 0], uv);
     }
-    g.children.forEach(c => c.rotation.y = -Math.PI / 2);   // el sprite mira hacia los lados
-    const hold = new THREE.Group();
-    g.position.set(0, size * 0.32, size * 0.32);           // el mango queda en el puño
-    hold.add(g);
-    hold.position.set(isLeft ? 1 : -1, -9, 0);
-    hold.rotation.x = deg(-55);
-    hold.rotation.y = deg(isLeft ? -25 : 25);   // ligeramente girado para que se vea de frente
-    arm.add(hold);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+    geo.setIndex(I);
+    return geo;
   },
   // Nombre flotando encima (como en el juego)
   nameSprite(parts) {
@@ -2656,6 +2698,94 @@ const Viewer = {
     return sp;
   },
 
+  // ---------- Partículas de efectos (estilo "spell" del juego) ----------
+  // Textura pixel-art de 4 cuadros (8x8 cada uno): un anillo brillante que se encoge, como las partículas de poción.
+  // '#' = brillante, '+' = medio, '.' = tenue, ' ' = transparente. Se pinta en blanco y el shader le pone el color del efecto.
+  FX_FRAMES: [
+    ['  .##.  ', ' .#++#. ', '.#+  +#.', '#+ .. +#', '#+ .. +#', '.#+  +#.', ' .#++#. ', '  .##.  '],
+    ['        ', '  .##.  ', ' .#++#. ', ' #+..+# ', ' #+..+# ', ' .#++#. ', '  .##.  ', '        '],
+    ['        ', '        ', '  .##.  ', '  #++#  ', '  #++#  ', '  .##.  ', '        ', '        '],
+    ['        ', '        ', '        ', '   ##   ', '   ##   ', '        ', '        ', '        ']
+  ],
+  fxTexture() {
+    const c = document.createElement('canvas'); c.width = 32; c.height = 8;
+    const g = c.getContext('2d'), lv = { '#': 255, '+': 200, '.': 140 };
+    this.FX_FRAMES.forEach((rows, f) => rows.forEach((row, y) => [...row].forEach((ch, x) => {
+      if (!lv[ch]) return;
+      g.fillStyle = `rgba(${lv[ch]},${lv[ch]},${lv[ch]},${ch === '.' ? 0.75 : 1})`;
+      g.fillRect(f * 8 + x, y, 1, 1);
+    })));
+    const tx = new THREE.CanvasTexture(c);
+    tx.magFilter = THREE.NearestFilter; tx.minFilter = THREE.NearestFilter; tx.generateMipmaps = false;
+    return tx;
+  },
+  initFx() {
+    const MAX = this.FX_MAX = 900, geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX * 3), 3));
+    geo.setAttribute('pcolor', new THREE.BufferAttribute(new Float32Array(MAX * 3), 3));
+    geo.setAttribute('alpha', new THREE.BufferAttribute(new Float32Array(MAX), 1));
+    geo.setAttribute('frame', new THREE.BufferAttribute(new Float32Array(MAX), 1));
+    geo.setDrawRange(0, 0);
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uScale: { value: 300 }, uMap: { value: this.fxTexture() } }, transparent: true, depthWrite: false,
+      vertexShader: `attribute vec3 pcolor; attribute float alpha; attribute float frame; uniform float uScale;
+        varying vec3 vC; varying float vA; varying float vF;
+        void main(){ vC = pcolor; vA = alpha; vF = frame; vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = 3.2 * uScale / -mv.z; gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform sampler2D uMap; varying vec3 vC; varying float vA; varying float vF;
+        void main(){ vec4 t = texture2D(uMap, vec2((gl_PointCoord.x + vF) / 4.0, 1.0 - gl_PointCoord.y));
+          if (t.a < 0.1) discard;
+          // el brillo blanco del centro de la textura aclara un poco el color para que resalte
+          gl_FragColor = vec4(mix(vC, vec3(1.0), (t.r - 0.55) * 0.5) * (0.6 + 0.6 * t.r), t.a * vA); }`
+    });
+    this.fxPoints = new THREE.Points(geo, mat); this.fxPoints.frustumCulled = false;
+    this.root.add(this.fxPoints);
+    this.fx = { emit: [], list: [], width: 10, height: 32, levitate: false };
+  },
+  setFx(cfg) {
+    if (!this.fx) return;
+    // Se conservan las partículas vivas de los efectos que siguen activos
+    const keep = new Set((cfg.emit || []).map(e => e.color.getHex()));
+    this.fx.list = this.fx.list.filter(p => keep.has(p.hex));
+    Object.assign(this.fx, cfg);
+  },
+  stepFx(s, dt) {
+    const fx = this.fx; if (!fx) return;
+    // Levitación: el mob flota
+    const offY = fx.levitate ? 5 + Math.sin(s * 1.8) * 1.5 : 0;
+    if (this.model) this.model.position.y = offY;
+    this.fxPoints.position.y = offY;
+    // Nacen partículas en puntos al azar alrededor del cuerpo
+    for (const e of fx.emit) {
+      e.acc += e.rate * dt;
+      while (e.acc >= 1 && fx.list.length < this.FX_MAX) {
+        e.acc--;
+        const ang = Math.random() * Math.PI * 2, r = fx.width * (0.25 + Math.random() * 0.4);
+        fx.list.push({ x: Math.cos(ang) * r, y: Math.random() * fx.height * 0.9, z: Math.sin(ang) * r,
+          vx: (Math.random() - .5) * 4, vy: 9 + Math.random() * 8, vz: (Math.random() - .5) * 4,
+          spin: (Math.random() < .5 ? -1 : 1) * (2 + Math.random() * 2), // pequeño remolino
+          age: 0, life: 0.6 + Math.random() * 0.6, c: e.color, hex: e.color.getHex(), a: e.alpha });
+      }
+      if (e.acc > 1) e.acc = 1;
+    }
+    // Suben girando, se encogen (cambian de cuadro) y desaparecen
+    const G = this.fxPoints.geometry.attributes;
+    let n = 0;
+    fx.list = fx.list.filter(p => (p.age += dt) < p.life);
+    for (const p of fx.list) {
+      const ca = Math.cos(p.spin * dt), sa = Math.sin(p.spin * dt), x = p.x, z = p.z;
+      p.x = x * ca - z * sa + p.vx * dt; p.z = x * sa + z * ca + p.vz * dt; p.y += p.vy * dt;
+      p.vy *= 0.98;
+      const f = p.age / p.life;
+      G.position.setXYZ(n, p.x, p.y, p.z); G.pcolor.setXYZ(n, p.c.r, p.c.g, p.c.b);
+      G.alpha.setX(n, p.a * Math.min(1, f * 8) * (f > 0.8 ? (1 - f) * 5 : 1));
+      G.frame.setX(n, Math.min(3, Math.floor(f * 4))); n++;
+    }
+    this.fxPoints.geometry.setDrawRange(0, n);
+    G.position.needsUpdate = G.pcolor.needsUpdate = G.alpha.needsUpdate = G.frame.needsUpdate = true;
+    this.fxPoints.material.uniforms.uScale.value = this.renderer.domElement.height / (2 * Math.tan(this.camera.fov * Math.PI / 360));
+  },
+
   // ---------- Construye el modelo según el mob configurado ----------
   update(m) {
     clearTimeout(this._deb);
@@ -2666,7 +2796,7 @@ const Viewer = {
     const id = stripNs(m.id), def = MOB_MODELS[id], token = ++this.token;
     this.badge.textContent = TEX.count ? 'con texturas' : 'sin texturas';
     if (!def) {
-      this.clear(); this.parts = null;
+      this.clear(); this.parts = null; this.setFx({ emit: [], levitate: false });
       this.msg(`Vista 3D aún no disponible para "${id}". Mobs con modelo: ${Object.keys(MOB_MODELS).join(', ')}.`);
       return;
     }
@@ -2678,10 +2808,10 @@ const Viewer = {
       const g = new THREE.Group(); g.position.set(px, 24 - py, -pz); body.add(g); parts[name] = g;
     }
     const texPath = TEX.findTexture(def.tex, def.tex[0].split('/').pop());
-    const hasTex = await this.addLayer(parts, GEO[def.geo](def.opt), texPath, { colors: def.colors });
+    const hasTex = await this.addLayer(parts, GEO[def.geo](def.opt), texPath, { colors: def.colors, body: true });
     for (const L of [...(def.layers || []), ...(def.extraLayers ? def.extraLayers(m) : [])]) {
       const p = TEX.findTexture(L.tex, L.tex[0].split('/').pop());
-      await this.addLayer(parts, GEO[L.geo](L.opt), p, { skipIfNoTex: true });
+      await this.addLayer(parts, GEO[L.geo](L.opt), p, { skipIfNoTex: true, body: true });
     }
     // Armadura
     for (const [slot, piece] of Object.entries(ARMOR_PIECES)) {
@@ -2712,7 +2842,17 @@ const Viewer = {
     this.centerY = height / 2 + (np.length ? 4 : 0);
     const newFit = Math.max(0.6, height / 32);
     if (newFit !== this.fit) { this.dist *= newFit / (this.fit || 1); this.fit = newFit; }
-    this.glow = !!m.glowing;
+    // ---------- Efectos de poción ----------
+    const effs = (m.effects || []).filter(e => e.id && e.id.trim()).map(e => ({ ...e, id: stripNs(e.id) }));
+    const hasEff = id => effs.some(e => e.id === id);
+    if (hasEff('invisibility'))   // como en el juego: el cuerpo no se ve, la armadura y los items sí (aquí queda un fantasma tenue)
+      model.traverse(o => { if (o.isMesh && o.userData.body) { o.material.transparent = true; o.material.opacity = 0.15; o.material.depthWrite = false; } });
+    this.setFx({
+      emit: effs.filter(e => e.particles !== false && !/^instant_/.test(e.id)).map(e => ({
+        color: new THREE.Color(EFFECT_COLORS[e.id] ?? 0xFFFFFF), rate: e.ambient ? 8 : 30, alpha: e.ambient ? 0.5 : 1, acc: 0 })),
+      width: 9.6 * k, height, levitate: hasEff('levitation')
+    });
+    this.glow = !!m.glowing || hasEff('glowing');
     this.renderer.domElement.classList.toggle('glow', this.glow);
     this.badge.textContent = hasTex ? 'con texturas' : 'colores de muestra';
     this.lastName = id + (textPlain(m.name) ? '-' + textPlain(m.name).replace(/[^\w\-]+/g, '_') : '');
