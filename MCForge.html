@@ -166,13 +166,28 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
 .drop.over{border-color:var(--grass);color:var(--grass)}
 #texStatus{font-size:13px}
 /* ---------- Visor 3D ---------- */
-#viewer{position:relative;height:380px;touch-action:none;cursor:grab;overflow:hidden;
+.viewer3d{position:relative;height:380px;touch-action:none;cursor:grab;overflow:hidden;
   background:radial-gradient(ellipse at 50% 85%,#3a3a44 0%,#18181b 70%)}
-#viewer:active{cursor:grabbing}
-#viewer canvas{display:block;width:100%;height:100%}
-#viewer canvas.glow{filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff)}
-#viewerMsg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--muted);font-size:13px;pointer-events:none}
-@media (max-width:860px){#viewer{height:300px}}
+.viewer3d:active{cursor:grabbing}
+.viewer3d canvas{display:block;width:100%;height:100%;touch-action:none}
+.viewer3d canvas.glow{filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1.5px #fff)}
+.viewer-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--muted);font-size:13px;pointer-events:none}
+@media (max-width:860px){.viewer3d{height:300px}}
+#vilViewer{height:320px}
+/* ---------- Tradeos ---------- */
+.trade-row{padding:10px;margin-bottom:10px;display:flex;flex-direction:column;gap:6px}
+.picker{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.picker .ac{flex:1 1 160px}
+.trade-ui{padding:8px;display:flex;flex-direction:column;gap:4px;background:#c6c6c6;border-color:#373737 #fff #fff #373737}
+.trade-line{display:flex;align-items:center;gap:6px;padding:3px 6px;background:#b4b4b4}
+.trade-line.bad{opacity:.45}
+.trade-line .arrow{font-size:20px;color:#555;padding:0 4px}
+.trade-line small{margin-left:auto;color:#3f3f3f;font-size:11px}
+.sm-slot{width:40px;height:40px;background:#8b8b8b;border-color:#373737 #fff #fff #373737;font-size:9px;color:#222}
+.sm-slot .ico{width:32px;height:32px}
+.sm-slot .cnt{font-size:17px}
+.sm-slot.ghost{background:transparent;border:none}
+.sm-slot .glint-fx{inset:4px}
 #toast{position:fixed;left:50%;bottom:180px;transform:translateX(-50%);background:var(--grass-dk);border:2px solid #7fdc5a;padding:8px 14px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;font-size:13px}
 #toast.show{opacity:1}
 .list-row{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;padding:6px;background:#1e1e22;border:1px solid #333}
@@ -436,13 +451,11 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
     <aside class="side">
       <div class="bevel preview-wrap">
         <div class="row" style="margin:0;align-items:center"><h3 style="flex:1">Vista 3D</h3><span class="badge" id="viewerBadge"></span></div>
-        <div id="viewer" class="inset">
-          <div id="viewerMsg"></div>
-        </div>
+        <div id="viewer" class="viewer3d inset"><div class="viewer-msg"></div></div>
         <div class="row" style="margin:0;justify-content:center">
-          <button class="btn sm" type="button" id="vPause" title="Pausar o reanudar el giro">⏸ Pausar</button>
-          <button class="btn sm" type="button" id="vReset" title="Resetear cámara">⟲ Cámara</button>
-          <button class="btn sm" type="button" id="vPng" title="Descargar PNG">⬇ PNG</button>
+          <button class="btn sm v-pause" type="button" title="Pausar o reanudar el giro">⏸ Pausar</button>
+          <button class="btn sm v-reset" type="button" title="Resetear cámara">⟲ Cámara</button>
+          <button class="btn sm v-png" type="button" title="Descargar PNG">⬇ PNG</button>
         </div>
         <p class="hint" style="margin:0;text-align:center">Arrastra para girar · rueda o pellizco para zoom</p>
       </div>
@@ -540,7 +553,80 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
     </aside>
   </div>
 </section>
-<section class="tab" id="tab-villagers"><div class="bevel soon"><h2>Aldeanos — fase 4</h2><p>Profesión, bioma, nivel y editor de tradeos usando items de tu biblioteca.</p></div></section>
+<section class="tab" id="tab-villagers">
+  <div class="layout">
+    <div id="vilForm">
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn sm" type="button" id="vilReset">Nuevo</button>
+        <button class="btn sm" type="button" id="vilExample">Cargar ejemplo</button>
+      </div>
+
+      <details class="sec bevel" open>
+        <summary>Aldeano</summary>
+        <div class="sec-body">
+          <div class="row">
+            <div class="f grow"><span>Profesión</span><select data-k="profession" id="vilProf"></select></div>
+            <div class="f grow"><span>Bioma (aspecto)</span><select data-k="vtype" id="vilType"></select></div>
+            <div class="f"><span>Nivel</span><select data-k="level" id="vilLevel" style="width:auto"></select></div>
+          </div>
+          <div class="row">
+            <div class="f"><span>X</span><input type="text" data-k="x" style="width:90px"></div>
+            <div class="f"><span>Y</span><input type="text" data-k="y" style="width:90px"></div>
+            <div class="f"><span>Z</span><input type="text" data-k="z" style="width:90px"></div>
+          </div>
+        </div>
+      </details>
+
+      <details class="sec bevel" open>
+        <summary>Nombre</summary>
+        <div class="sec-body">
+          <div id="vilNameEditor"></div>
+          <label class="chk"><input type="checkbox" data-k="nameVisible"> Nombre siempre visible</label>
+        </div>
+      </details>
+
+      <details class="sec bevel" open>
+        <summary>Comportamiento</summary>
+        <div class="sec-body">
+          <div class="row" style="gap:4px 18px">
+            <label class="chk"><input type="checkbox" data-k="noAI"> Sin IA</label>
+            <label class="chk"><input type="checkbox" data-k="invulnerable"> Invulnerable</label>
+            <label class="chk"><input type="checkbox" data-k="silent"> Silencioso</label>
+            <label class="chk"><input type="checkbox" data-k="persistent"> Persistente</label>
+            <label class="chk"><input type="checkbox" data-k="keepJob"> Conservar profesión sin bloque de trabajo</label>
+          </div>
+          <p class="hint">Reabastecimiento: el juego reabastece los tradeos hasta 2 veces al día solo si el aldeano tiene IA y un bloque de trabajo de su profesión cerca. Con "Sin IA" nunca se reabastece, así que usa "∞ usos" en los tradeos que no quieras que se agoten.</p>
+        </div>
+      </details>
+
+      <details class="sec bevel" open>
+        <summary>Tradeos <span class="badge" id="tradeBadge">0</span></summary>
+        <div class="sec-body">
+          <div id="tradeList"></div>
+          <button class="btn sm" type="button" id="tradeAdd">+ Tradeo</button>
+          <p class="hint">Cada ingrediente o resultado puede ser un item vanilla, uno de tu biblioteca o el que tengas abierto en la pestaña Items. Si el ingrediente lleva nombre o encantamientos, el jugador tiene que entregar exactamente ese item.</p>
+        </div>
+      </details>
+    </div>
+
+    <aside class="side">
+      <div class="bevel preview-wrap">
+        <h3>Tradeos (vista previa)</h3>
+        <div id="tradePreview" class="trade-ui inset"></div>
+      </div>
+      <div class="bevel preview-wrap">
+        <div class="row" style="margin:0;align-items:center"><h3 style="flex:1">Vista 3D</h3><span class="badge" id="vilViewerBadge"></span></div>
+        <div id="vilViewer" class="viewer3d inset"><div class="viewer-msg"></div></div>
+        <div class="row" style="margin:0;justify-content:center">
+          <button class="btn sm v-pause" type="button">⏸ Pausar</button>
+          <button class="btn sm v-reset" type="button">⟲ Cámara</button>
+          <button class="btn sm v-png" type="button">⬇ PNG</button>
+        </div>
+      </div>
+      <div class="warns" id="vilWarns"></div>
+    </aside>
+  </div>
+</section>
 </main>
 
 <!-- =================== BARRA DE COMANDO =================== -->
@@ -1392,7 +1478,7 @@ function renderSlot(slot, m, glow) {
   const id = stripNs(m.id), token = slot._token = (slot._token || 0) + 1;
   const fallback = () => {
     slot.replaceChildren(el('span', {}, (NAMES.items[id] || id).slice(0, 18)));
-    if (!TEX.count && !(id === 'player_head' && m.headMode)) slot.append(el('button', { class: 'btn sm', type: 'button', style: 'position:absolute;inset:auto 0 -34px 0;font-size:10px;min-height:24px;padding:2px', onclick: openTex }, 'Cargar texturas'));
+    if (!TEX.count && !slot.classList.contains('sm-slot') && !(id === 'player_head' && m.headMode)) slot.append(el('button', { class: 'btn sm', type: 'button', style: 'position:absolute;inset:auto 0 -34px 0;font-size:10px;min-height:24px;padding:2px', onclick: openTex }, 'Cargar texturas'));
     addCount();
   };
   const addCount = () => { if (+m.count > 1) slot.append(el('span', { class: 'cnt' }, m.count)); };
@@ -1495,7 +1581,7 @@ function renderLib() {
     if (!arr.length) continue;
     list.append(el('div', { class: 'lib-group' }, el('h3', {}, `${label} (${arr.length})`),
       ...arr.map(entry => el('div', { class: 'lib-item inset' },
-        el('div', { class: 'nm' }, entry.name, el('small', {}, stripNs(entry.data.id || entry.data.kind || '') + ' · ' + new Date(entry.savedAt).toLocaleDateString())),
+        el('div', { class: 'nm' }, entry.name, el('small', {}, stripNs(entry.data.id || entry.data.kind || (entry.data.profession ? 'villager · ' + entry.data.profession : '')) + ' · ' + new Date(entry.savedAt).toLocaleDateString())),
         el('button', { class: 'btn sm', type: 'button', onclick: () => libOpen(type, entry) }, 'Abrir'),
         el('button', { class: 'btn sm icon', type: 'button', title: 'Copiar comando', onclick: async () => { await copyText(libCommand(type, entry.data)); toast('Comando copiado'); } }, '📋'),
         el('button', { class: 'btn sm icon danger', type: 'button', title: 'Eliminar', onclick: () => {
@@ -1509,12 +1595,14 @@ function libCommand(type, data) {
   if (type === 'items') return buildItemCommand({ ...newItem(), ...data });
   if (type === 'potions') return buildPotionCommand({ ...newPotion(), ...data });
   if (type === 'mobs') return buildMobCommand({ ...newMob(), ...data });
+  if (type === 'villagers') return buildVillagerCommand({ ...newVillager(), ...data });
   return '';
 }
 function libOpen(type, entry) {
   if (type === 'items') { item = { ...newItem(), ...clone(entry.data) }; renderItemForm(); }
   if (type === 'potions') { potion = { ...newPotion(), ...clone(entry.data) }; renderPotionForm(); }
   if (type === 'mobs') { mob = { ...newMob(), ...clone(entry.data) }; renderMobForm(); }
+  if (type === 'villagers') { villager = { ...newVillager(), ...clone(entry.data) }; renderVillagerForm(); }
   switchTab(type); closeLib(); toast(`"${entry.name}" cargado`);
 }
 const openLib = () => { renderLib(); $('#lib').classList.add('open'); $('#backdrop').classList.add('open'); };
@@ -2022,7 +2110,7 @@ function updateMob() {
   $('#mobWarns').replaceChildren(...mobWarnings(mob).map(([lvl, t]) => el('div', { class: 'warn' + (lvl === 'err' ? ' err' : '') }, t)));
   saveDraft('mob', mob);
   refreshCommand();
-  Viewer.update(mob);
+  if (currentTab === 'mobs') Viewer.update(mob);
 }
 const MOB_EXAMPLE = () => {
   const m = newMob();
@@ -2048,6 +2136,181 @@ $('#mobReset').onclick = () => { mob = newMob(); renderMobForm(); };
 TABS.mobs = { command: () => buildMobCommand(mob), model: () => mob, label: m => textPlain(m.name) || NAMES.entities[stripNs(m.id)] || m.id };
 
 /* =====================================================================
+   8d. PESTAÑA ALDEANOS
+   ===================================================================== */
+const VILLAGER_TYPES = [['plains', 'Llanura'], ['desert', 'Desierto'], ['jungle', 'Jungla'], ['savanna', 'Sabana'], ['snow', 'Nieve'], ['swamp', 'Pantano'], ['taiga', 'Taiga']];
+const VILLAGER_LEVELS = [[1, 'Novato'], [2, 'Aprendiz'], [3, 'Oficial'], [4, 'Experto'], [5, 'Maestro']];
+const LEVEL_BADGE = ['stone', 'iron', 'gold', 'emerald', 'diamond'];
+// Un "item de tradeo": vacío, vanilla o copiado de la biblioteca
+const newTradeItem = (id = '', count = 1) => ({ mode: id ? 'vanilla' : 'none', id, count, name: '', data: null });
+const newTrade = () => ({ buy: newTradeItem('emerald', 5), buyB: newTradeItem(), sell: newTradeItem('diamond', 1),
+  maxUses: 12, infinite: false, xp: 2, priceMultiplier: 0.05, rewardExp: true });
+function newVillager() {
+  return {
+    x: '~', y: '~', z: '~', profession: 'armorer', vtype: 'plains', level: '2',
+    name: newText(''), nameVisible: true,
+    noAI: false, invulnerable: false, silent: false, persistent: true, keepJob: true,
+    trades: [newTrade()]
+  };
+}
+const tradeItemData = t => equipItem(t);   // mismo formato que el equipo de los mobs
+
+function villagerNbt(v, ver) {
+  const o = {};
+  o.VillagerData = { profession: nsId(v.profession), type: nsId(v.vtype), level: parseInt(v.level) || 1 };
+  // Con Xp > 0 no pierde la profesión al quedarse sin bloque de trabajo
+  if (v.keepJob && v.profession !== 'none' && v.profession !== 'nitwit') o.Xp = 1;
+  const nm = textComponent(v.name, {});
+  if (nm) { o.CustomName = new Raw(ver === 'v1214' ? jsonInSnbt(nm) : SNBT.val(nm)); if (v.nameVisible) o.CustomNameVisible = true; }
+  if (v.noAI) o.NoAI = true;
+  if (v.invulnerable) o.Invulnerable = true;
+  if (v.silent) o.Silent = true;
+  if (v.persistent) o.PersistenceRequired = true;
+  const recipes = v.trades.map(t => {
+    const buy = tradeItemData(t.buy), sell = tradeItemData(t.sell), buyB = tradeItemData(t.buyB);
+    if (!buy || !sell) return null;
+    const r = { buy: itemStackNbt(buy, t.buy.count, ver) };
+    if (buyB) r.buyB = itemStackNbt(buyB, t.buyB.count, ver);
+    r.sell = itemStackNbt(sell, t.sell.count, ver);
+    r.maxUses = t.infinite ? 2147483647 : Math.max(1, parseInt(t.maxUses) || 1);
+    r.xp = Math.max(0, parseInt(t.xp) || 0);
+    r.priceMultiplier = new Typed(+t.priceMultiplier || 0, 'f');
+    r.rewardExp = !!t.rewardExp;
+    return r;
+  }).filter(Boolean);
+  if (recipes.length) o.Offers = { Recipes: recipes };
+  return SNBT.val(o);
+}
+function buildVillagerCommand(v, ver = VERSION) {
+  const pos = [v.x, v.y, v.z].map(c => String(c).trim() || '~').join(' ');
+  return `/summon villager ${pos} ${villagerNbt(v, ver)}`;
+}
+function villagerWarnings(v) {
+  const w = [];
+  if (v.profession === 'none' || v.profession === 'nitwit')
+    w.push(['err', `Un aldeano ${v.profession === 'none' ? 'sin profesión' : 'holgazán'} no comercia: niega con la cabeza aunque tenga tradeos.`]);
+  if (!v.trades.length) w.push(['warn', 'No hay tradeos.']);
+  v.trades.forEach((t, i) => {
+    const n = `Tradeo ${i + 1}`;
+    if (!tradeItemData(t.buy)) w.push(['err', `${n}: falta el primer ingrediente (se omitirá).`]);
+    if (!tradeItemData(t.sell)) w.push(['err', `${n}: falta el resultado (se omitirá).`]);
+    for (const [k, lbl] of [['buy', 'ingrediente 1'], ['buyB', 'ingrediente 2'], ['sell', 'resultado']]) {
+      const it = t[k];
+      if (it.mode === 'vanilla' && it.id && !NAMES.items[stripNs(it.id)] && !it.id.includes(':')) w.push(['err', `${n}: "${it.id}" (${lbl}) no es un item conocido.`]);
+      if (it.mode !== 'none' && +it.count > 64) w.push(['warn', `${n}: ${lbl} con más de 64; el juego lo limita al stack máximo del item.`]);
+    }
+  });
+  if (!v.noAI && v.trades.some(t => !t.infinite) && !v.keepJob) w.push(['warn', 'Si el aldeano pierde su bloque de trabajo y nunca ha comerciado, puede perder la profesión y sus tradeos.']);
+  return w;
+}
+
+// ---------- Interfaz ----------
+let villager = loadDraft('villager', newVillager) || newVillager();
+const vilForm = $('#vilForm');
+DATA.professions.forEach(([id, n]) => $('#vilProf').append(el('option', { value: id }, `${n || id} (${id})`)));
+VILLAGER_TYPES.forEach(([id, n]) => $('#vilType').append(el('option', { value: id }, n)));
+VILLAGER_LEVELS.forEach(([id, n]) => $('#vilLevel').append(el('option', { value: id }, `${id} · ${n}`)));
+bindSimpleFields(vilForm, () => villager, () => updateVillager());
+function renderVilName() { $('#vilNameEditor').replaceChildren(textEditor(villager.name, updateVillager, { placeholder: 'Nombre del aldeano', defaultLabel: 'Blanco' })); }
+
+// Selector de item reutilizable (vanilla / biblioteca / item abierto)
+function itemPicker(t, onChange, { allowEmpty = false, placeholder = '' } = {}) {
+  const libItems = libLoad().items || [];
+  const wrap = el('div', { class: 'picker' });
+  const render = () => {
+    const mode = el('select', { style: 'width:auto', onchange: ev => {
+      const v = ev.target.value;
+      if (v === 'none' || v === 'vanilla') { t.mode = v; t.data = null; t.name = ''; }
+      else if (v === 'current') { t.mode = 'lib'; t.data = clone(item); t.name = textPlain(item.name) || stripNs(item.id) + ' (pestaña Items)'; }
+      else if (v.startsWith('lib:')) { const it = libItems.find(x => x.uid === v.slice(4)); if (it) { t.mode = 'lib'; t.data = clone(it.data); t.name = it.name; } }
+      render(); onChange();
+    } },
+      allowEmpty ? el('option', { value: 'none' }, '— Nada —') : null,
+      el('option', { value: 'vanilla' }, 'Vanilla'), el('option', { value: 'current' }, 'Item abierto (pestaña Items)'),
+      libItems.length ? el('optgroup', { label: 'Mi biblioteca' }, libItems.map(it => el('option', { value: 'lib:' + it.uid }, it.name))) : null,
+      t.mode === 'lib' ? el('option', { value: 'keep' }, '★ ' + (t.name || 'Item guardado')) : null);
+    mode.value = t.mode === 'lib' ? 'keep' : (t.mode === 'none' && !allowEmpty ? 'vanilla' : t.mode);
+    const kids = [mode];
+    if (t.mode === 'vanilla') kids.push(autocomplete(DATA.items, t.id, v => { t.id = v; onChange(); }, placeholder, true));
+    if (t.mode !== 'none') kids.push(el('input', { type: 'number', min: 1, max: 99, value: t.count, title: 'Cantidad', 'aria-label': 'Cantidad', style: 'width:64px', oninput: e => { t.count = e.target.value; onChange(); } }));
+    wrap.replaceChildren(...kids);
+  };
+  render();
+  return wrap;
+}
+function renderTrades() {
+  $('#tradeList').replaceChildren(...villager.trades.map((t, i) => {
+    const num = (k, label, attrs) => el('div', { class: 'f' }, el('span', {}, label), el('input', { type: 'number', value: t[k], style: 'width:80px', ...attrs, oninput: e => { t[k] = e.target.value; updateVillager(); } }));
+    const uses = num('maxUses', 'Usos máx.', { min: 1, disabled: t.infinite });
+    return el('div', { class: 'trade-row inset' },
+      el('div', { class: 'te-line-head' }, `Tradeo ${i + 1}`, el('span', { class: 'sp' }),
+        i > 0 ? el('button', { class: 'btn sm icon', type: 'button', title: 'Subir', onclick: () => { [villager.trades[i - 1], villager.trades[i]] = [villager.trades[i], villager.trades[i - 1]]; renderTrades(); updateVillager(); } }, '↑') : null,
+        el('button', { class: 'btn sm icon', type: 'button', title: 'Duplicar', onclick: () => { villager.trades.splice(i + 1, 0, clone(t)); renderTrades(); updateVillager(); } }, '⧉'),
+        el('button', { class: 'btn sm icon danger', type: 'button', title: 'Quitar', onclick: () => { villager.trades.splice(i, 1); renderTrades(); updateVillager(); } }, '✕')),
+      el('div', { class: 'f' }, el('span', {}, 'Ingrediente 1'), itemPicker(t.buy, updateVillager, { placeholder: 'emerald' })),
+      el('div', { class: 'f' }, el('span', {}, 'Ingrediente 2 (opcional)'), itemPicker(t.buyB, updateVillager, { allowEmpty: true, placeholder: 'book' })),
+      el('div', { class: 'f' }, el('span', {}, '→ Resultado'), itemPicker(t.sell, updateVillager, { placeholder: 'diamond_sword' })),
+      el('div', { class: 'row', style: 'margin:8px 0 0' },
+        uses,
+        el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: t.infinite, onchange: e => { t.infinite = e.target.checked; uses.querySelector('input').disabled = t.infinite; updateVillager(); } }), '∞ usos'),
+        num('xp', 'XP aldeano', { min: 0 }),
+        num('priceMultiplier', 'Mult. precio', { min: 0, step: 0.01, title: 'Cuánto sube el precio con la demanda (0.05 normal, 0.2 para herramientas)' }),
+        el('label', { class: 'chk', title: 'El jugador recibe orbes de experiencia al comerciar' }, el('input', { type: 'checkbox', checked: t.rewardExp, onchange: e => { t.rewardExp = e.target.checked; updateVillager(); } }), 'Da XP al jugador')));
+  }));
+  $('#tradeBadge').textContent = villager.trades.length;
+}
+$('#tradeAdd').onclick = () => { villager.trades.push(newTrade()); renderTrades(); updateVillager(); };
+
+// Icono de un item con su cantidad (para la vista previa de tradeos)
+function itemIconEl(it, count) {
+  const box = el('div', { class: 'slot inset sm-slot', title: it ? (textPlain(it.name) || NAMES.items[stripNs(it.id)] || it.id) : '' });
+  if (!it) return box;
+  renderSlot(box, { ...it, count: count || 1 }, it.glint === 'true' || (it.glint !== 'false' && (it.enchants || []).some(e => e.id)));
+  return box;
+}
+function renderTradePreview() {
+  const rows = villager.trades.map(t => {
+    const buy = tradeItemData(t.buy), buyB = tradeItemData(t.buyB), sell = tradeItemData(t.sell);
+    return el('div', { class: 'trade-line' + (buy && sell ? '' : ' bad') },
+      itemIconEl(buy, t.buy.count), buyB ? itemIconEl(buyB, t.buyB.count) : el('div', { class: 'sm-slot ghost' }),
+      el('span', { class: 'arrow' }, '➜'), itemIconEl(sell, t.sell.count),
+      el('small', {}, t.infinite ? '∞' : `${t.maxUses || 1} usos`));
+  });
+  $('#tradePreview').replaceChildren(...(rows.length ? rows : [el('p', { class: 'hint', style: 'margin:0' }, 'Sin tradeos.')]));
+}
+function renderVillagerForm() {
+  fillSimpleFields(vilForm, villager);
+  renderVilName(); renderTrades(); updateVillager();
+}
+// Modelo para el visor 3D
+const villagerView = v => ({ id: 'villager', name: v.name, attrs: [], equip: {}, glowing: false, baby: false, vtype: v.vtype, profession: v.profession, level: v.level });
+function updateVillager() {
+  renderTradePreview();
+  $('#vilWarns').replaceChildren(...villagerWarnings(villager).map(([lvl, t]) => el('div', { class: 'warn' + (lvl === 'err' ? ' err' : '') }, t)));
+  saveDraft('villager', villager);
+  refreshCommand();
+  if (currentTab === 'villagers') Viewer.update(villagerView(villager));
+}
+const VILLAGER_EXAMPLE = () => {
+  const v = newVillager();
+  Object.assign(v, {
+    profession: 'weaponsmith', vtype: 'snow', level: '5', noAI: true, invulnerable: true, silent: true,
+    name: { segs: [{ ...newSeg('Herrero Legendario'), cm: 'gold', b: true }] },
+    trades: [
+      { ...newTrade(), buy: newTradeItem('emerald', 32), sell: { ...newTradeItem(), mode: 'lib', name: 'Espada de Fuego', count: 1,
+        data: { ...newItem(), id: 'diamond_sword', name: { segs: [{ ...newSeg('Espada de Fuego'), cm: 'red', b: true }] }, enchants: [{ id: 'fire_aspect', lvl: 5 }, { id: 'sharpness', lvl: 7 }] } }, infinite: true, xp: 0 },
+      { ...newTrade(), buy: newTradeItem('diamond', 3), buyB: newTradeItem('book', 1), sell: newTradeItem('experience_bottle', 16), maxUses: 4, xp: 10 },
+      { ...newTrade(), buy: newTradeItem('rotten_flesh', 64), sell: newTradeItem('emerald', 1), infinite: true, xp: 0, priceMultiplier: 0 }
+    ]
+  });
+  return v;
+};
+$('#vilExample').onclick = () => { villager = VILLAGER_EXAMPLE(); renderVillagerForm(); toast('Ejemplo cargado'); };
+$('#vilReset').onclick = () => { villager = newVillager(); renderVillagerForm(); };
+
+TABS.villagers = { command: () => buildVillagerCommand(villager), model: () => villager, label: m => textPlain(m.name) || 'Aldeano ' + (NAMES.professions[m.profession] || m.profession) };
+
+/* =====================================================================
    12. DEFINICIONES DE MODELOS 3D
    Coordenadas en píxeles con el sistema de Minecraft Java (Y hacia abajo,
    el frente del mob mira a -Z), igual que en el código del juego y en
@@ -2060,7 +2323,8 @@ TABS.mobs = { command: () => buildMobCommand(mob), model: () => mob, label: m =>
 const deg = d => d * Math.PI / 180;
 const PIVOTS = {
   humanoid: { head: [0, 0, 0], body: [0, 0, 0], right_arm: [-5, 2, 0], left_arm: [5, 2, 0], right_leg: [-1.9, 12, 0], left_leg: [1.9, 12, 0] },
-  skeleton: { head: [0, 0, 0], body: [0, 0, 0], right_arm: [-5, 2, 0], left_arm: [5, 2, 0], right_leg: [-2, 12, 0], left_leg: [2, 12, 0] }
+  skeleton: { head: [0, 0, 0], body: [0, 0, 0], right_arm: [-5, 2, 0], left_arm: [5, 2, 0], right_leg: [-2, 12, 0], left_leg: [2, 12, 0] },
+  villager: { head: [0, 0, 0], body: [0, 0, 0], arms: [0, 3, -1], right_leg: [-2, 12, 0], left_leg: [2, 12, 0] }
 };
 const GEO = {
   // Humanoide clásico. leftSep = brazo/pierna izquierdos con UV propia (texturas 64x64 tipo jugador)
@@ -2095,6 +2359,23 @@ const GEO = {
       { p: 'left_leg', uv: [0, 16], mirror: true, box: [-1, 0, -1, 2, 12, 2], inflate: i }
     ];
   },
+  // Aldeano: cabeza alta, nariz, túnica y brazos cruzados. rim = ala del sombrero (solo en capas de profesión)
+  villager({ inflate = 0, rim = false } = {}) {
+    const i = inflate, b = [
+      { p: 'head', uv: [0, 0], box: [-4, -10, -4, 8, 10, 8], inflate: i },
+      { p: 'head', uv: [32, 0], box: [-4, -10, -4, 8, 10, 8], inflate: i + 0.51 },
+      { p: 'head', uv: [24, 0], box: [-1, -1, -6, 2, 4, 2], inflate: i, pivot: [0, -2, 0], rot: [0, 0, 0] },
+      { p: 'body', uv: [16, 20], box: [-4, 0, -3, 8, 12, 6], inflate: i },
+      { p: 'body', uv: [0, 38], box: [-4, 0, -3, 8, 20, 6], inflate: i + 0.5 },
+      { p: 'arms', uv: [44, 22], box: [-8, -2, -2, 4, 8, 4], inflate: i },
+      { p: 'arms', uv: [44, 22], box: [4, -2, -2, 4, 8, 4], inflate: i, mirror: true },
+      { p: 'arms', uv: [40, 38], box: [-4, 2, -2, 8, 4, 4], inflate: i },
+      { p: 'right_leg', uv: [0, 22], box: [-2, 0, -2, 4, 12, 4], inflate: i },
+      { p: 'left_leg', uv: [0, 22], box: [-2, 0, -2, 4, 12, 4], inflate: i, mirror: true }
+    ];
+    if (rim) b.push({ p: 'head', uv: [30, 47], box: [-8, -8, -6, 16, 16, 1], inflate: i, pivot: [0, 0, 0], rot: [deg(-90), 0, 0] });
+    return b;
+  },
   // Piglins: cabeza ancha, hocico, colmillos y orejas
   piglin() {
     return [
@@ -2120,7 +2401,15 @@ const MOB_MODELS = {
   wither_skeleton:  { geo: 'skeleton', pivots: 'skeleton', tex: ['entity/skeleton/wither_skeleton'], colors: ['#2a2a2a', '#1e1e1e', '#2a2a2a', '#222222'], scale: 1.2 },
   piglin:           { geo: 'piglin', tex: ['entity/piglin/piglin'], colors: ['#e3a39a', '#7a5a3a', '#e3a39a', '#5a4030'] },
   piglin_brute:     { geo: 'piglin', tex: ['entity/piglin/piglin_brute'], colors: ['#d89a8a', '#3a3a3a', '#d89a8a', '#2e2e2e'] },
-  zombified_piglin: { geo: 'piglin', tex: ['entity/piglin/zombified_piglin'], colors: ['#d79a8f', '#6a8f4a', '#d79a8f', '#5a6a3a'], armsForward: true }
+  zombified_piglin: { geo: 'piglin', tex: ['entity/piglin/zombified_piglin'], colors: ['#d79a8f', '#6a8f4a', '#d79a8f', '#5a6a3a'], armsForward: true },
+  // Capas del aldeano: piel base → bioma → profesión → insignia de nivel
+  villager: { geo: 'villager', pivots: 'villager', tex: ['entity/villager/villager'], colors: ['#c49a7c', '#7a5a3a', '#c49a7c', '#4a3a2a'], crossedArms: true,
+    extraLayers: m => {
+      const L = [{ geo: 'villager', opt: { inflate: 0.01 }, tex: [`entity/villager/type/${m.vtype || 'plains'}`] }];
+      if (m.profession && m.profession !== 'none') L.push({ geo: 'villager', opt: { inflate: 0.02, rim: true }, tex: [`entity/villager/profession/${m.profession}`] });
+      if (m.profession && !['none', 'nitwit'].includes(m.profession)) L.push({ geo: 'villager', opt: { inflate: 0.03 }, tex: [`entity/villager/profession_level/${LEVEL_BADGE[(parseInt(m.level) || 1) - 1]}`] });
+      return L;
+    } }
 };
 // Armaduras: qué partes cubre cada pieza y con qué textura/inflado
 const ARMOR_PIECES = {
@@ -2143,9 +2432,18 @@ function armorMaterial(id) {
 const Viewer = {
   ready: false, auto: true, model: null, token: 0, texCache: new Map(),
   yaw: deg(-25), pitch: deg(10), dist: 74, glow: false,
+  hosts: { mobs: ['#viewer', '#viewerBadge'], villagers: ['#vilViewer', '#vilViewerBadge'] },
+  host: null, badge: null, lastName: 'mob',
+  // Mueve el lienzo al visor de la pestaña activa (Mobs o Aldeanos)
+  attach(tab) {
+    const h = this.hosts[tab]; if (!h) return;
+    this.host = $(h[0]); this.badge = $(h[1]);
+    if (this.renderer && this.renderer.domElement.parentNode !== this.host) { this.host.prepend(this.renderer.domElement); this.resize(); }
+  },
   init() {
-    const box = $('#viewer');
-    if (typeof THREE === 'undefined') { this.msg('No se pudo cargar Three.js (se necesita internet la primera vez).'); return; }
+    this.attach('mobs');
+    const box = this.host;
+    if (typeof THREE === 'undefined') { $$('.viewer-msg').forEach(m => m.textContent = 'No se pudo cargar Three.js (se necesita internet la primera vez).'); return; }
     this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
     this.renderer.outputEncoding = THREE.sRGBEncoding;
@@ -2156,16 +2454,17 @@ const Viewer = {
     const sun = new THREE.DirectionalLight(0xffffff, 0.5); sun.position.set(30, 60, 50); this.scene.add(sun);
     const back = new THREE.DirectionalLight(0xffffff, 0.18); back.position.set(-40, 20, -50); this.scene.add(back);
     this.root = new THREE.Group(); this.scene.add(this.root);
-    this.resize(); new ResizeObserver(() => this.resize()).observe(box);
-    this.controls(box);
+    const ro = new ResizeObserver(() => this.resize()); Object.values(this.hosts).forEach(([q]) => ro.observe($(q)));
+    this.resize(); this.controls(this.renderer.domElement);
     this.ready = true;
     const loop = t => { requestAnimationFrame(loop); this.frame(t); };
     requestAnimationFrame(loop);
   },
-  msg(t) { const m = $('#viewerMsg'); m.textContent = t || ''; m.style.display = t ? '' : 'none'; },
+  msg(t) { const m = this.host.querySelector('.viewer-msg'); m.textContent = t || ''; m.style.display = t ? '' : 'none'; },
   resize() {
     if (!this.renderer) return;
-    const box = $('#viewer'), w = box.clientWidth, h = box.clientHeight;
+    const w = this.host.clientWidth, h = this.host.clientHeight;
+    if (!w || !h) return;
     this.renderer.setSize(w, h); this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
   },
   resetCam() { this.yaw = deg(-25); this.pitch = deg(10); this.dist = 74 * (this.fit || 1); },
@@ -2190,14 +2489,15 @@ const Viewer = {
   },
   zoom(f) { this.dist = Math.max(20, Math.min(260, this.dist * f)); },
   frame(t) {
-    if (!this.ready || currentTab !== 'mobs') return;
+    if (!this.ready || (currentTab !== 'mobs' && currentTab !== 'villagers')) return;
     const s = t / 1000;
     if (this.auto && this.model) this.model.rotation.y += 0.006;
     // Animación idle: balanceo suave de brazos y piernas
     const P = this.parts;
     if (P) {
       const sw = Math.sin(s * 2.2) * 0.22, bob = Math.sin(s * 1.6) * 0.05;
-      if (this.armsForward) { P.right_arm.rotation.set(deg(-90) + bob, 0, 0.05); P.left_arm.rotation.set(deg(-90) - bob, 0, -0.05); }
+      if (P.arms) { P.arms.rotation.x = deg(-43) + bob * 0.3; }   // aldeano: brazos cruzados
+      else if (this.armsForward) { P.right_arm.rotation.set(deg(-90) + bob, 0, 0.05); P.left_arm.rotation.set(deg(-90) - bob, 0, -0.05); }
       else { P.right_arm.rotation.set(sw, 0, 0.06 + bob); P.left_arm.rotation.set(-sw, 0, -0.06 - bob); }
       P.right_leg.rotation.x = -sw * 0.9; P.left_leg.rotation.x = sw * 0.9;
       P.head.rotation.y = Math.sin(s * 0.7) * 0.15;
@@ -2311,7 +2611,7 @@ const Viewer = {
     }
     const tx = new THREE.CanvasTexture(c); tx.minFilter = THREE.LinearFilter; tx.encoding = THREE.sRGBEncoding;
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthTest: false, transparent: true }));
-    sp.scale.set(c.width / 6, c.height / 6, 1);
+    sp.scale.set(c.width / 11, c.height / 11, 1);   // tamaño parecido al de la etiqueta del juego
     return sp;
   },
 
@@ -2323,7 +2623,7 @@ const Viewer = {
   async build(m) {
     if (!this.ready) return;
     const id = stripNs(m.id), def = MOB_MODELS[id], token = ++this.token;
-    $('#viewerBadge').textContent = TEX.count ? 'con texturas' : 'sin texturas';
+    this.badge.textContent = TEX.count ? 'con texturas' : 'sin texturas';
     if (!def) {
       this.clear(); this.parts = null;
       this.msg(`Vista 3D aún no disponible para "${id}". Mobs con modelo: ${Object.keys(MOB_MODELS).join(', ')}.`);
@@ -2338,7 +2638,7 @@ const Viewer = {
     }
     const texPath = TEX.findTexture(def.tex, def.tex[0].split('/').pop());
     const hasTex = await this.addLayer(parts, GEO[def.geo](def.opt), texPath, { colors: def.colors });
-    for (const L of def.layers || []) {
+    for (const L of [...(def.layers || []), ...(def.extraLayers ? def.extraLayers(m) : [])]) {
       const p = TEX.findTexture(L.tex, L.tex[0].split('/').pop());
       await this.addLayer(parts, GEO[L.geo](L.opt), p, { skipIfNoTex: true });
     }
@@ -2373,7 +2673,8 @@ const Viewer = {
     if (newFit !== this.fit) { this.dist *= newFit / (this.fit || 1); this.fit = newFit; }
     this.glow = !!m.glowing;
     this.renderer.domElement.classList.toggle('glow', this.glow);
-    $('#viewerBadge').textContent = hasTex ? 'con texturas' : 'colores de muestra';
+    this.badge.textContent = hasTex ? 'con texturas' : 'colores de muestra';
+    this.lastName = id + (textPlain(m.name) ? '-' + textPlain(m.name).replace(/[^\w\-]+/g, '_') : '');
   },
   clear() {
     if (!this.model) return;
@@ -2390,14 +2691,14 @@ const Viewer = {
     if (this.glow) g.filter = 'drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff)';
     g.drawImage(src, 0, 0);
     c.toBlob(b => {
-      const a = el('a', { href: URL.createObjectURL(b), download: `${stripNs(mob.id)}${textPlain(mob.name) ? '-' + textPlain(mob.name).replace(/[^\w\-]+/g, '_') : ''}.png` });
+      const a = el('a', { href: URL.createObjectURL(b), download: `${this.lastName}.png` });
       document.body.append(a); a.click(); a.remove();
     }, 'image/png');
   }
 };
-$('#vPause').onclick = e => { Viewer.auto = !Viewer.auto; e.currentTarget.textContent = Viewer.auto ? '⏸ Pausar' : '▶ Girar'; };
-$('#vReset').onclick = () => { Viewer.resetCam(); if (Viewer.model) Viewer.model.rotation.y = 0; };
-$('#vPng').onclick = () => Viewer.png();
+$$('.v-pause').forEach(b => b.onclick = () => { Viewer.auto = !Viewer.auto; $$('.v-pause').forEach(x => x.textContent = Viewer.auto ? '⏸ Pausar' : '▶ Girar'); });
+$$('.v-reset').forEach(b => b.onclick = () => { Viewer.resetCam(); if (Viewer.model) Viewer.model.rotation.y = 0; });
+$$('.v-png').forEach(b => b.onclick = () => Viewer.png());
 
 /* =====================================================================
    11. PESTAÑAS Y VERSIÓN
@@ -2406,7 +2707,8 @@ function switchTab(name) {
   currentTab = name;
   $$('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   $$('.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
-  if (name === 'mobs') { renderEquip(); renderPassengers(); Viewer.resize(); }   // la biblioteca pudo cambiar
+  if (name === 'mobs') { renderEquip(); renderPassengers(); Viewer.attach('mobs'); Viewer.update(mob); }   // la biblioteca pudo cambiar
+  if (name === 'villagers') { renderTrades(); Viewer.attach('villagers'); Viewer.update(villagerView(villager)); }
   refreshCommand();
 }
 $$('nav.tabs button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
@@ -2414,7 +2716,7 @@ for (const [k, v] of Object.entries(VERSIONS)) $('#verSel').append(el('option', 
 try { VERSION = localStorage.getItem('mccmdforge.version') || 'modern'; } catch {}
 if (!VERSIONS[VERSION]) VERSION = 'modern';
 $('#verSel').value = VERSION;
-$('#verSel').onchange = e => { VERSION = e.target.value; try { localStorage.setItem('mccmdforge.version', VERSION); } catch {} updateItem(); updatePotion(); updateMob(); };
+$('#verSel').onchange = e => { VERSION = e.target.value; try { localStorage.setItem('mccmdforge.version', VERSION); } catch {} updateItem(); updatePotion(); updateMob(); updateVillager(); };
 
 // ---------- Diálogo de texturas ----------
 function texStatus() {
@@ -2436,7 +2738,7 @@ async function loadTexFiles(files) {
       prog.textContent = `${f.name}: ${n} archivos cargados`;
     } catch (e) { prog.textContent = '✖ ' + e.message; }
   }
-  texStatus(); renderItemPreview(); renderPotionPreview(); Viewer.texCache.clear(); Viewer.update(mob);
+  texStatus(); renderItemPreview(); renderPotionPreview(); renderTradePreview(); Viewer.texCache.clear(); Viewer.update(currentTab === 'villagers' ? villagerView(villager) : mob);
 }
 $('#texFile').onchange = e => { loadTexFiles([...e.target.files]); e.target.value = ''; };
 const drop = $('#texDrop');
@@ -2445,15 +2747,16 @@ drop.addEventListener('dragleave', () => drop.classList.remove('over'));
 drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); loadTexFiles([...e.dataTransfer.files]); });
 $('#texClear').onclick = async () => {
   if (!confirm('¿Borrar todas las texturas guardadas en este navegador?')) return;
-  await TEX.clear(); texStatus(); renderItemPreview(); renderPotionPreview(); Viewer.texCache.clear(); Viewer.update(mob); toast('Texturas borradas');
+  await TEX.clear(); texStatus(); renderItemPreview(); renderPotionPreview(); renderTradePreview(); Viewer.texCache.clear(); Viewer.update(currentTab === 'villagers' ? villagerView(villager) : mob); toast('Texturas borradas');
 };
 
 // Arranque: primero la interfaz, luego las texturas guardadas
 renderItemForm();
 renderPotionForm();
 renderMobForm();
+renderVillagerForm();
 Viewer.init();
-TEX.init().then(() => { renderItemPreview(); renderPotionPreview(); Viewer.texCache.clear(); Viewer.update(mob); });
+TEX.init().then(() => { renderItemPreview(); renderPotionPreview(); renderTradePreview(); Viewer.texCache.clear(); Viewer.update(mob); });
 </script>
 </body>
 </html>
