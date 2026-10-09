@@ -188,6 +188,10 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
 .sm-slot .cnt{font-size:17px}
 .sm-slot.ghost{background:transparent;border:none}
 .sm-slot .glint-fx{inset:4px}
+#texBanner{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:85;background:#101012;border:2px solid var(--bevel-hi);padding:8px 14px;font-size:13px;display:none;align-items:center;gap:10px;max-width:94vw}
+#texBanner.show{display:flex}
+#texBanner .bar{width:140px;height:8px;background:var(--field);border:1px solid var(--bevel-hi)}
+#texBanner .bar i{display:block;height:100%;width:0;background:var(--grass)}
 #toast{position:fixed;left:50%;bottom:180px;transform:translateX(-50%);background:var(--grass-dk);border:2px solid #7fdc5a;padding:8px 14px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;font-size:13px}
 #toast.show{opacity:1}
 .list-row{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;padding:6px;background:#1e1e22;border:1px solid #333}
@@ -660,18 +664,21 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
   <div class="hd"><h2>Texturas</h2><button class="btn icon sm" type="button" id="texClose" aria-label="Cerrar">✕</button></div>
   <div class="bd">
     <div id="texStatus"></div>
+    <div class="row" style="margin:0"><button class="btn green sm" type="button" id="texOfficial">⬇ Descargar texturas oficiales (Mojang)</button></div>
     <label class="drop" id="texDrop">
       Suelta aquí el <b>.jar</b> de Minecraft o un resource pack <b>.zip</b>, o haz clic para elegirlo
       <input type="file" id="texFile" accept=".jar,.zip" multiple hidden>
     </label>
     <div id="texProgress" class="hint"></div>
-    <p class="hint" style="margin:0">El .jar está en <code>%appdata%\.minecraft\versions\26.3\26.3.jar</code> (cambia 26.3 por tu versión).
+    <p class="hint" style="margin:0">Las texturas vanilla se descargan solas la primera vez desde los servidores de Mojang (el mismo archivo que baja el launcher, unos 30–50 MB).
+      Si eso falla, puedes soltar aquí tu .jar: está en <code>%appdata%\.minecraft\versions\26.3\26.3.jar</code>.
       Si cargas un resource pack después del .jar, sus texturas reemplazan las vanilla, igual que en el juego. Así también ves los modelos de tu <code>item_model</code>.</p>
     <p class="hint" style="margin:0">Las texturas se quedan guardadas en este navegador; no se suben a ningún lado.</p>
     <div class="row" style="justify-content:flex-end;margin:0"><button class="btn sm danger" type="button" id="texClear">Borrar texturas guardadas</button></div>
   </div>
 </dialog>
 
+<div id="texBanner"><span id="texBannerTxt"></span><div class="bar"><i id="texBannerBar"></i></div></div>
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -944,10 +951,14 @@ const IDB = {
   db: null,
   open() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open('mccmdforge', 1);
+      // Algunos navegadores (ej. Brave con archivos locales) nunca responden: se corta a los 4 s
+      const t = setTimeout(() => rej(new Error('IndexedDB no respondió')), 4000);
+      let r;
+      try { try { indexedDB.deleteDatabase('mccmdforge'); } catch {} r = indexedDB.open('mccmdforge-v2', 1); } catch (e) { clearTimeout(t); return rej(e); }
       r.onupgradeneeded = () => r.result.createObjectStore('files');
-      r.onsuccess = () => res(this.db = r.result);
-      r.onerror = () => rej(r.error);
+      r.onsuccess = () => { clearTimeout(t); res(this.db = r.result); };
+      r.onerror = () => { clearTimeout(t); rej(r.error); };
+      r.onblocked = () => { clearTimeout(t); rej(new Error('IndexedDB bloqueado por otra pestaña')); };
     });
   },
   req: r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }),
@@ -977,14 +988,17 @@ const TEX = {
     try {
       await IDB.open(); this.persistent = true;
       for (const [k, v] of await IDB.all()) {
-        if (k === '__packs') this.packs = JSON.parse(v); else this.files.set(k, v);
+        if (k === '__packs') this.packs = JSON.parse(v);
+        else this.files.set(k, (v instanceof Uint8Array || v instanceof ArrayBuffer) ? new Blob([v], { type: 'image/png' }) : v);
       }
-    } catch (e) { console.warn('IndexedDB no disponible:', e); }
+    } catch (e) { this.persistent = false; console.warn('[Texturas] IndexedDB no disponible, se usará solo memoria:', e.message || e); }
+    this.resetCaches();   // la vista previa ya se dibujó sin texturas: olvidar esos iconos vacíos
+    console.info(`[Texturas] Guardadas en el navegador: ${this.count} (${this.persistent ? 'persistente' : 'sin guardar'})`);
   },
   resetCaches() { this.bmpCache.clear(); this.jsonCache.clear(); this.iconCache.clear(); },
 
   // Lee un .jar / .zip y guarda solo lo necesario (modelos, definiciones de items y texturas)
-  async loadArchive(file, onProgress) {
+  async loadArchive(file, onProgress, name = file.name) {
     if (typeof JSZip === 'undefined') throw new Error('No se pudo cargar JSZip (¿sin internet?)');
     const zip = await JSZip.loadAsync(file);
     const WANT = /^([a-z0-9_.\-]+)\/(items\/.+\.json|models\/.+\.json|textures\/(?:item|block|entity|trims|models)\/.+\.png)$/;
@@ -999,16 +1013,44 @@ const TEX = {
     if (!jobs.length) throw new Error('No encontré la carpeta assets/ con modelos o texturas en ese archivo');
     let batch = [], done = 0;
     for (const [key, f] of jobs) {
-      const val = key.endsWith('.png') ? new Blob([await f.async('uint8array')], { type: 'image/png' }) : await f.async('string');
-      this.files.set(key, val); batch.push([key, val]); done++;
+      if (key.endsWith('.png')) {
+        const bytes = await f.async('uint8array');
+        this.files.set(key, new Blob([bytes], { type: 'image/png' }));
+        batch.push([key, bytes]);                // se guardan bytes, no Blobs: los Blobs fallan al reabrir en file://
+      } else { const txt = await f.async('string'); this.files.set(key, txt); batch.push([key, txt]); }
+      done++;
       if (batch.length >= 400) { if (this.persistent) await IDB.putMany(batch); batch = []; onProgress?.(done, jobs.length); }
     }
-    this.packs = this.packs.filter(p => p !== file.name).concat(file.name);
+    this.packs = this.packs.filter(p => p !== name && !(name.endsWith('(oficial)') && p.endsWith('(oficial)'))).concat(name);
     batch.push(['__packs', JSON.stringify(this.packs)]);
     if (this.persistent) await IDB.putMany(batch);
     onProgress?.(done, jobs.length);
     this.resetCaches();
     return done;
+  },
+  /* Descarga el .jar del cliente desde los servidores oficiales de Mojang
+     (lo mismo que hace el launcher) y lo procesa con loadArchive. */
+  async downloadOfficial(onStep) {
+    const getJson = async url => { const r = await fetch(url); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); };
+    onStep?.('Buscando la última versión…', 0);
+    const manifest = await getJson('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json');
+    const ver = manifest.versions.find(v => v.id === manifest.latest.release);
+    console.info('[Texturas] Última versión:', ver.id);
+    const info = await getJson(ver.url);
+    const dl = info.downloads.client;
+    onStep?.(`Descargando Minecraft ${ver.id}…`, 0);
+    const res = await fetch(dl.url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const total = +res.headers.get('content-length') || dl.size || 0;
+    const reader = res.body.getReader(), chunks = []; let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read(); if (done) break;
+      chunks.push(value); got += value.length;
+      if (total) onStep?.(`Descargando Minecraft ${ver.id}… ${(got / 1048576).toFixed(1)} / ${(total / 1048576).toFixed(1)} MB`, got / total * 0.7);
+    }
+    const blob = new Blob(chunks);
+    const n = await this.loadArchive(blob, (d, t) => onStep?.(`Extrayendo texturas… ${d} / ${t}`, 0.7 + d / t * 0.3), `Minecraft ${ver.id} (oficial)`);
+    return { version: ver.id, files: n };
   },
   async clear() {
     this.files.clear(); this.packs = []; this.resetCaches();
@@ -1027,7 +1069,7 @@ const TEX = {
     const { ns, p } = this.ref(texRef), key = `${ns}/textures/${p}.png`;
     if (!this.bmpCache.has(key)) {
       const blob = this.files.get(key);
-      this.bmpCache.set(key, blob instanceof Blob ? createImageBitmap(blob).catch(() => null) : Promise.resolve(null));
+      this.bmpCache.set(key, blob instanceof Blob ? createImageBitmap(blob).catch(e => { if (!this._bmpWarned) { this._bmpWarned = true; console.warn('[Texturas] No se pudo leer una textura guardada:', key, e.message || e); } return null; }) : Promise.resolve(null));
     }
     return this.bmpCache.get(key);
   },
@@ -2728,6 +2770,30 @@ function texStatus() {
 function openTex() { texStatus(); $('#texProgress').textContent = ''; $('#texDlg').showModal(); }
 $('#texBtn').onclick = openTex;
 $('#texClose').onclick = () => $('#texDlg').close();
+function refreshAfterTex() {
+  texStatus(); renderItemPreview(); renderPotionPreview(); renderTradePreview(); Viewer.texCache.clear();
+  Viewer.update(currentTab === 'villagers' ? villagerView(villager) : mob);
+}
+const NO_AUTO_TEX = 'mccmdforge.noAutoTex';
+let texDownloading = false;
+async function downloadOfficialTex() {
+  if (texDownloading) return; texDownloading = true;
+  const ban = $('#texBanner'), txt = $('#texBannerTxt'), bar = $('#texBannerBar'), prog = $('#texProgress');
+  ban.classList.add('show');
+  try {
+    const r = await TEX.downloadOfficial((msg, f) => { txt.textContent = msg; bar.style.width = (f * 100).toFixed(1) + '%'; prog.textContent = msg; });
+    try { localStorage.removeItem(NO_AUTO_TEX); } catch {}
+    prog.textContent = `Texturas de Minecraft ${r.version} listas.`;
+    toast(`Texturas de Minecraft ${r.version} cargadas`);
+  } catch (e) {
+    console.warn(e);
+    prog.textContent = '✖ No se pudieron descargar (' + e.message + '). Revisa tu conexión o carga el .jar a mano.';
+    toast('No se pudieron descargar las texturas');
+  } finally {
+    ban.classList.remove('show'); texDownloading = false; refreshAfterTex();
+  }
+}
+$('#texOfficial').onclick = downloadOfficialTex;
 async function loadTexFiles(files) {
   for (const f of files) {
     const prog = $('#texProgress');
@@ -2737,7 +2803,7 @@ async function loadTexFiles(files) {
       prog.textContent = `${f.name}: ${n} archivos cargados`;
     } catch (e) { prog.textContent = '✖ ' + e.message; }
   }
-  texStatus(); renderItemPreview(); renderPotionPreview(); renderTradePreview(); Viewer.texCache.clear(); Viewer.update(currentTab === 'villagers' ? villagerView(villager) : mob);
+  refreshAfterTex();
 }
 $('#texFile').onchange = e => { loadTexFiles([...e.target.files]); e.target.value = ''; };
 const drop = $('#texDrop');
@@ -2746,7 +2812,7 @@ drop.addEventListener('dragleave', () => drop.classList.remove('over'));
 drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); loadTexFiles([...e.dataTransfer.files]); });
 $('#texClear').onclick = async () => {
   if (!confirm('¿Borrar todas las texturas guardadas en este navegador?')) return;
-  await TEX.clear(); texStatus(); renderItemPreview(); renderPotionPreview(); renderTradePreview(); Viewer.texCache.clear(); Viewer.update(currentTab === 'villagers' ? villagerView(villager) : mob); toast('Texturas borradas');
+  await TEX.clear(); try { localStorage.setItem(NO_AUTO_TEX, '1'); } catch {} refreshAfterTex(); toast('Texturas borradas');
 };
 
 // Arranque: primero la interfaz, luego las texturas guardadas
@@ -2755,7 +2821,13 @@ renderPotionForm();
 renderMobForm();
 renderVillagerForm();
 Viewer.init();
-TEX.init().then(() => { renderItemPreview(); renderPotionPreview(); renderTradePreview(); Viewer.texCache.clear(); Viewer.update(mob); });
+TEX.init().then(() => {
+  refreshAfterTex();
+  // Primera vez (o si no hay texturas guardadas): se descargan solas las oficiales
+  let skip = false; try { skip = !!localStorage.getItem(NO_AUTO_TEX); } catch {}
+  if (!TEX.count && !skip) { console.info('[Texturas] Sin texturas: descargando las oficiales…'); downloadOfficialTex(); }
+  else if (!TEX.count) console.info('[Texturas] Descarga automática desactivada (borraste las texturas). Usa el botón del diálogo.');
+});
 </script>
 </body>
 </html>
