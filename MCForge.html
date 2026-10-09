@@ -1603,8 +1603,11 @@ const LIB_KEY = 'mccmdforge.library.v1';
 const LIB_TYPES = { items: 'Items', potions: 'Pociones', mobs: 'Mobs', villagers: 'Aldeanos' };
 function libLoad() { try { return JSON.parse(localStorage.getItem(LIB_KEY)) || {}; } catch { return {}; } }
 function libSave(lib) { try { localStorage.setItem(LIB_KEY, JSON.stringify(lib)); } catch { toast('No se pudo guardar (almacenamiento lleno o bloqueado)'); } }
-function saveDraft(k, m) { try { localStorage.setItem('mccmdforge.draft.' + k, JSON.stringify(m)); } catch {} }
-function loadDraft(k, factory = newItem) { try { const d = JSON.parse(localStorage.getItem('mccmdforge.draft.' + k)); return d ? { ...factory(), ...d } : null; } catch { return null; } }
+// Los formularios ya NO se guardan: cada vez que abres MCForge empieza desde cero.
+// (Lo que quieras conservar, guárdalo en la Biblioteca.) Se borran los borradores de versiones anteriores.
+try { for (const k of ['item', 'potion', 'mob', 'villager']) localStorage.removeItem('mccmdforge.draft.' + k); } catch {}
+function saveDraft() {}
+function loadDraft() { return null; }
 
 $('#saveBtn').onclick = () => {
   const t = TABS[currentTab]; if (!t) return;
@@ -2036,7 +2039,7 @@ function mobWarnings(m) {
   const w = [], id = stripNs(m.id);
   if (!NAMES.entities[id] && !id.includes(':')) w.push(['err', `"${id}" no es una entidad vanilla conocida.`]);
   if (id === 'player') w.push(['err', 'No se pueden invocar jugadores con /summon.']);
-  if (NOT_MOB.test(id)) w.push(['warn', 'Esta entidad no es un mob: la vida, el equipo, los efectos y la IA no le afectan.']);
+  if (NOT_MOB.test(id) || (NAMES.entities[id] && !MOB_IDS.has(id))) w.push(['warn', 'Esta entidad no es un mob: la vida, el equipo, los efectos y la IA no le afectan.']);
   if (m.baby && !IS_BABY.has(id) && !AGEABLE.has(id)) w.push(['warn', 'Este mob no tiene versión bebé (o no la conozco): se ignora.']);
   if (m.maxHealth !== '' && +m.maxHealth > 1024) w.push(['warn', 'La vida máxima está limitada a 1024 por el juego.']);
   if (m.health !== '' && m.maxHealth !== '' && +m.health > +m.maxHealth) w.push(['warn', 'La vida al aparecer es mayor que la máxima: se recortará.']);
@@ -2057,7 +2060,18 @@ function balanced(s) { let d = 0; for (const c of s) { if ('{['.includes(c)) d++
 let mob = loadDraft('mob', newMob) || newMob();
 const mobForm = $('#mobForm');
 bindSimpleFields(mobForm, () => mob, () => updateMob());
-const acMob = autocomplete(DATA.entities.filter(([id]) => id !== 'player'), mob.id, v => { mob.id = v; renderMobOpts(); updateMob(); }, 'zombie');
+// Solo criaturas vivas (sin botes, flechas, vagones, hologramas, etc.)
+const MOB_IDS = new Set(['allay', 'armadillo', 'axolotl', 'bat', 'bee', 'blaze', 'bogged', 'breeze', 'camel', 'camel_husk', 'cat',
+  'cave_spider', 'chicken', 'cod', 'copper_golem', 'cow', 'creaking', 'creeper', 'dolphin', 'donkey', 'drowned', 'elder_guardian',
+  'ender_dragon', 'enderman', 'endermite', 'evoker', 'fox', 'frog', 'ghast', 'giant', 'glow_squid', 'goat', 'guardian', 'happy_ghast',
+  'hoglin', 'horse', 'husk', 'illusioner', 'iron_golem', 'llama', 'magma_cube', 'mooshroom', 'mule', 'nautilus', 'ocelot', 'panda',
+  'parched', 'parrot', 'phantom', 'pig', 'piglin', 'piglin_brute', 'pillager', 'polar_bear', 'pufferfish', 'rabbit', 'ravager',
+  'salmon', 'sheep', 'shulker', 'silverfish', 'skeleton', 'skeleton_horse', 'slime', 'sniffer', 'snow_golem', 'spider', 'squid',
+  'stray', 'strider', 'sulfur_cube', 'tadpole', 'trader_llama', 'tropical_fish', 'turtle', 'vex', 'villager', 'vindicator',
+  'wandering_trader', 'warden', 'witch', 'wither', 'wither_skeleton', 'wolf', 'zoglin', 'zombie', 'zombie_horse', 'zombie_nautilus',
+  'zombie_villager', 'zombified_piglin']);
+const MOB_LIST = DATA.entities.filter(([id]) => MOB_IDS.has(id));
+const acMob = autocomplete(MOB_LIST, mob.id, v => { mob.id = v; renderMobOpts(); updateMob(); }, 'zombie');
 $('#acMob').append(acMob);
 function renderMobName() { $('#mobNameEditor').replaceChildren(textEditor(mob.name, updateMob, { placeholder: 'Nombre del mob', defaultLabel: 'Blanco' })); }
 
@@ -2135,7 +2149,7 @@ function renderPassengers() {
       p.mode === 'lib' ? el('option', { value: 'keep' }, '★ ' + (p.name || 'Mob guardado')) : null);
     sel.value = p.mode === 'lib' ? 'keep' : 'vanilla';
     return el('div', { class: 'list-row', style: 'align-items:center' }, el('span', { style: 'font-size:12px;color:var(--muted)' }, `#${i + 1}`), sel,
-      p.mode === 'vanilla' ? autocomplete(DATA.entities, p.id, v => { p.id = v; updateMob(); }, 'skeleton') : null,
+      p.mode === 'vanilla' ? autocomplete(MOB_LIST, p.id, v => { p.id = v; updateMob(); }, 'skeleton') : null,
       el('button', { class: 'btn icon danger', type: 'button', title: 'Quitar', onclick: () => { mob.passengers.splice(i, 1); renderPassengers(); updateMob(); } }, '✕'));
   }));
   $('#passBadge').textContent = mob.passengers.length;
@@ -2431,6 +2445,123 @@ const GEO = {
     ];
   }
 };
+// ----- Más mobs -----
+const R90 = [deg(90), 0, 0];   // cuerpo de cuadrúpedo: caja vertical girada 90° en X
+const legs4 = (uv, box, extra = {}) => ['right_hind_leg', 'left_hind_leg', 'right_front_leg', 'left_front_leg']
+  .map(p => ({ p, uv, box, mirror: p.startsWith('left'), ...extra }));
+Object.assign(PIVOTS, {
+  pig:     { head: [0, 12, -6], body: [0, 11, 2], right_hind_leg: [-3, 18, 7], left_hind_leg: [3, 18, 7], right_front_leg: [-3, 18, -5], left_front_leg: [3, 18, -5] },
+  cow:     { head: [0, 4, -8], body: [0, 5, 2], right_hind_leg: [-4, 12, 7], left_hind_leg: [4, 12, 7], right_front_leg: [-4, 12, -6], left_front_leg: [4, 12, -6] },
+  sheep:   { head: [0, 6, -8], body: [0, 5, 2], right_hind_leg: [-3, 12, 7], left_hind_leg: [3, 12, 7], right_front_leg: [-3, 12, -5], left_front_leg: [3, 12, -5] },
+  creeper: { head: [0, 6, 0], body: [0, 6, 0], right_hind_leg: [-2, 18, 4], left_hind_leg: [2, 18, 4], right_front_leg: [-2, 18, -4], left_front_leg: [2, 18, -4] },
+  spider:  { head: [0, 15, -3], neck: [0, 15, 0], body: [0, 15, 9],
+    right_hind_leg: [-4, 15, 2], left_hind_leg: [4, 15, 2], right_middle_hind_leg: [-4, 15, 1], left_middle_hind_leg: [4, 15, 1],
+    right_middle_front_leg: [-4, 15, 0], left_middle_front_leg: [4, 15, 0], right_front_leg: [-4, 15, -1], left_front_leg: [4, 15, -1] },
+  slime:   { body: [0, 24, 0] },
+  chicken: { head: [0, 15, -4], body: [0, 16, 0], right_leg: [-2, 19, 1], left_leg: [1, 19, 1], right_wing: [-4, 13, 0], left_wing: [4, 13, 0] },
+  golem:   { head: [0, -7, -2], body: [0, -7, 0], right_arm: [0, -7, 0], left_arm: [0, -7, 0], right_leg: [-4, 11, 0], left_leg: [5, 11, 0] },
+  snow:    { head: [0, 4, 0], upper_body: [0, 13, 0], lower_body: [0, 24, 0], right_arm: [-5, 6, 0], left_arm: [5, 6, 0] },
+  enderman:{ head: [0, -14, 0], body: [0, -14, 0], right_arm: [-5, -12, 0], left_arm: [5, -12, 0], right_leg: [-2, -6, 0], left_leg: [2, -6, 0] },
+  blaze:   { head: [0, 0, 0], rods: [0, 0, 0] }
+});
+Object.assign(GEO, {
+  pig: () => [
+    { p: 'head', uv: [0, 0], box: [-4, -4, -8, 8, 8, 8] }, { p: 'head', uv: [16, 16], box: [-2, 0, -9, 4, 3, 1] },
+    { p: 'body', uv: [28, 8], box: [-5, -10, -7, 10, 16, 8], pivot: [0, 0, 0], rot: R90 },
+    ...legs4([0, 16], [-2, 0, -2, 4, 6, 4])],
+  cow: () => [
+    { p: 'head', uv: [0, 0], box: [-4, -4, -6, 8, 8, 6] },
+    { p: 'head', uv: [22, 0], box: [-5, -5, -4, 1, 3, 1] }, { p: 'head', uv: [22, 0], box: [4, -5, -4, 1, 3, 1] },
+    { p: 'body', uv: [18, 4], box: [-6, -10, -7, 12, 18, 10], pivot: [0, 0, 0], rot: R90 },
+    { p: 'body', uv: [52, 0], box: [-2, 2, -8, 4, 6, 1], pivot: [0, 0, 0], rot: R90 },
+    ...legs4([0, 16], [-2, 0, -2, 4, 12, 4])],
+  sheep: () => [
+    { p: 'head', uv: [0, 0], box: [-3, -4, -6, 6, 6, 8] },
+    { p: 'body', uv: [28, 8], box: [-4, -10, -7, 8, 16, 6], pivot: [0, 0, 0], rot: R90 },
+    ...legs4([0, 16], [-2, 0, -2, 4, 12, 4])],
+  sheepWool: () => [
+    { p: 'head', uv: [0, 0], box: [-3, -4, -4, 6, 6, 6], inflate: 0.6 },
+    { p: 'body', uv: [28, 8], box: [-4, -10, -7, 8, 16, 6], inflate: 1.75, pivot: [0, 0, 0], rot: R90 },
+    ...legs4([0, 16], [-2, 0, -2, 4, 6, 4], { inflate: 0.5 })],
+  creeper: () => [
+    { p: 'head', uv: [0, 0], box: [-4, -8, -4, 8, 8, 8] }, { p: 'body', uv: [16, 16], box: [-4, 0, -2, 8, 12, 4] },
+    ...legs4([0, 16], [-2, 0, -2, 4, 6, 4])],
+  spider() {
+    const z45 = Math.PI / 4, zMid = 0.58119464, y45 = Math.PI / 4, y22 = Math.PI / 8;
+    const L = [['right_hind_leg', -z45, y45], ['left_hind_leg', z45, -y45], ['right_middle_hind_leg', -zMid, y22], ['left_middle_hind_leg', zMid, -y22],
+      ['right_middle_front_leg', -zMid, -y22], ['left_middle_front_leg', zMid, y22], ['right_front_leg', -z45, -y45], ['left_front_leg', z45, y45]];
+    return [
+      { p: 'head', uv: [32, 4], box: [-4, -4, -8, 8, 8, 8] }, { p: 'neck', uv: [0, 0], box: [-3, -3, -3, 6, 6, 6] },
+      { p: 'body', uv: [0, 12], box: [-5, -4, -6, 10, 8, 12] },
+      ...L.map(([p, zr, yr]) => ({ p, uv: [18, 0], box: p.startsWith('right') ? [-15, -1, -1, 16, 2, 2] : [-1, -1, -1, 16, 2, 2], pivot: [0, 0, 0], rot: [0, yr, zr] }))];
+  },
+  slime: () => [
+    { p: 'body', uv: [0, 16], box: [-3, -7, -3, 6, 6, 6] },
+    { p: 'body', uv: [32, 0], box: [-3.25, -6, -3.5, 2, 2, 2] }, { p: 'body', uv: [32, 4], box: [1.25, -6, -3.5, 2, 2, 2] },
+    { p: 'body', uv: [32, 8], box: [0, -3, -3.5, 1, 1, 1] },
+    { p: 'body', uv: [0, 0], box: [-4, -8, -4, 8, 8, 8] }],
+  magma: () => [
+    ...[0, 1, 2, 3, 4, 5, 6, 7].map(i => ({ p: 'body', uv: i === 2 ? [24, 10] : i === 3 ? [24, 19] : [0, i], box: [-4, -8 + i, -4, 8, 1, 8] })),
+    { p: 'body', uv: [0, 16], box: [-2, -6, -2, 4, 4, 4] }],
+  chicken: () => [
+    { p: 'head', uv: [0, 0], box: [-2, -6, -2, 4, 6, 3] }, { p: 'head', uv: [14, 0], box: [-2, -4, -4, 4, 2, 2] },
+    { p: 'head', uv: [14, 4], box: [-1, -2, -3, 2, 2, 2] },
+    { p: 'body', uv: [0, 9], box: [-3, -4, -3, 6, 8, 6], pivot: [0, 0, 0], rot: R90 },
+    { p: 'right_leg', uv: [26, 0], box: [-1, 0, -3, 3, 5, 3] }, { p: 'left_leg', uv: [26, 0], box: [-1, 0, -3, 3, 5, 3] },
+    { p: 'right_wing', uv: [24, 13], box: [0, 0, -3, 1, 4, 6] }, { p: 'left_wing', uv: [24, 13], box: [-1, 0, -3, 1, 4, 6] }],
+  golem: () => [
+    { p: 'head', uv: [0, 0], box: [-4, -12, -5.5, 8, 10, 8] }, { p: 'head', uv: [24, 0], box: [-1, -5, -7.5, 2, 4, 2] },
+    { p: 'body', uv: [0, 40], box: [-9, -2, -6, 18, 12, 11] }, { p: 'body', uv: [0, 70], box: [-4.5, 10, -3, 9, 5, 6], inflate: 0.5 },
+    { p: 'right_arm', uv: [60, 21], box: [-13, -2.5, -3, 4, 30, 6] }, { p: 'left_arm', uv: [60, 58], box: [9, -2.5, -3, 4, 30, 6] },
+    { p: 'right_leg', uv: [37, 0], box: [-3.5, -3, -3, 6, 16, 5] }, { p: 'left_leg', uv: [60, 0], box: [-3.5, -3, -3, 6, 16, 5], mirror: true }],
+  snow: () => [
+    { p: 'head', uv: [0, 0], box: [-4, -8, -4, 8, 8, 8], inflate: -0.5 },
+    { p: 'upper_body', uv: [0, 16], box: [-5, -10, -5, 10, 10, 10], inflate: -0.5 },
+    { p: 'lower_body', uv: [0, 36], box: [-6, -12, -6, 12, 12, 12], inflate: -0.5 },
+    { p: 'right_arm', uv: [32, 0], box: [-11, 0, -1, 12, 2, 2], inflate: -0.5, pivot: [0, 0, 0], rot: [0, 0, 0.5] },
+    { p: 'left_arm', uv: [32, 0], box: [-1, 0, -1, 12, 2, 2], inflate: -0.5, pivot: [0, 0, 0], rot: [0, 0, -0.5] }],
+  enderman: () => [
+    { p: 'head', uv: [0, 0], box: [-4, -8, -4, 8, 8, 8], inflate: -0.5 }, { p: 'head', uv: [0, 16], box: [-4, -8, -4, 8, 8, 8], inflate: -0.5 },
+    { p: 'body', uv: [32, 16], box: [-4, 0, -2, 8, 12, 4] },
+    { p: 'right_arm', uv: [56, 0], box: [-1, -2, -1, 2, 30, 2] }, { p: 'left_arm', uv: [56, 0], box: [-1, -2, -1, 2, 30, 2], mirror: true },
+    { p: 'right_leg', uv: [56, 0], box: [-1, 0, -1, 2, 30, 2] }, { p: 'left_leg', uv: [56, 0], box: [-1, 0, -1, 2, 30, 2], mirror: true }],
+  blaze() {
+    const rods = [];
+    [[9, -2], [7, 2], [5, 11]].forEach(([r, y], ring) => { for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2 + ring * Math.PI / 4;
+      rods.push({ p: 'rods', uv: [0, 16], box: [Math.cos(a) * r - 1, y, Math.sin(a) * r - 1, 2, 8, 2] });
+    } });
+    return [{ p: 'head', uv: [0, 0], box: [-4, -4, -4, 8, 8, 8] }, ...rods];
+  },
+  // Illagers: cabeza larga, nariz, túnica; brazos sueltos para sostener armas
+  illager: () => [
+    { p: 'head', uv: [0, 0], box: [-4, -10, -4, 8, 10, 8] },
+    { p: 'head', uv: [24, 0], box: [-1, -1, -6, 2, 4, 2], pivot: [0, -2, 0], rot: [0, 0, 0] },
+    { p: 'body', uv: [16, 20], box: [-4, 0, -3, 8, 12, 6] }, { p: 'body', uv: [0, 38], box: [-4, 0, -3, 8, 18, 6], inflate: 0.5 },
+    { p: 'right_arm', uv: [40, 46], box: [-3, -2, -2, 4, 12, 4] }, { p: 'left_arm', uv: [40, 46], box: [-1, -2, -2, 4, 12, 4], mirror: true },
+    { p: 'right_leg', uv: [0, 22], box: [-2, 0, -2, 4, 12, 4] }, { p: 'left_leg', uv: [0, 22], box: [-2, 0, -2, 4, 12, 4], mirror: true }],
+  // Aldeano zombi: como el aldeano, pero con brazos separados
+  zvillager: ({ inflate = 0 } = {}) => [
+    { p: 'head', uv: [0, 0], box: [-4, -10, -4, 8, 10, 8], inflate },
+    { p: 'head', uv: [32, 0], box: [-4, -10, -4, 8, 10, 8], inflate: inflate + 0.5 },
+    { p: 'head', uv: [24, 0], box: [-1, -1, -6, 2, 4, 2], inflate, pivot: [0, -2, 0], rot: [0, 0, 0] },
+    { p: 'body', uv: [16, 20], box: [-4, 0, -3, 8, 12, 6], inflate }, { p: 'body', uv: [0, 38], box: [-4, 0, -3, 8, 18, 6], inflate: inflate + 0.05 },
+    { p: 'right_arm', uv: [44, 22], box: [-3, -2, -2, 4, 12, 4], inflate }, { p: 'left_arm', uv: [44, 22], box: [-1, -2, -2, 4, 12, 4], inflate, mirror: true },
+    { p: 'right_leg', uv: [0, 22], box: [-2, 0, -2, 4, 12, 4], inflate }, { p: 'left_leg', uv: [0, 22], box: [-2, 0, -2, 4, 12, 4], inflate, mirror: true }],
+  // Bruja: aldeano + sombrero puntiagudo (4 piezas, cada una más arriba y más inclinada)
+  witch: () => [...GEO.villager(),
+    { p: 'head', uv: [0, 64], box: [0, 0, 0, 10, 2, 10], pivot: [-5, -10.03, -5], rot: [0, 0, 0] },
+    { p: 'head', uv: [0, 76], box: [0, 0, 0, 7, 4, 7], pivot: [-3.25, -14.03, -3], rot: [-0.05, 0, 0.03] },
+    { p: 'head', uv: [0, 87], box: [0, 0, 0, 4, 4, 4], pivot: [-1.5, -18.03, -1], rot: [-0.1, 0, 0.05] },
+    { p: 'head', uv: [0, 95], box: [0, 0, 0, 1, 2, 1], inflate: 0.25, pivot: [0.25, -20.03, 1], rot: [-0.2, 0, 0.1] }]
+});
+const villagerLayers = (folder, geo) => m => {
+  const L = [{ geo, opt: { inflate: 0.01 }, tex: [`entity/${folder}/type/${m.vtype || 'plains'}`] }];
+  if (m.profession && m.profession !== 'none') L.push({ geo, opt: { inflate: 0.02, rim: true }, tex: [`entity/${folder}/profession/${m.profession}`] });
+  return L;
+};
+const slimeSize = m => { const n = parseInt(m.opts?.Size); return isNaN(n) ? 2 : Math.max(1, n + 1); };
+const NOHUMAN = { armor: false, held: false };
 // Colores planos mientras no haya texturas: [cabeza, cuerpo, brazos, piernas]
 const MOB_MODELS = {
   zombie:           { geo: 'humanoid', opt: {}, tex: ['entity/zombie/zombie'], colors: ['#5f8f45', '#2f8a8a', '#5f8f45', '#3b3f8f'], armsForward: true },
@@ -2453,6 +2584,365 @@ const MOB_MODELS = {
       return L;
     } }
 };
+Object.assign(MOB_MODELS, {
+  giant:            { geo: 'humanoid', opt: {}, tex: ['entity/zombie/zombie'], colors: ['#5f8f45', '#2f8a8a', '#5f8f45', '#3b3f8f'], armsForward: true, scale: 6 },
+  bogged:           { geo: 'skeleton', pivots: 'skeleton', tex: ['entity/skeleton/bogged'], colors: ['#8a9a6a', '#6a7a4a', '#8a9a6a', '#6a7a4a'],
+                      layers: [{ geo: 'humanoid', opt: { inflate: 0.25, hat: false }, tex: ['entity/skeleton/bogged_overlay'] }] },
+  parched:          { geo: 'skeleton', pivots: 'skeleton', tex: ['entity/skeleton/parched'], colors: ['#d8c49a', '#b8a47a', '#d8c49a', '#b8a47a'] },
+  pillager:         { geo: 'illager', pivots: 'skeleton', tex: ['entity/illager/pillager'], colors: ['#9a8a7a', '#4a4a4a', '#9a8a7a', '#3a3a3a'] },
+  vindicator:       { geo: 'illager', pivots: 'skeleton', tex: ['entity/illager/vindicator'], colors: ['#9a8a7a', '#3a3a3a', '#9a8a7a', '#2a2a2a'] },
+  evoker:           { geo: 'illager', pivots: 'skeleton', tex: ['entity/illager/evoker'], colors: ['#9a8a7a', '#2a2a2a', '#9a8a7a', '#1a1a1a'] },
+  illusioner:       { geo: 'illager', pivots: 'skeleton', tex: ['entity/illager/illusioner'], colors: ['#9a8a7a', '#2a4a8a', '#9a8a7a', '#1a3a6a'] },
+  zombie_villager:  { geo: 'zvillager', pivots: 'skeleton', tex: ['entity/zombie_villager/zombie_villager'], colors: ['#5f8f45', '#6a5a3a', '#5f8f45', '#4a3a2a'], armsForward: true,
+                      extraLayers: m => villagerLayers('zombie_villager', 'zvillager')({ vtype: 'plains' }) },
+  witch:            { geo: 'witch', pivots: 'villager', tex: ['entity/witch/witch', 'entity/witch'], colors: ['#c49a7c', '#4a2a5a', '#c49a7c', '#3a2a3a'], held: false },
+  wandering_trader: { geo: 'villager', opt: { rim: true }, pivots: 'villager', tex: ['entity/wandering_trader/wandering_trader', 'entity/wandering_trader'], colors: ['#c49a7c', '#2a4a8a', '#c49a7c', '#2a3a5a'], held: false },
+  enderman:         { geo: 'enderman', pivots: 'enderman', tex: ['entity/enderman/enderman'], colors: ['#161616', '#161616', '#161616', '#161616'], h: 46, ...NOHUMAN },
+  creeper:          { geo: 'creeper', pivots: 'creeper', anim: 'quad', tex: ['entity/creeper/creeper'], colors: ['#4fa84a', '#4fa84a', '#4fa84a', '#3f8a3a'], h: 26, ...NOHUMAN },
+  pig:              { geo: 'pig', pivots: 'pig', anim: 'quad', tex: ['entity/pig/temperate_pig', 'entity/pig/pig'], colors: ['#f0a8a0', '#f0a8a0', '#f0a8a0', '#e09890'], h: 15, ...NOHUMAN },
+  cow:              { geo: 'cow', pivots: 'cow', anim: 'quad', tex: ['entity/cow/temperate_cow', 'entity/cow/cow'], colors: ['#4a3a2a', '#5a4a3a', '#5a4a3a', '#d8d8d8'], h: 24, ...NOHUMAN },
+  mooshroom:        { geo: 'cow', pivots: 'cow', anim: 'quad', tex: ['entity/cow/red_mooshroom', 'entity/cow/mooshroom_red'], colors: ['#a82020', '#a82020', '#a82020', '#d8d8d8'], h: 24, ...NOHUMAN },
+  sheep:            { geo: 'sheep', pivots: 'sheep', anim: 'quad', tex: ['entity/sheep/sheep'], colors: ['#d8c8b8', '#e8e8e8', '#e8e8e8', '#d8c8b8'], h: 22, ...NOHUMAN,
+                      extraLayers: m => m.opts?.Sheared ? [] : [{ geo: 'sheepWool', tex: ['entity/sheep/sheep_wool', 'entity/sheep/sheep_fur'] }] },
+  spider:           { geo: 'spider', pivots: 'spider', anim: 'none', tex: ['entity/spider/spider'], colors: ['#3a3028', '#3a3028', '#3a3028', '#2a2018'], h: 14, ...NOHUMAN },
+  cave_spider:      { geo: 'spider', pivots: 'spider', anim: 'none', tex: ['entity/spider/cave_spider'], colors: ['#1a3a4a', '#1a3a4a', '#1a3a4a', '#0a2a3a'], h: 14, scale: 0.7, ...NOHUMAN },
+  slime:            { geo: 'slime', pivots: 'slime', anim: 'slime', tex: ['entity/slime/slime'], colors: ['#6ab858', '#6ab858', '#6ab858', '#6ab858'], h: 8, sizeScale: slimeSize, ...NOHUMAN },
+  magma_cube:       { geo: 'magma', pivots: 'slime', anim: 'slime', tex: ['entity/slime/magmacube', 'entity/slime/magma_cube'], colors: ['#5a1a0a', '#5a1a0a', '#5a1a0a', '#5a1a0a'], h: 8, sizeScale: slimeSize, ...NOHUMAN },
+  chicken:          { geo: 'chicken', pivots: 'chicken', anim: 'chicken', tex: ['entity/chicken/temperate_chicken', 'entity/chicken/chicken', 'entity/chicken'], colors: ['#f0f0f0', '#f0f0f0', '#f0f0f0', '#e8a020'], h: 16, ...NOHUMAN },
+  iron_golem:       { geo: 'golem', pivots: 'golem', texW: 128, tex: ['entity/iron_golem/iron_golem'], colors: ['#c8c0b8', '#c8c0b8', '#c8c0b8', '#b8b0a8'], h: 44, ...NOHUMAN },
+  snow_golem:       { geo: 'snow', pivots: 'snow', anim: 'none', tex: ['entity/snow_golem', 'entity/snowman'], colors: ['#f0f8f8', '#f0f8f8', '#5a3a1a', '#f0f8f8'], h: 30, ...NOHUMAN },
+  blaze:            { geo: 'blaze', pivots: 'blaze', anim: 'blaze', tex: ['entity/blaze'], colors: ['#f0c020', '#e8a010', '#e8a010', '#e8a010'], h: 30, ...NOHUMAN }
+});
+// ----- Resto de los mobs -----
+// Atajos: B(parte, uv, caja, extra). Las cajas usan coordenadas de Java (y hacia abajo, suelo en y=24, frente en -z).
+// Con un pivote [0,0,0] en la parte, las cajas quedan en coordenadas absolutas del modelo.
+const B = (p, uv, box, extra = {}) => ({ p, uv, box, ...extra });
+const F = (p, color, box, extra = {}) => ({ p, uv: [0, 0], box, c: color, ...extra });   // caja de color plano
+const ABS = { body: [0, 0, 0] };
+// Cuerpo segmentado (pez de plata, endermite)
+function segments(sizes, uvs) {
+  let f = -3.5; const out = [];
+  sizes.forEach(([w, h, d], i) => {
+    out.push(B('body', uvs[i], [-w / 2, 24 - h, f - d / 2, w, h, d]));
+    if (i < sizes.length - 1) f += (d + sizes[i + 1][2]) * 0.5;
+  });
+  return out;
+}
+Object.assign(PIVOTS, {
+  wolf:   { head: [-1, 13.5, -7], body: [0, 14, 2], mane: [-1, 14, -3], tail: [-1, 12, 8],
+            right_hind_leg: [-2.5, 16, 7], left_hind_leg: [0.5, 16, 7], right_front_leg: [-2.5, 16, -4], left_front_leg: [0.5, 16, -4] },
+  cat:    { head: [0, 15, -9], body: [0, 12, -10], tail: [0, 15, 8], tail2: [0, 20, 14],
+            right_hind_leg: [-1.1, 18, 5], left_hind_leg: [1.1, 18, 5], right_front_leg: [-1.2, 14.1, -5], left_front_leg: [1.2, 14.1, -5] },
+  fox:    { head: [-1, 16.5, -3], body: [0, 16, -6], tail: [0, 15, 7],
+            right_hind_leg: [-5, 17.5, 7], left_hind_leg: [-1, 17.5, 7], right_front_leg: [-5, 17.5, 0], left_front_leg: [-1, 17.5, 0] },
+  horse:  { head: [0, 4, -12], body: [0, 11, 5], tail: [0, 4, 14],
+            right_hind_leg: [-4, 14, 7], left_hind_leg: [4, 14, 7], right_front_leg: [-4, 14, -12], left_front_leg: [4, 14, -12] },
+  llama:  { head: [0, 7, -6], body: [0, 5, 2], right_hind_leg: [-3.5, 10, 6], left_hind_leg: [3.5, 10, 6], right_front_leg: [-3.5, 10, -5], left_front_leg: [3.5, 10, -5] },
+  polar:  { head: [0, 10, -16], body: [-2, 9, 12], right_hind_leg: [-4.5, 14, 6], left_hind_leg: [4.5, 14, 6], right_front_leg: [-3.5, 14, -8], left_front_leg: [3.5, 14, -8] },
+  panda:  { head: [0, 11.5, -17], body: [0, 10, 0], right_hind_leg: [-5.5, 15, 9], left_hind_leg: [5.5, 15, 9], right_front_leg: [-5.5, 15, -9], left_front_leg: [5.5, 15, -9] },
+  hoglin: { head: [0, 2, -12], body: [0, 7, 0], right_hind_leg: [-5, 13, 10], left_hind_leg: [5, 13, 10], right_front_leg: [-4, 10, -8.5], left_front_leg: [4, 10, -8.5] },
+  ravager:{ head: [0, 9, -11.5], neck: [0, -7, 5.5], body: [0, 1, 2], right_hind_leg: [-8, -13, 18], left_hind_leg: [8, -13, 18], right_front_leg: [-8, -13, -4], left_front_leg: [8, -13, -4] },
+  goat:   { head: [0, 8, -7], body: [0, 0, 0], right_hind_leg: [-3, 14, 6], left_hind_leg: [3, 14, 6], right_front_leg: [-3, 14, -5], left_front_leg: [3, 14, -5] },
+  camel:  { head: [0, 1, -10], body: [0, 0, 0], right_hind_leg: [-4.9, 1, 9.5], left_hind_leg: [4.9, 1, 9.5], right_front_leg: [-4.9, 1, -10.5], left_front_leg: [4.9, 1, -10.5] },
+  armadillo: { head: [0, 17, -6], body: [0, 0, 0], right_hind_leg: [-2.5, 21, 3.5], left_hind_leg: [2.5, 21, 3.5], right_front_leg: [-2.5, 21, -3.5], left_front_leg: [2.5, 21, -3.5] },
+  sniffer:{ head: [0, 4, -20], body: [0, 0, 0], right_hind_leg: [-9, 16, 10], left_hind_leg: [9, 16, 10], right_front_leg: [-9, 16, -12], left_front_leg: [9, 16, -12] },
+  squid:  { body: [0, 0, 0], tentacles: [0, 5, 0] },
+  ghast:  { body: [0, 0, 0], tentacles: [0, 8, 0] },
+  shulker:{ base: [0, 0, 0], lid: [0, 0, 0], head: [0, 12, 0] },
+  phantom:{ body: [0, 0, 0], head: [0, 9, -8], right_wing: [-3, 8, -8], left_wing: [2, 8, -8] },
+  wither: { body: [0, 0, 0], head: [0, 0, 0] },
+  bee:    { body: [0, 0, 0], right_wing: [-1.5, 9, -3], left_wing: [1.5, 9, -3] },
+  bat:    { body: [0, 0, 0], head: [0, 12, 0], right_wing: [-1.5, 13, 0], left_wing: [1.5, 13, 0] },
+  rabbit: { body: [0, 0, 0], head: [0, 16, -1] },
+  parrot: { body: [0, 0, 0], head: [0, 15.69, -2.76] },
+  strider:{ body: [0, 1, 0], right_leg: [-4, 8, 0], left_leg: [4, 8, 0] },
+  warden: { head: [0, -10, 0], body: [0, 3, 0], right_arm: [-13, -10, 1], left_arm: [13, -10, 1], right_leg: [-5.9, 11, 0], left_leg: [5.9, 11, 0] },
+  smallhum: { head: [0, 13, 0], body: [0, 13, 0], right_arm: [-4, 13, 0], left_arm: [4, 13, 0], right_leg: [-2, 19, 0], left_leg: [2, 19, 0] },
+  dragon: { body: [0, 0, 0], head: [0, -14, -58], right_wing: [-12, -20, 4], left_wing: [12, -20, 4] }
+});
+Object.assign(GEO, {
+  wolf: () => [
+    B('head', [0, 0], [-2, -3, -2, 6, 6, 4]), B('head', [16, 14], [-2, -5, 0, 2, 2, 1]), B('head', [16, 14], [2, -5, 0, 2, 2, 1]),
+    B('head', [0, 10], [-0.5, -0.001, -5, 3, 3, 4]),
+    B('body', [18, 14], [-3, -2, -3, 6, 9, 6], { pivot: [0, 0, 0], rot: R90 }),
+    B('mane', [21, 0], [-3, -3, -3, 8, 6, 7], { pivot: [0, 0, 0], rot: R90 }),
+    B('tail', [9, 18], [0, 0, -1, 2, 8, 2], { pivot: [0, 0, 0], rot: [1.2, 0, 0] }),
+    ...legs4([0, 18], [0, 0, -1, 2, 8, 2])],
+  cat: () => [
+    B('head', [0, 0], [-2.5, -2, -3, 5, 4, 5]), B('head', [0, 24], [-1.5, 0, -4, 3, 2, 2]),
+    B('head', [0, 10], [-2, -3, 0, 1, 1, 2]), B('head', [6, 10], [1, -3, 0, 1, 1, 2]),
+    B('body', [20, 0], [-2, 3, -8, 4, 16, 6], { pivot: [0, 0, 0], rot: R90 }),
+    B('tail', [0, 15], [-0.5, 0, 0, 1, 8, 1], { pivot: [0, 0, 0], rot: [0.9, 0, 0] }),
+    B('tail2', [4, 15], [-0.5, 0, 0, 1, 8, 1], { pivot: [0, 0, 0], rot: [1.7, 0, 0] }),
+    B('right_hind_leg', [8, 13], [-1, 0, 1, 2, 6, 2]), B('left_hind_leg', [8, 13], [-1, 0, 1, 2, 6, 2], { mirror: true }),
+    B('right_front_leg', [40, 0], [-1, 0, 0, 2, 10, 2]), B('left_front_leg', [40, 0], [-1, 0, 0, 2, 10, 2], { mirror: true })],
+  fox: () => [
+    B('head', [1, 5], [-3, -2, -5, 8, 6, 6]), B('head', [8, 1], [-3, -4, -4, 2, 2, 1]), B('head', [15, 1], [3, -4, -4, 2, 2, 1]),
+    B('head', [6, 18], [-1, 2.01, -8, 4, 2, 3]),
+    B('body', [24, 15], [-3, 3.999, -3.5, 6, 11, 6], { pivot: [0, 0, 0], rot: R90 }),
+    B('tail', [30, 0], [-2, 0, -2.5, 4, 9, 5], { pivot: [0, 0, 0], rot: [1.4, 0, 0] }),
+    B('right_hind_leg', [13, 24], [2, 0.5, -1, 2, 6, 2]), B('left_hind_leg', [4, 24], [2, 0.5, -1, 2, 6, 2]),
+    B('right_front_leg', [13, 24], [2, 0.5, -1, 2, 6, 2]), B('left_front_leg', [4, 24], [2, 0.5, -1, 2, 6, 2])],
+  horse: () => {
+    const H = { pivot: [0, 0, 0], rot: [Math.PI / 6, 0, 0] };
+    return [
+      B('body', [0, 32], [-5, -8, -17, 10, 10, 22]),
+      B('head', [0, 35], [-2, -11, -2, 4, 12, 7], H), B('head', [0, 13], [-3, -11, -7, 6, 5, 7], H),
+      B('head', [56, 36], [-1, -11, 5.01, 2, 16, 2], H), B('head', [0, 25], [-2, -11, -12, 4, 5, 5], H),
+      B('head', [19, 16], [0.55, -13, 4, 2, 3, 1], H), B('head', [19, 16], [-2.55, -13, 4, 2, 3, 1], H),
+      B('tail', [42, 36], [-1.5, 0, 0, 3, 14, 4], H),
+      B('right_hind_leg', [48, 21], [-3, -1.01, -1, 4, 11, 4]), B('left_hind_leg', [48, 21], [-1, -1.01, -1, 4, 11, 4], { mirror: true }),
+      B('right_front_leg', [48, 21], [-3, -1.01, -1.9, 4, 11, 4]), B('left_front_leg', [48, 21], [-1, -1.01, -1.9, 4, 11, 4], { mirror: true })];
+  },
+  llama: () => [
+    B('head', [0, 0], [-2, -14, -10, 4, 4, 9]), B('head', [0, 14], [-4, -16, -6, 8, 18, 6]),
+    B('head', [17, 0], [-4, -19, -4, 3, 3, 2]), B('head', [17, 0], [1, -19, -4, 3, 3, 2]),
+    B('body', [29, 0], [-6, -10, -7, 12, 18, 10], { pivot: [0, 0, 0], rot: R90 }),
+    ...legs4([29, 29], [-2, 0, -2, 4, 14, 4])],
+  polar: () => [
+    B('head', [0, 0], [-3.5, -3, -3, 7, 7, 7]), B('head', [0, 44], [-2.5, 1, -6, 5, 3, 3]),
+    B('head', [26, 0], [-4.5, -4, -1, 2, 2, 1]), B('head', [26, 0], [2.5, -4, -1, 2, 2, 1], { mirror: true }),
+    B('body', [0, 19], [-5, -13, -7, 14, 14, 11], { pivot: [0, 0, 0], rot: R90 }),
+    B('body', [39, 0], [-4, -25, -7, 12, 12, 10], { pivot: [0, 0, 0], rot: R90 }),
+    B('right_hind_leg', [50, 22], [-2, 0, -2, 4, 10, 8]), B('left_hind_leg', [50, 22], [-2, 0, -2, 4, 10, 8], { mirror: true }),
+    B('right_front_leg', [50, 40], [-2, 0, -2, 4, 10, 6]), B('left_front_leg', [50, 40], [-2, 0, -2, 4, 10, 6], { mirror: true })],
+  panda: () => [
+    B('head', [0, 6], [-6.5, -5, -4, 13, 10, 9]), B('head', [45, 16], [-3.5, 0, -6, 7, 5, 2]),
+    B('head', [52, 25], [-8.5, -8, -1, 5, 4, 1]), B('head', [52, 25], [3.5, -8, -1, 5, 4, 1]),
+    B('body', [0, 25], [-9.5, -13, -6.5, 19, 26, 13], { pivot: [0, 0, 0], rot: R90 }),
+    ...legs4([40, 0], [-3, 0, -3, 6, 9, 6])],
+  hoglin: () => {
+    const H = { pivot: [0, 0, 0], rot: [0.87, 0, 0] };
+    return [
+      B('head', [61, 1], [-7, -3, -19, 14, 6, 19], H),
+      B('head', [10, 13], [-8, -9, -13, 2, 11, 2], H), B('head', [1, 13], [6, -9, -13, 2, 11, 2], H),
+      B('body', [1, 1], [-8, -7, -13, 16, 14, 26]), B('body', [90, 33], [0, -17, -15, 0, 10, 19]),
+      B('right_front_leg', [66, 42], [-3, 0, -3, 6, 14, 6]), B('left_front_leg', [66, 42], [-3, 0, -3, 6, 14, 6], { mirror: true }),
+      B('right_hind_leg', [41, 42], [-2.5, 0, -2.5, 5, 11, 5]), B('left_hind_leg', [41, 42], [-2.5, 0, -2.5, 5, 11, 5], { mirror: true })];
+  },
+  ravager: () => [
+    B('neck', [68, 73], [-5, -1, -18, 10, 10, 18]),
+    B('head', [0, 0], [-8, -20, -14, 16, 20, 16]), B('head', [0, 0], [-2, -6, -18, 4, 8, 4]),
+    B('head', [74, 55], [-10, -14, -8, 2, 14, 4]), B('head', [74, 55], [8, -14, -8, 2, 14, 4], { mirror: true }),
+    B('head', [0, 36], [-8, 0, -16, 16, 3, 16], { pivot: [0, -2, 2], rot: [0, 0, 0] }),
+    B('body', [0, 55], [-7, -10, -7, 14, 16, 20], { pivot: [0, 0, 0], rot: R90 }),
+    B('body', [0, 91], [-6, 6, -7, 12, 13, 18], { pivot: [0, 0, 0], rot: R90 }),
+    B('right_hind_leg', [96, 0], [-4, 0, -4, 8, 37, 8]), B('left_hind_leg', [64, 0], [-4, 0, -4, 8, 37, 8]),
+    B('right_front_leg', [64, 0], [-4, 0, -4, 8, 37, 8]), B('left_front_leg', [96, 0], [-4, 0, -4, 8, 37, 8])],
+  squid: () => {
+    const t = [];
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; t.push(B('tentacles', [48, 0], [Math.cos(a) * 5 - 1, 0, Math.sin(a) * 5 - 1, 2, 18, 2])); }
+    return [B('body', [0, 0], [-6, -10, -6, 12, 16, 12]), ...t];
+  },
+  ghast: () => {
+    const len = [9, 12, 10, 13, 8, 11, 12, 9, 14], t = [];
+    for (let i = 0; i < 9; i++) {
+      const x = ((i % 3) - 1) * 5 + (Math.floor(i / 3) % 2 ? 1 : -1) * 0.5, z = (Math.floor(i / 3) - 1) * 5;
+      t.push(B('tentacles', [0, 0], [x - 1, 0, z - 1, 2, len[i], 2]));
+    }
+    return [B('body', [0, 0], [-8, -8, -8, 16, 16, 16]), ...t];
+  },
+  guardian: () => [
+    B('body', [0, 0], [-6, 10, -8, 12, 12, 16]), B('body', [0, 28], [-8, 10, -6, 2, 12, 12]),
+    B('body', [0, 28], [6, 10, -6, 2, 12, 12], { mirror: true }), B('body', [16, 40], [-6, 8, -6, 12, 2, 12]),
+    B('body', [16, 40], [-6, 22, -6, 12, 2, 12]), B('body', [8, 0], [-1, 15, -8.25, 2, 2, 1]),
+    B('body', [40, 0], [-2, 14, 7, 4, 4, 8]), B('body', [0, 54], [-1.5, 14.5, 14, 3, 3, 7]),
+    B('body', [41, 32], [-1, 15, 21, 2, 2, 6]), B('body', [25, 19], [-0.5, 11.5, 24, 1, 9, 9])],
+  shulker: () => [
+    B('base', [0, 28], [-8, 16, -8, 16, 8, 16]), B('lid', [0, 0], [-8, 8, -8, 16, 12, 16]), B('head', [0, 52], [-3, 0, -3, 6, 6, 6])],
+  silverfish: () => segments([[3, 2, 2], [4, 3, 2], [6, 4, 3], [3, 3, 3], [2, 2, 3], [2, 1, 2], [1, 1, 2]],
+    [[0, 0], [0, 4], [0, 9], [0, 16], [0, 22], [11, 0], [13, 4]]),
+  endermite: () => segments([[4, 3, 2], [6, 4, 5], [3, 3, 1], [1, 2, 1]], [[0, 0], [0, 5], [0, 14], [0, 18]]),
+  phantom: () => [
+    B('body', [0, 8], [-3, 6, -8, 5, 3, 9]), B('body', [3, 20], [-2, 6, 1, 3, 2, 6]), B('body', [4, 29], [-1, 6, 7, 1, 1, 6]),
+    B('head', [0, 0], [-4, -2, -5, 7, 3, 5]),
+    B('right_wing', [23, 12], [-6, 0, 0, 6, 2, 9], { mirror: true }), B('right_wing', [16, 24], [-19, 0, 0, 13, 1, 9], { mirror: true }),
+    B('left_wing', [23, 12], [0, 0, 0, 6, 2, 9]), B('left_wing', [16, 24], [6, 0, 0, 13, 1, 9])],
+  wither: () => {
+    const sp = { pivot: [-2, 6.9, -0.5], rot: [0.2, 0, 0] };
+    return [
+      B('body', [0, 16], [-10, 3.9, -0.5, 20, 3, 3]),
+      B('body', [0, 22], [0, 0, 0, 3, 10, 3], sp),
+      B('body', [24, 22], [-4, 1.5, 0.5, 11, 2, 2], sp), B('body', [24, 22], [-4, 4, 0.5, 11, 2, 2], sp), B('body', [24, 22], [-4, 6.5, 0.5, 11, 2, 2], sp),
+      B('body', [12, 22], [0, 0, 0, 3, 6, 3], { pivot: [-2, 16.7, 1.5], rot: [0.8, 0, 0] }),
+      B('head', [0, 0], [-4, -4, -4, 8, 8, 8]),
+      B('body', [32, 0], [-4, -4, -4, 6, 6, 6], { pivot: [-8, 4, 0], rot: [0, 0, 0] }),
+      B('body', [32, 0], [-4, -4, -4, 6, 6, 6], { pivot: [10, 4, 0], rot: [0, 0, 0] })];
+  },
+  dolphin: () => [
+    B('body', [22, 0], [-4, 15, -5, 8, 7, 13]), B('body', [0, 0], [-4, 15, -11, 8, 7, 6]), B('body', [0, 13], [-1, 20, -15, 2, 2, 4]),
+    B('body', [51, 0], [-0.5, 11, 0, 1, 4, 5]), B('body', [0, 19], [-2, 17, 8, 4, 5, 11]), B('body', [19, 20], [-5, 19, 17, 10, 1, 6])],
+  cod: () => [B('body', [0, 0], [-1, 20, 0, 2, 4, 7]), B('body', [11, 0], [-1, 20, -3, 2, 4, 3]), B('body', [0, 0], [-1, 20, -4, 2, 3, 1]), B('body', [22, 3], [0, 20, 7, 0, 4, 4])],
+  salmon: () => [B('body', [0, 0], [-1.5, 17.5, 0, 3, 5, 8]), B('body', [0, 13], [-1.5, 17.5, 8, 3, 5, 8]),
+    B('body', [22, 0], [-1, 18, -3, 2, 4, 3]), B('body', [20, 10], [0, 17.5, 16, 0, 5, 6])],
+  pufferfish: () => [B('body', [0, 0], [-4, 16, -4, 8, 8, 8])],
+  tadpole: () => [B('body', [0, 0], [-1.5, 22, -1.5, 3, 2, 3]), B('body', [0, 0], [0, 22, 1.5, 0, 2, 7])],
+  turtle: () => [
+    B('head', [3, 0], [-3, -1, -3, 6, 5, 6]),
+    B('body', [7, 37], [-9.5, 3, -10, 19, 20, 6], { pivot: [0, 0, 0], rot: R90 }), B('body', [31, 1], [-5.5, 3, -13, 11, 18, 3], { pivot: [0, 0, 0], rot: R90 }),
+    B('right_hind_leg', [1, 23], [-2, 0, 0, 4, 1, 10]), B('left_hind_leg', [1, 12], [-2, 0, 0, 4, 1, 10]),
+    B('right_front_leg', [27, 30], [-13, 0, -2, 13, 1, 5]), B('left_front_leg', [27, 24], [0, 0, -2, 13, 1, 5])],
+  rabbit: () => {
+    const r = a => ({ rot: [a, 0, 0] });
+    return [
+      B('body', [0, 0], [-3, -2, -10, 6, 5, 10], { pivot: [0, 19, 8], ...r(-0.349) }),
+      B('body', [52, 6], [-1.5, -1.5, 0, 3, 3, 2], { pivot: [0, 20, 7], ...r(-0.349) }),
+      B('body', [26, 24], [-1, 5.5, -3.7, 2, 1, 7], { pivot: [3, 17.5, 3.7], ...r(0) }), B('body', [8, 24], [-1, 5.5, -3.7, 2, 1, 7], { pivot: [-3, 17.5, 3.7], ...r(0) }),
+      B('body', [30, 15], [-1, 0, 0, 2, 4, 5], { pivot: [3, 17.5, 3.7], ...r(-0.349) }), B('body', [16, 15], [-1, 0, 0, 2, 4, 5], { pivot: [-3, 17.5, 3.7], ...r(-0.349) }),
+      B('body', [8, 15], [-1, 0, -1, 2, 7, 2], { pivot: [3, 17, -1], ...r(-0.19) }), B('body', [0, 15], [-1, 0, -1, 2, 7, 2], { pivot: [-3, 17, -1], ...r(-0.19) }),
+      B('head', [32, 0], [-2.5, -4, -5, 5, 4, 5]), B('head', [32, 9], [-0.5, -2.5, -5.5, 1, 1, 1]),
+      B('head', [52, 0], [-2.5, -9, -1, 2, 5, 1], { pivot: [0, 0, 0], rot: [0, -0.26, 0] }), B('head', [58, 0], [0.5, -9, -1, 2, 5, 1], { pivot: [0, 0, 0], rot: [0, 0.26, 0] })];
+  },
+  parrot: () => [
+    B('body', [2, 8], [-1.5, 0, -1.5, 3, 6, 3], { pivot: [0, 16.5, -3], rot: [0.4937, 0, 0] }),
+    B('body', [22, 1], [-1.5, -1, -1, 3, 4, 1], { pivot: [0, 21.07, 1.16], rot: [1.015, 0, 0] }),
+    B('body', [19, 8], [-0.5, 0, -1.5, 1, 5, 3], { pivot: [1.5, 16.94, -2.76], rot: [-0.6981, 0, 0] }),
+    B('body', [19, 8], [-0.5, 0, -1.5, 1, 5, 3], { pivot: [-1.5, 16.94, -2.76], rot: [-0.6981, 0, 0] }),
+    B('body', [14, 18], [-1, 22, -1.55, 1, 2, 1]), B('body', [14, 18], [0, 22, -1.55, 1, 2, 1]),
+    B('head', [2, 2], [-1, -1.5, -1, 2, 3, 2]), B('head', [10, 0], [-1, -2, -3, 2, 1, 4]),
+    B('head', [11, 7], [-0.5, -1, -2, 1, 2, 1]), B('head', [2, 18], [0, -5, -1, 0, 5, 4])],
+  bee: () => [
+    B('body', [0, 0], [-3.5, 9, -5, 7, 7, 10]), B('body', [26, 7], [0, 12, 5, 0, 1, 2]),
+    B('body', [2, 0], [1.5, 7, -8, 1, 2, 3]), B('body', [2, 3], [-2.5, 7, -8, 1, 2, 3]),
+    B('body', [26, 1], [-3.5, 16, -2, 7, 2, 0]), B('body', [26, 3], [-3.5, 16, 0, 7, 2, 0]), B('body', [26, 5], [-3.5, 16, 2, 7, 2, 0]),
+    B('right_wing', [0, 18], [-9, 0, 0, 9, 0, 6]), B('left_wing', [0, 18], [0, 0, 0, 9, 0, 6], { mirror: true })],
+  axolotl: () => [
+    B('body', [0, 11], [-4, 18, -4, 8, 4, 10]), B('body', [0, 1], [-4, 17, -9, 8, 5, 5]),
+    B('body', [3, 37], [-4, 14, -5, 8, 3, 0]), B('body', [0, 40], [-7, 15, -5, 3, 7, 0]), B('body', [11, 40], [4, 15, -5, 3, 7, 0]),
+    B('body', [2, 19], [0, 17, 6, 0, 5, 12]),
+    B('body', [2, 13], [-6, 21, -3, 2, 3, 1]), B('body', [2, 13], [4, 21, -3, 2, 3, 1]), B('body', [2, 13], [-6, 21, 4, 2, 3, 1]), B('body', [2, 13], [4, 21, 4, 2, 3, 1])],
+  strider: () => [
+    B('body', [0, 0], [-8, -6, -8, 16, 14, 16]),
+    B('right_leg', [0, 32], [-2, 0, -2, 4, 16, 4]), B('left_leg', [0, 55], [-2, 0, -2, 4, 16, 4])],
+  allay: () => [
+    B('body', [0, 0], [-2.5, 8, -2.5, 5, 5, 5]), B('body', [0, 10], [-1.5, 13, -1, 3, 4, 2]),
+    B('body', [0, 16], [-1.5, 13, -1, 3, 5, 2], { inflate: -0.2 }),
+    B('body', [23, 0], [-2.75, 13, -1, 1, 4, 2]), B('body', [23, 6], [1.75, 13, -1, 1, 4, 2]),
+    B('body', [16, 14], [-1, 13, 1, 0, 5, 8]), B('body', [16, 14], [1, 13, 1, 0, 5, 8])],
+  warden: () => [
+    B('head', [0, 32], [-8, -16, -5, 16, 16, 10]),
+    B('head', [52, 32], [-24, -25, 0, 16, 16, 0]), B('head', [58, 0], [8, -25, 0, 16, 16, 0]),
+    B('body', [0, 0], [-9, -13, -4, 18, 21, 11]),
+    B('right_arm', [44, 50], [-4, 0, -4, 8, 28, 8]), B('left_arm', [0, 58], [-4, 0, -4, 8, 28, 8]),
+    B('right_leg', [76, 48], [-3.1, 0, -3, 6, 13, 6]), B('left_leg', [76, 76], [-2.9, 0, -3, 6, 13, 6])],
+  // ---------- Modelos aproximados (colores planos) ----------
+  goat: ([a, b, c] = ['#e8e4dc', '#d8d2c8', '#8a8070']) => [
+    F('body', a, [-4.5, 6, -7, 9, 10, 16]),
+    F('head', b, [-2.5, -4, -8, 5, 7, 8], { pivot: [0, 0, 0], rot: [0.4, 0, 0] }),
+    F('head', c, [-2.5, -11, -3, 2, 7, 2], { pivot: [0, 0, 0], rot: [0.4, 0, 0] }), F('head', c, [0.5, -11, -3, 2, 7, 2], { pivot: [0, 0, 0], rot: [0.4, 0, 0] }),
+    ...['right_hind_leg', 'left_hind_leg', 'right_front_leg', 'left_front_leg'].map(p => F(p, b, [-1.5, 0, -1.5, 3, 10, 3]))],
+  camel: (col = ['#d8a860', '#c89850', '#b08040']) => [
+    F('body', col[0], [-7.5, -8, -14, 15, 12, 27]), F('body', col[1], [-4.5, -13, -6, 9, 5, 11]),
+    F('body', col[2], [-1.5, -5, 13, 3, 14, 0]),
+    F('head', col[0], [-3.5, -6, -15, 7, 8, 19]), F('head', col[1], [-3.5, -20, -15, 7, 14, 7]), F('head', col[0], [-3.5, -20, -21, 7, 8, 6]),
+    ...['right_hind_leg', 'left_hind_leg', 'right_front_leg', 'left_front_leg'].map(p => F(p, col[1], [-2.5, 2, -2.5, 5, 21, 5]))],
+  armadillo: () => [
+    F('body', '#c88878', [-4, 14, -5, 8, 7, 11]), F('body', '#a86858', [-1, 19, 6, 2, 1, 4]),
+    F('head', '#d89888', [-1.5, -2, -3, 3, 4, 3]), F('head', '#d89888', [-2.5, -4, -1, 1, 2, 1]), F('head', '#d89888', [1.5, -4, -1, 1, 2, 1]),
+    ...['right_hind_leg', 'left_hind_leg', 'right_front_leg', 'left_front_leg'].map(p => F(p, '#b87868', [-1, 0, -1, 2, 3, 2]))],
+  sniffer: () => [
+    F('body', '#9a3a2a', [-12.5, -3, -18, 25, 19, 38]), F('body', '#5a8a3a', [-12.5, -4, -18, 25, 1, 38]),
+    F('head', '#a84a3a', [-6.5, -4, -11, 13, 14, 11]), F('head', '#d8b84a', [-6.5, 7, -14, 13, 3, 3]),
+    ...['right_hind_leg', 'left_hind_leg', 'right_front_leg', 'left_front_leg'].map(p => F(p, '#7a2a1a', [-3.5, 0, -4, 7, 8, 8]))],
+  bat: () => [
+    F('head', '#3a2a1a', [-2, -3, -1.5, 4, 3, 3]), F('head', '#3a2a1a', [-2, -5, -0.5, 1, 2, 1]), F('head', '#3a2a1a', [1, -5, -0.5, 1, 2, 1]),
+    F('body', '#4a3a2a', [-1.5, 12, -1, 3, 5, 2]),
+    F('right_wing', '#2a1a10', [-8, 0, 0, 8, 6, 0.5]), F('left_wing', '#2a1a10', [0, 0, 0, 8, 6, 0.5])],
+  frog: () => [
+    F('body', '#c8783a', [-3.5, 19, -4.5, 7, 3, 9]), F('body', '#d8884a', [-3.5, 16.5, -5.5, 7, 3, 7]),
+    F('body', '#f0e0a0', [-3.5, 15, -5, 3, 2, 3]), F('body', '#f0e0a0', [0.5, 15, -5, 3, 2, 3]),
+    F('body', '#a8683a', [-4.5, 21, -4, 2, 3, 2]), F('body', '#a8683a', [2.5, 21, -4, 2, 3, 2]),
+    F('body', '#a8683a', [-5.5, 22, 1, 3, 2, 4]), F('body', '#a8683a', [2.5, 22, 1, 3, 2, 4])],
+  tropical: () => [F('body', '#f08a2a', [-1, 21, -3, 2, 3, 6]), F('body', '#f0f0f0', [0, 21, 3, 0, 3, 4])],
+  breeze: () => [
+    F('body', '#c8d8f8', [-4, 0, -4, 8, 8, 8]), F('body', '#3a8ad8', [-3, 3, -4.1, 6, 2, 0.1]),
+    F('body', '#a8c0f0', [-1, 8, -4, 2, 6, 2]), F('body', '#a8c0f0', [3, 8, 1, 2, 6, 2]), F('body', '#a8c0f0', [-5, 8, 1, 2, 6, 2]),
+    F('body', '#d8e8ff', [-6, 13, -6, 12, 4, 12], { inflate: -0.01 }), F('body', '#c8dcff', [-4, 17, -4, 8, 4, 8]), F('body', '#b8d0ff', [-2, 21, -2, 4, 3, 4])],
+  copper: () => [
+    F('head', '#c8743c', [-4, -5, -4, 8, 5, 8]), F('head', '#b8642c', [-1, -2, -6, 2, 3, 2]),
+    F('head', '#b8642c', [-0.5, -9, -0.5, 1, 4, 1]), F('head', '#e8944c', [-1.5, -11, -1.5, 3, 2, 3]),
+    F('body', '#c8743c', [-4, 0, -3, 8, 6, 6]),
+    F('right_arm', '#b8642c', [-3, 0, -2, 3, 9, 4]), F('left_arm', '#b8642c', [0, 0, -2, 3, 9, 4]),
+    F('right_leg', '#a8541c', [-2, 0, -2, 4, 5, 4]), F('left_leg', '#a8541c', [-2, 0, -2, 4, 5, 4])],
+  nautilus: (col = ['#e8d8c8', '#c86a4a', '#8a5a4a']) => [
+    F('body', col[0], [-4, 8, -1, 8, 12, 12]), F('body', col[1], [-4.1, 10, 2, 8.2, 2, 8]), F('body', col[1], [-4.1, 14, 2, 8.2, 2, 8]),
+    F('body', col[2], [-3, 13, -5, 6, 6, 4]),
+    F('body', col[2], [-3, 18, -7, 1, 5, 1]), F('body', col[2], [-1, 18, -7, 1, 6, 1]), F('body', col[2], [1, 18, -7, 1, 5, 1]), F('body', col[2], [2, 18, -6, 1, 4, 1])],
+  creaking: () => GEO.humanoid({ hat: false }).map(b => ({ ...b, c: { head: '#5a4a3a', body: '#4a3a2a', right_arm: '#3a2a1a', left_arm: '#3a2a1a', right_leg: '#3a2a1a', left_leg: '#3a2a1a' }[b.p] })),
+  dragon: () => {
+    const D = '#1a1a1e', M = '#3a2a4a', out = [
+      F('body', D, [-12, -24, -8, 24, 24, 64]),
+      F('right_wing', D, [-56, -4, -4, 56, 8, 8]), F('right_wing', M, [-56, 0, 4, 56, 0.5, 56]),
+      F('left_wing', D, [0, -4, -4, 56, 8, 8]), F('left_wing', M, [0, 0, 4, 56, 0.5, 56]),
+      F('head', D, [-8, -8, -16, 16, 16, 16]), F('head', D, [-6, -3, -32, 12, 5, 16]), F('head', D, [-6, 2, -32, 12, 4, 16]),
+      F('head', D, [-5, -12, -10, 2, 4, 6]), F('head', D, [3, -12, -10, 2, 4, 6]),
+      F('body', D, [-14, 0, 36, 8, 24, 8]), F('body', D, [6, 0, 36, 8, 24, 8]), F('body', D, [-12, 0, 0, 6, 24, 6]), F('body', D, [6, 0, 0, 6, 24, 6])];
+    for (let i = 1; i <= 4; i++) out.push(F('body', D, [-5, -20, -8 - 10 * i, 10, 10, 10]));
+    for (let i = 0; i < 10; i++) out.push(F('body', D, [-5, -20 + i, 56 + 10 * i, 10, 10, 10]));
+    return out;
+  }
+});
+const FLAT = { flat: true, armor: false, held: false };
+Object.assign(MOB_MODELS, {
+  wolf:             { geo: 'wolf', pivots: 'wolf', anim: 'quad', tex: ['entity/wolf/wolf'], colors: ['#d8d0c8', '#d8d0c8', '#d8d0c8', '#c8c0b8'], h: 14, ...NOHUMAN },
+  cat:              { geo: 'cat', pivots: 'cat', anim: 'quad', tex: ['entity/cat/tabby'], colors: ['#c8904a', '#c8904a', '#c8904a', '#b8803a'], h: 12, ...NOHUMAN },
+  ocelot:           { geo: 'cat', pivots: 'cat', anim: 'quad', tex: ['entity/cat/ocelot'], colors: ['#e8c060', '#e8c060', '#e8c060', '#d8b050'], h: 12, ...NOHUMAN },
+  fox:              { geo: 'fox', pivots: 'fox', anim: 'quad', texW: 48, tex: ['entity/fox/fox'], colors: ['#e8803a', '#e8803a', '#e8803a', '#3a2a2a'], h: 14, ...NOHUMAN },
+  horse:            { geo: 'horse', pivots: 'horse', anim: 'quad', tex: ['entity/horse/horse_brown', 'entity/horse/horse_chestnut'], colors: ['#8a5a3a', '#8a5a3a', '#8a5a3a', '#6a4a2a'], h: 30, ...NOHUMAN },
+  donkey:           { geo: 'horse', pivots: 'horse', anim: 'quad', tex: ['entity/horse/donkey'], colors: ['#8a7a6a', '#8a7a6a', '#8a7a6a', '#6a5a4a'], h: 30, scale: 0.87, ...NOHUMAN },
+  mule:             { geo: 'horse', pivots: 'horse', anim: 'quad', tex: ['entity/horse/mule'], colors: ['#5a3a2a', '#5a3a2a', '#5a3a2a', '#4a2a1a'], h: 30, scale: 0.92, ...NOHUMAN },
+  skeleton_horse:   { geo: 'horse', pivots: 'horse', anim: 'quad', tex: ['entity/horse/horse_skeleton'], colors: ['#d8d8c8', '#d8d8c8', '#d8d8c8', '#c8c8b8'], h: 30, ...NOHUMAN },
+  zombie_horse:     { geo: 'horse', pivots: 'horse', anim: 'quad', tex: ['entity/horse/horse_zombie'], colors: ['#4a7a3a', '#4a7a3a', '#4a7a3a', '#3a6a2a'], h: 30, ...NOHUMAN },
+  llama:            { geo: 'llama', pivots: 'llama', anim: 'quad', texW: 128, tex: ['entity/llama/creamy'], colors: ['#e8d8b8', '#e8d8b8', '#e8d8b8', '#d8c8a8'], h: 30, ...NOHUMAN },
+  trader_llama:     { geo: 'llama', pivots: 'llama', anim: 'quad', texW: 128, tex: ['entity/llama/brown', 'entity/llama/creamy'], colors: ['#8a6a4a', '#8a6a4a', '#8a6a4a', '#7a5a3a'], h: 30, ...NOHUMAN },
+  polar_bear:       { geo: 'polar', pivots: 'polar', anim: 'quad', texW: 128, tex: ['entity/bear/polarbear', 'entity/bear/polar_bear'], colors: ['#f0f0e8', '#f0f0e8', '#f0f0e8', '#e0e0d8'], h: 22, ...NOHUMAN },
+  panda:            { geo: 'panda', pivots: 'panda', anim: 'quad', tex: ['entity/panda/panda'], colors: ['#f0f0f0', '#f0f0f0', '#202020', '#202020'], h: 24, ...NOHUMAN },
+  hoglin:           { geo: 'hoglin', pivots: 'hoglin', anim: 'quad', texW: 128, tex: ['entity/hoglin/hoglin'], colors: ['#c8786a', '#a8584a', '#a8584a', '#8a4a3a'], h: 24, ...NOHUMAN },
+  zoglin:           { geo: 'hoglin', pivots: 'hoglin', anim: 'quad', texW: 128, tex: ['entity/hoglin/zoglin'], colors: ['#d89a9a', '#a8786a', '#a8786a', '#8a5a5a'], h: 24, ...NOHUMAN },
+  ravager:          { geo: 'ravager', pivots: 'ravager', anim: 'quad', texW: 128, tex: ['entity/illager/ravager'], colors: ['#5a5a5a', '#4a4a4a', '#4a4a4a', '#3a3a3a'], h: 36, ...NOHUMAN },
+  squid:            { geo: 'squid', pivots: 'squid', anim: 'squid', tex: ['entity/squid/squid'], colors: ['#3a5a7a', '#3a5a7a', '#3a5a7a', '#2a4a6a'], h: 34, ...NOHUMAN },
+  glow_squid:       { geo: 'squid', pivots: 'squid', anim: 'squid', tex: ['entity/squid/glow_squid'], colors: ['#2a8a8a', '#2a8a8a', '#2a8a8a', '#3ab8b8'], h: 34, ...NOHUMAN },
+  ghast:            { geo: 'ghast', pivots: 'ghast', anim: 'ghast', tex: ['entity/ghast/ghast'], colors: ['#f0f0f0', '#f0f0f0', '#f0f0f0', '#e0e0e0'], h: 32, scale: 4.5, ...NOHUMAN },
+  happy_ghast:      { geo: 'ghast', pivots: 'ghast', anim: 'ghast', tex: ['entity/ghast/happy_ghast'], colors: ['#f0f0f0', '#f0f0f0', '#f0f0f0', '#e0e0e0'], h: 32, scale: 4, ...NOHUMAN },
+  guardian:         { geo: 'guardian', pivots: ABS, anim: 'none', tex: ['entity/guardian'], colors: ['#5a9a8a', '#5a9a8a', '#5a9a8a', '#5a9a8a'], h: 16, ...NOHUMAN },
+  elder_guardian:   { geo: 'guardian', pivots: ABS, anim: 'none', tex: ['entity/guardian_elder'], colors: ['#c8c0a8', '#c8c0a8', '#c8c0a8', '#c8c0a8'], h: 16, scale: 2.35, ...NOHUMAN },
+  shulker:          { geo: 'shulker', pivots: 'shulker', anim: 'shulker', tex: ['entity/shulker/shulker'], colors: ['#8a5a8a', '#8a5a8a', '#8a5a8a', '#8a5a8a'], h: 16, ...NOHUMAN },
+  silverfish:       { geo: 'silverfish', pivots: ABS, anim: 'none', tex: ['entity/silverfish'], colors: ['#8a8a8a', '#8a8a8a', '#8a8a8a', '#8a8a8a'], h: 4, ...NOHUMAN },
+  endermite:        { geo: 'endermite', pivots: ABS, anim: 'none', tex: ['entity/endermite'], colors: ['#2a1a3a', '#2a1a3a', '#2a1a3a', '#2a1a3a'], h: 4, ...NOHUMAN },
+  phantom:          { geo: 'phantom', pivots: 'phantom', anim: 'wings', tex: ['entity/phantom'], colors: ['#3a4a7a', '#3a4a7a', '#4a5a8a', '#3a4a7a'], h: 20, ...NOHUMAN },
+  wither:           { geo: 'wither', pivots: 'wither', anim: 'none', tex: ['entity/wither/wither'], colors: ['#2a2a2a', '#1a1a1a', '#1a1a1a', '#1a1a1a'], h: 30, scale: 2, ...NOHUMAN },
+  dolphin:          { geo: 'dolphin', pivots: ABS, anim: 'none', tex: ['entity/dolphin'], colors: ['#8a9aaa', '#8a9aaa', '#8a9aaa', '#8a9aaa'], h: 12, ...NOHUMAN },
+  cod:              { geo: 'cod', pivots: ABS, anim: 'none', texW: 32, tex: ['entity/fish/cod'], colors: ['#a8987a', '#a8987a', '#a8987a', '#a8987a'], h: 6, ...NOHUMAN },
+  salmon:           { geo: 'salmon', pivots: ABS, anim: 'none', texW: 32, tex: ['entity/fish/salmon'], colors: ['#a84a3a', '#a84a3a', '#a84a3a', '#a84a3a'], h: 8, ...NOHUMAN },
+  pufferfish:       { geo: 'pufferfish', pivots: ABS, anim: 'none', texW: 32, tex: ['entity/fish/pufferfish'], colors: ['#e8c83a', '#e8c83a', '#e8c83a', '#e8c83a'], h: 8, ...NOHUMAN },
+  tadpole:          { geo: 'tadpole', pivots: ABS, anim: 'none', texW: 16, tex: ['entity/tadpole/tadpole'], colors: ['#4a3a2a', '#4a3a2a', '#4a3a2a', '#4a3a2a'], h: 4, ...NOHUMAN },
+  turtle:           { geo: 'turtle', pivots: { head: [0, 19, -10], body: [0, 11, -10], right_hind_leg: [-3.5, 22, 11], left_hind_leg: [3.5, 22, 11], right_front_leg: [-5, 21, -4], left_front_leg: [5, 21, -4] },
+                      anim: 'none', texW: 128, tex: ['entity/turtle/big_sea_turtle'], colors: ['#4a8a3a', '#3a6a2a', '#4a8a3a', '#4a8a3a'], h: 10, ...NOHUMAN },
+  rabbit:           { geo: 'rabbit', pivots: 'rabbit', anim: 'none', tex: ['entity/rabbit/brown'], colors: ['#8a6a4a', '#8a6a4a', '#8a6a4a', '#8a6a4a'], h: 10, ...NOHUMAN },
+  parrot:           { geo: 'parrot', pivots: 'parrot', anim: 'none', texW: 32, tex: ['entity/parrot/parrot_red_blue'], colors: ['#d82020', '#d82020', '#2a5ad8', '#e8c83a'], h: 10, ...NOHUMAN },
+  bee:              { geo: 'bee', pivots: 'bee', anim: 'wings', tex: ['entity/bee/bee'], colors: ['#e8c83a', '#e8c83a', '#d8e8f8', '#2a2a2a'], h: 16, ...NOHUMAN },
+  axolotl:          { geo: 'axolotl', pivots: ABS, anim: 'none', tex: ['entity/axolotl/axolotl_lucy'], colors: ['#f0a0c0', '#f0a0c0', '#f0a0c0', '#f0a0c0'], h: 8, ...NOHUMAN },
+  strider:          { geo: 'strider', pivots: 'strider', tex: ['entity/strider/strider'], colors: ['#a83a2a', '#a83a2a', '#a83a2a', '#5a2a3a'], h: 29, ...NOHUMAN },
+  allay:            { geo: 'allay', pivots: ABS, anim: 'none', texW: 32, tex: ['entity/allay/allay'], colors: ['#5ad8f0', '#5ad8f0', '#5ad8f0', '#5ad8f0'], h: 18, ...NOHUMAN },
+  vex:              { geo: 'allay', pivots: ABS, anim: 'none', texW: 32, tex: ['entity/illager/vex'], colors: ['#a8b8c8', '#a8b8c8', '#a8b8c8', '#a8b8c8'], h: 18, ...NOHUMAN },
+  warden:           { geo: 'warden', pivots: 'warden', texW: 128, tex: ['entity/warden/warden'], colors: ['#1a3a4a', '#1a3a4a', '#1a3a4a', '#0a2a3a'], h: 50, ...NOHUMAN },
+  // ---------- Aproximados con colores planos ----------
+  goat:             { geo: 'goat', pivots: 'goat', anim: 'quad', h: 22, colors: ['#e8e4dc', '#e8e4dc', '#e8e4dc', '#d8d2c8'], ...FLAT },
+  camel:            { geo: 'camel', pivots: 'camel', anim: 'quad', h: 38, colors: ['#d8a860', '#d8a860', '#d8a860', '#c89850'], ...FLAT },
+  camel_husk:       { geo: 'camel', opt: ['#a8987a', '#988868', '#786850'], pivots: 'camel', anim: 'quad', h: 38, colors: ['#a8987a', '#a8987a', '#a8987a', '#988868'], ...FLAT },
+  armadillo:        { geo: 'armadillo', pivots: 'armadillo', anim: 'quad', h: 10, colors: ['#c88878', '#c88878', '#c88878', '#b87868'], ...FLAT },
+  sniffer:          { geo: 'sniffer', pivots: 'sniffer', anim: 'quad', h: 28, colors: ['#9a3a2a', '#9a3a2a', '#9a3a2a', '#7a2a1a'], ...FLAT },
+  bat:              { geo: 'bat', pivots: 'bat', anim: 'wings', h: 14, colors: ['#3a2a1a', '#4a3a2a', '#2a1a10', '#3a2a1a'], ...FLAT },
+  frog:             { geo: 'frog', pivots: ABS, anim: 'none', h: 9, colors: ['#c8783a', '#c8783a', '#c8783a', '#a8683a'], ...FLAT },
+  tropical_fish:    { geo: 'tropical', pivots: ABS, anim: 'none', h: 4, colors: ['#f08a2a', '#f08a2a', '#f08a2a', '#f08a2a'], ...FLAT },
+  breeze:           { geo: 'breeze', pivots: ABS, anim: 'none', h: 24, colors: ['#c8d8f8', '#c8d8f8', '#c8d8f8', '#c8d8f8'], ...FLAT },
+  copper_golem:     { geo: 'copper', pivots: 'smallhum', h: 20, colors: ['#c8743c', '#c8743c', '#b8642c', '#a8541c'], ...FLAT },
+  nautilus:         { geo: 'nautilus', pivots: ABS, anim: 'none', h: 16, colors: ['#e8d8c8', '#e8d8c8', '#e8d8c8', '#e8d8c8'], ...FLAT },
+  zombie_nautilus:  { geo: 'nautilus', opt: ['#7a9a6a', '#4a7a3a', '#3a5a2a'], pivots: ABS, anim: 'none', h: 16, colors: ['#7a9a6a', '#7a9a6a', '#7a9a6a', '#7a9a6a'], ...FLAT },
+  sulfur_cube:      { geo: 'slime', pivots: 'slime', anim: 'slime', h: 8, sizeScale: slimeSize, colors: ['#e8d84a', '#e8d84a', '#e8d84a', '#e8d84a'], ...FLAT },
+  creaking:         { geo: 'creaking', pivots: 'humanoid', h: 32, scale: 1.35, colors: ['#5a4a3a', '#4a3a2a', '#3a2a1a', '#3a2a1a'], ...FLAT },
+  ender_dragon:     { geo: 'dragon', pivots: 'dragon', anim: 'wings', h: 90, colors: ['#1a1a1e', '#1a1a1e', '#1a1a1e', '#1a1a1e'], ...FLAT }
+});
 // Armaduras: qué partes cubre cada pieza y con qué textura/inflado
 const ARMOR_PIECES = {
   head:  { layer: 'humanoid', parts: ['head'], inflate: 1 },
@@ -2540,11 +3030,32 @@ const Viewer = {
     const P = this.parts;
     if (P) {
       const sw = Math.sin(s * 2.2) * 0.22, bob = Math.sin(s * 1.6) * 0.05;
-      if (P.arms) { P.arms.rotation.x = deg(-43) + bob * 0.3; }   // aldeano: brazos cruzados
-      else if (this.armsForward) { P.right_arm.rotation.set(deg(-90) + bob, 0, 0.05); P.left_arm.rotation.set(deg(-90) - bob, 0, -0.05); }
-      else { P.right_arm.rotation.set(sw, 0, 0.06 + bob); P.left_arm.rotation.set(-sw, 0, -0.06 - bob); }
-      P.right_leg.rotation.x = -sw * 0.9; P.left_leg.rotation.x = sw * 0.9;
-      P.head.rotation.y = Math.sin(s * 0.7) * 0.15;
+      const A = this.animType;
+      if (A === 'biped') {
+        if (P.arms) { P.arms.rotation.x = deg(-43) + bob * 0.3; }   // aldeano: brazos cruzados
+        else if (P.right_arm && this.armsForward) { P.right_arm.rotation.set(deg(-90) + bob, 0, 0.05); P.left_arm.rotation.set(deg(-90) - bob, 0, -0.05); }
+        else if (P.right_arm) { P.right_arm.rotation.set(sw, 0, 0.06 + bob); P.left_arm.rotation.set(-sw, 0, -0.06 - bob); }
+        if (P.right_leg) { P.right_leg.rotation.x = -sw * 0.9; P.left_leg.rotation.x = sw * 0.9; }
+      } else if (A === 'quad') {   // cuatro patas: diagonales opuestas
+        if (P.right_hind_leg) { P.right_hind_leg.rotation.x = sw; P.left_front_leg.rotation.x = sw; P.left_hind_leg.rotation.x = -sw; P.right_front_leg.rotation.x = -sw; }
+      } else if (A === 'chicken') {
+        P.right_leg.rotation.x = sw * 1.4; P.left_leg.rotation.x = -sw * 1.4;
+        P.right_wing.rotation.z = Math.max(0, Math.sin(s * 9)) * 0.25; P.left_wing.rotation.z = -Math.max(0, Math.sin(s * 9)) * 0.25;
+      } else if (A === 'blaze') {
+        P.rods.rotation.y = s * 1.6; P.rods.position.y = 24 + Math.sin(s * 3) * 0.6;
+      } else if (A === 'wings') {   // alas que aletean (phantom, abeja, murciélago, dragón)
+        const f = this.model && P.right_wing ? Math.sin(s * (P.head ? 4 : 18)) * 0.5 : 0;
+        if (P.right_wing) { P.right_wing.rotation.z = f; P.left_wing.rotation.z = -f; }
+      } else if (A === 'squid') {
+        const q = 1 + Math.sin(s * 2) * 0.12; P.tentacles.scale.set(q, 1, q);
+      } else if (A === 'ghast') {
+        P.tentacles.rotation.x = Math.sin(s * 1.5) * 0.06; P.tentacles.rotation.z = Math.cos(s * 1.2) * 0.06;
+      } else if (A === 'shulker') {
+        P.lid.position.y = 24 + Math.max(0, Math.sin(s * 1.2)) * 5;
+      } else if (A === 'slime') {
+        const q = 1 + Math.sin(s * 3) * 0.04; P.body.scale.set(1 / Math.sqrt(q), q, 1 / Math.sqrt(q));
+      }
+      if (P.head && A !== 'blaze') P.head.rotation.y = Math.sin(s * 0.7) * 0.15;
     }
     const cy = this.centerY || 16;
     this.camera.position.set(Math.sin(this.yaw) * Math.cos(this.pitch) * this.dist, cy + Math.sin(this.pitch) * this.dist, Math.cos(this.yaw) * Math.cos(this.pitch) * this.dist);
@@ -2601,16 +3112,17 @@ const Viewer = {
   // Añade una capa de cajas a las partes (con textura o colores planos)
   async addLayer(parts, boxes, texPath, opts = {}) {
     const tex = texPath ? await this.texture(texPath, opts.tint) : null;
-    const tw = opts.texW || 64, th = tex ? tex.image.height * (64 / tex.image.width) : (opts.texH || 64);
+    const tw = opts.texW || 64, th = tex ? tex.image.height * (tw / tex.image.width) : (opts.texH || tw);
     for (const b of boxes) {
       const target = parts[b.p]; if (!target) continue;
-      const color = opts.color || (opts.colors ? opts.colors[{ head: 0, body: 1, right_arm: 2, left_arm: 2, right_leg: 3, left_leg: 3 }[b.p]] : '#888');
+      const ci = /head|nose|neck/.test(b.p) ? 0 : /arm|wing/.test(b.p) ? 2 : /leg/.test(b.p) ? 3 : 1;
+      const color = (!tex && b.c) || opts.color || (opts.colors ? opts.colors[ci] : '#888');
       if (!tex && opts.skipIfNoTex) continue;
       const mesh = this.boxMesh(b, tw, th, this.material(tex, color));
       if (opts.body) mesh.userData.body = true;   // piel del mob (no armadura): se oculta con invisibilidad
       if (b.pivot) {   // sub-parte con su propio giro
         const g = new THREE.Group(); g.position.set(b.pivot[0], -b.pivot[1], -b.pivot[2]);
-        g.rotation.set(b.rot[0], -b.rot[1], -b.rot[2]); g.add(mesh); target.add(g);
+        g.rotation.order = 'ZYX'; g.rotation.set(b.rot[0], -b.rot[1], -b.rot[2]); g.add(mesh); target.add(g);   // Java gira Z → Y → X
       } else target.add(mesh);
     }
     return !!tex;
@@ -2797,24 +3309,24 @@ const Viewer = {
     this.badge.textContent = TEX.count ? 'con texturas' : 'sin texturas';
     if (!def) {
       this.clear(); this.parts = null; this.setFx({ emit: [], levitate: false });
-      this.msg(`Vista 3D aún no disponible para "${id}". Mobs con modelo: ${Object.keys(MOB_MODELS).join(', ')}.`);
+      this.msg(`Vista 3D aún no disponible para "${NAMES.entities[id] || id}". El comando sí funciona.`);
       return;
     }
     this.msg('');
     const model = new THREE.Group(), body = new THREE.Group();   // body: se escala; model: gira
     model.add(body);
-    const pv = PIVOTS[def.pivots || 'humanoid'], parts = {};
+    const pv = typeof def.pivots === 'object' ? def.pivots : PIVOTS[def.pivots || 'humanoid'], parts = {};
     for (const [name, [px, py, pz]] of Object.entries(pv)) {
       const g = new THREE.Group(); g.position.set(px, 24 - py, -pz); body.add(g); parts[name] = g;
     }
-    const texPath = TEX.findTexture(def.tex, def.tex[0].split('/').pop());
-    const hasTex = await this.addLayer(parts, GEO[def.geo](def.opt), texPath, { colors: def.colors, body: true });
+    const texPath = def.flat || !def.tex ? null : TEX.findTexture(def.tex, def.tex[0].split('/').pop());
+    const hasTex = await this.addLayer(parts, GEO[def.geo](def.opt), texPath, { colors: def.colors, body: true, texW: def.texW });
     for (const L of [...(def.layers || []), ...(def.extraLayers ? def.extraLayers(m) : [])]) {
       const p = TEX.findTexture(L.tex, L.tex[0].split('/').pop());
-      await this.addLayer(parts, GEO[L.geo](L.opt), p, { skipIfNoTex: true, body: true });
+      await this.addLayer(parts, GEO[L.geo](L.opt), p, { skipIfNoTex: true, body: true, texW: L.texW || def.texW, tint: L.tint });
     }
-    // Armadura
-    for (const [slot, piece] of Object.entries(ARMOR_PIECES)) {
+    // Armadura (solo en mobs con cuerpo humanoide)
+    if (def.armor !== false) for (const [slot, piece] of Object.entries(ARMOR_PIECES)) {
       const it = equipItem(m.equip?.[slot]); if (!it) continue;
       const mat = armorMaterial(it.id); if (!mat || (mat === 'turtle_scute' && slot !== 'head')) continue;
       const boxes = GEO.humanoid({ inflate: piece.inflate, hat: false }).filter(b => piece.parts.includes(b.p));
@@ -2825,20 +3337,20 @@ const Viewer = {
     }
     // Items en las manos
     const main = equipItem(m.equip?.mainhand), off = equipItem(m.equip?.offhand);
-    if (main && !armorMaterial(main.id)) await this.addHeldItem(parts.right_arm, main, false);
-    if (off && !armorMaterial(off.id)) await this.addHeldItem(parts.left_arm, off, true);
+    if (def.held !== false && parts.right_arm && main && !armorMaterial(main.id)) await this.addHeldItem(parts.right_arm, main, false);
+    if (def.held !== false && parts.left_arm && off && !armorMaterial(off.id)) await this.addHeldItem(parts.left_arm, off, true);
     if (token !== this.token) return;   // llegó una configuración más nueva
     // Escala, bebé y nombre
     const sc = +((m.attrs || []).find(a => stripNs(a.type) === 'scale')?.base) || 1;
     const babyOk = m.baby && (IS_BABY.has(id) || AGEABLE.has(id));
-    const k = Math.max(0.0625, Math.min(16, sc)) * (def.scale || 1) * (babyOk ? 0.5 : 1);
+    const k = Math.max(0.0625, Math.min(16, sc)) * (def.scale || 1) * (def.sizeScale ? def.sizeScale(m) : 1) * (babyOk ? 0.5 : 1);
     body.scale.setScalar(k);
-    if (babyOk) parts.head.scale.setScalar(1.5);   // cabeza proporcionalmente grande
-    const height = 32 * k;
+    if (babyOk && parts.head) parts.head.scale.setScalar(1.5);   // cabeza proporcionalmente grande
+    const height = (def.h || 32) * k;
     const np = textParts(m.name);
     if (np.length) { const sp = this.nameSprite(np); sp.position.y = height + 5 + 2 * k; model.add(sp); }
     model.rotation.y = this.model ? this.model.rotation.y : 0;
-    this.clear(); this.root.add(model); this.model = model; this.parts = parts; this.armsForward = !!def.armsForward;
+    this.clear(); this.root.add(model); this.model = model; this.parts = parts; this.armsForward = !!def.armsForward; this.animType = def.anim || 'biped';
     this.centerY = height / 2 + (np.length ? 4 : 0);
     const newFit = Math.max(0.6, height / 32);
     if (newFit !== this.fit) { this.dist *= newFit / (this.fit || 1); this.fit = newFit; }
@@ -2854,7 +3366,7 @@ const Viewer = {
     });
     this.glow = !!m.glowing || hasEff('glowing');
     this.renderer.domElement.classList.toggle('glow', this.glow);
-    this.badge.textContent = hasTex ? 'con texturas' : 'colores de muestra';
+    this.badge.textContent = def.flat ? 'modelo aproximado' : hasTex ? 'con texturas' : 'colores de muestra';
     this.lastName = id + (textPlain(m.name) ? '-' + textPlain(m.name).replace(/[^\w\-]+/g, '_') : '');
   },
   clear() {
