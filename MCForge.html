@@ -2964,6 +2964,7 @@ function renderDocTabs(k) {
   const bar = $('#docs-' + k); if (!bar) return;
   docSync(k);
   const st = DOCS[k].state;
+  if (st.undo && (st.list.length > 1 || !docIsBlank(k, st.list[0]))) st.undo = null;
   bar.replaceChildren(...st.list.map((m, i) => {
     const lbl = docLabel(k, m);
     const tab = el('div', { class: 'doctab' + (i === st.active ? ' active' : ''), role: 'tab', 'aria-selected': String(i === st.active),
@@ -2974,16 +2975,24 @@ function renderDocTabs(k) {
   }), el('div', { class: 'doctab add', title: 'Nueva pestaña', onclick: () => openDoc(k, DOCS[k].fresh(), true) }, '+'),
     // Solo aparece si hay algo que limpiar
     ...(st.list.length > 1 || !docIsBlank(k, st.list[0])
-      ? [el('div', { class: 'doctab clear', title: 'Cerrar todas las pestañas', onclick: () => clearDocs(k) }, '🗑 Eliminar todo')] : []));
+      ? [el('div', { class: 'doctab clear', title: 'Cerrar todas las pestañas', onclick: () => clearDocs(k) }, '🗑 Eliminar todo')]
+      : st.undo ? [el('div', { class: 'doctab add', title: 'Recuperar las pestañas eliminadas', onclick: () => undoClear(k), style: 'font-size:8px' }, '↶ Deshacer')] : []));
 }
 // Cierra todas las pestañas de la sección y reinicia la baraja de ejemplos
 function clearDocs(k) {
-  const st = DOCS[k].state, n = st.list.length;
-  if (!confirm(`¿Cerrar ${n === 1 ? 'la pestaña' : 'las ' + n + ' pestañas'} de esta sección? Lo que no hayas guardado en la Biblioteca se pierde.`)) return;
+  docSync(k);
+  const st = DOCS[k].state;
+  st.undo = { list: st.list, active: st.active };   // por si fue sin querer
   st.list = [DOCS[k].fresh()]; st.active = 0;
   delete exampleDeck[{ items: 'item', potions: 'potion', mobs: 'mob', villagers: 'villager' }[k]];
   DOCS[k].set(st.list[0]); renderDocTabs(k);
   toast('Pestañas eliminadas');
+}
+function undoClear(k) {
+  const st = DOCS[k].state; if (!st.undo) return;
+  ({ list: st.list, active: st.active } = st.undo); st.undo = null;
+  DOCS[k].set(st.list[st.active]); renderDocTabs(k);
+  toast('Pestañas recuperadas');
 }
 // Botones Nuevo / Cargar ejemplo
 $('#itemReset').onclick = () => openDoc('items', newItem(), true);
