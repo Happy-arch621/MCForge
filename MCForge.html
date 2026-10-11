@@ -192,6 +192,19 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
 #texBanner.show{display:flex}
 #texBanner .bar{width:140px;height:8px;background:var(--field);border:1px solid var(--bevel-hi)}
 #texBanner .bar i{display:block;height:100%;width:0;background:var(--grass)}
+/* Pestañas de documento (varios items/mobs/... abiertos a la vez). Estilo tooltip de Minecraft, distinto a los botones */
+.doctabs{display:flex;flex-wrap:wrap;gap:4px;padding-bottom:8px;margin:0 0 10px;border-bottom:2px solid #3a1a8a}
+.doctab{flex:0 0 auto;display:flex;align-items:center;gap:6px;max-width:230px;height:34px;padding:0 6px 0 10px;background:#0d0d10;border:2px solid #24242a;
+  color:#fff;font-family:var(--mc);font-size:19px;line-height:1;cursor:pointer;opacity:.55;transition:opacity .12s}
+.doctab:hover{opacity:.85}
+.doctab.active{opacity:1;background:#100010;border-color:#5000ff #28007f #28007f #5000ff}
+.doctab .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:2px 2px 0 #2a2a2a}
+.doctab .x{font-family:var(--pixel);font-size:8px;color:#888;padding:5px 4px;line-height:1}
+.doctab .x:hover{color:var(--red)}
+.doctab.add{opacity:.7;border-style:dashed;border-color:#3a3a44;padding:0 12px;color:var(--grass);font-family:var(--pixel);font-size:12px}
+.doctab.add:hover{opacity:1}
+.doctab.clear{opacity:.7;border-style:dashed;border-color:#4a2a2a;padding:0 10px;color:var(--red);font-family:var(--pixel);font-size:8px}
+.doctab.clear:hover{opacity:1;border-color:var(--red)}
 #toast{position:fixed;left:50%;bottom:180px;transform:translateX(-50%);background:var(--grass-dk);border:2px solid #7fdc5a;padding:8px 14px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;font-size:13px}
 #toast.show{opacity:1}
 .list-row{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;padding:6px;background:#1e1e22;border:1px solid #333}
@@ -222,6 +235,7 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
 <section class="tab active" id="tab-items">
   <div class="layout">
     <div id="itemForm">
+      <div class="doctabs" id="docs-items" role="tablist" aria-label="Abiertos"></div>
       <div class="row" style="justify-content:flex-end">
         <button class="btn sm" type="button" id="itemReset">Nuevo</button>
         <button class="btn sm" type="button" id="itemExample">Cargar ejemplo</button>
@@ -355,6 +369,7 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
 <section class="tab" id="tab-mobs">
   <div class="layout mob-layout">
     <div id="mobForm">
+      <div class="doctabs" id="docs-mobs" role="tablist" aria-label="Abiertos"></div>
       <div class="row" style="justify-content:flex-end">
         <button class="btn sm" type="button" id="mobReset">Nuevo</button>
         <button class="btn sm" type="button" id="mobExample">Cargar ejemplo</button>
@@ -471,6 +486,7 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
 <section class="tab" id="tab-potions">
   <div class="layout">
     <div id="potForm">
+      <div class="doctabs" id="docs-potions" role="tablist" aria-label="Abiertos"></div>
       <div class="row" style="justify-content:flex-end">
         <button class="btn sm" type="button" id="potReset">Nuevo</button>
         <button class="btn sm" type="button" id="potExample">Cargar ejemplo</button>
@@ -561,6 +577,7 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
 <section class="tab" id="tab-villagers">
   <div class="layout">
     <div id="vilForm">
+      <div class="doctabs" id="docs-villagers" role="tablist" aria-label="Abiertos"></div>
       <div class="row" style="justify-content:flex-end">
         <button class="btn sm" type="button" id="vilReset">Nuevo</button>
         <button class="btn sm" type="button" id="vilExample">Cargar ejemplo</button>
@@ -1567,7 +1584,6 @@ const ITEM_EXAMPLE = () => {
   });
   return m;
 };
-$('#itemReset').onclick = () => { item = newItem(); renderItemForm(); };
 
 /* =====================================================================
    9. BARRA DE COMANDO (común a todas las pestañas)
@@ -1580,6 +1596,7 @@ const TABS = {
 function refreshCommand() {
   const t = TABS[currentTab];
   const cmd = t ? t.command() : '';
+  if (typeof DOCS !== 'undefined' && DOCS[currentTab]) renderDocTabs(currentTab);
   $('#cmdText').textContent = cmd || '— Esta pestaña llega en una próxima fase —';
   const n = cmd.length, c = $('#cmdCount');
   c.className = n === 0 ? '' : n <= 256 ? 'chat' : n <= 32500 ? 'block' : 'over';
@@ -1643,10 +1660,7 @@ function libCommand(type, data) {
   return '';
 }
 function libOpen(type, entry) {
-  if (type === 'items') { item = { ...newItem(), ...clone(entry.data) }; renderItemForm(); }
-  if (type === 'potions') { potion = { ...newPotion(), ...clone(entry.data) }; renderPotionForm(); }
-  if (type === 'mobs') { mob = { ...newMob(), ...clone(entry.data) }; renderMobForm(); }
-  if (type === 'villagers') { villager = { ...newVillager(), ...clone(entry.data) }; renderVillagerForm(); }
+  openDoc(type, { ...DOCS[type].fresh(), ...clone(entry.data) });
   switchTab(type); closeLib(); toast(`"${entry.name}" cargado`);
 }
 const openLib = () => { renderLib(); $('#lib').classList.add('open'); $('#backdrop').classList.add('open'); };
@@ -1900,7 +1914,6 @@ const POTION_EXAMPLE = () => Object.assign(newPotion(), {
     { ...newEffect('instant_health'), lvl: 2, secs: 1 }
   ]
 });
-$('#potReset').onclick = () => { potion = newPotion(); renderPotionForm(); };
 
 TABS.potions = { command: () => buildPotionCommand(potion), model: () => potion, label: m => textPlain(m.name) || POTION_TYPE_NAME[m.kind] };
 
@@ -2184,7 +2197,6 @@ const MOB_EXAMPLE = () => {
   m.equip.feet = { ...newEquip(), mode: 'vanilla', id: 'diamond_boots', drop: 0 };
   return m;
 };
-$('#mobReset').onclick = () => { mob = newMob(); renderMobForm(); };
 
 TABS.mobs = { command: () => buildMobCommand(mob), model: () => mob, label: m => textPlain(m.name) || NAMES.entities[stripNs(m.id)] || m.id };
 
@@ -2888,6 +2900,97 @@ const RPG_VILLAGERS = [
     T('emerald*30', 'ender_eye*4', { uses: 3 }), T('emerald*20', 'obsidian*10'), T('emerald*50', 'end_crystal', { uses: 1 })], { noAI: 1, invul: 1, silent: 1 })
 ];
 
+/* =====================================================================
+   PESTAÑAS DE DOCUMENTO: varios items / pociones / mobs / aldeanos abiertos
+   ===================================================================== */
+var DOCS = {   // var: refreshCommand la consulta antes de que se defina
+  items:     { get: () => item,     set: m => { item = m; renderItemForm(); },         fresh: newItem,
+               fallback: m => NAMES.items[stripNs(m.id)] || m.id,
+               color: m => ({ uncommon: '#FFFF55', rare: '#55FFFF', epic: '#FF55FF' })[m.rarity] || '#FFFFFF' },
+  potions:   { get: () => potion,   set: m => { potion = m; renderPotionForm(); },     fresh: newPotion,
+               fallback: m => POTION_TYPE_NAME[m.kind] || 'Poción', color: () => '#FFFFFF' },
+  mobs:      { get: () => mob,      set: m => { mob = m; renderMobForm(); },           fresh: newMob,
+               fallback: m => NAMES.entities[stripNs(m.id)] || m.id, color: () => '#FFFFFF' },
+  villagers: { get: () => villager, set: m => { villager = m; renderVillagerForm(); }, fresh: newVillager,
+               fallback: m => 'Aldeano ' + (NAMES.professions[m.profession] || m.profession), color: () => '#FFFFFF' }
+};
+const DOC_MAX = 20;
+for (const k in DOCS) DOCS[k].state = { list: [DOCS[k].get()], active: 0 };
+const docSync = k => { const st = DOCS[k].state; st.list[st.active] = DOCS[k].get(); };
+const docIsBlank = (k, m) => JSON.stringify(m) === JSON.stringify(DOCS[k].fresh());
+function docActivate(k, i) {
+  docSync(k);
+  const st = DOCS[k].state; st.active = i;
+  DOCS[k].set(st.list[i]);
+  renderDocTabs(k);
+}
+// Abre un modelo: reusa la pestaña actual si está en blanco; si no, abre una nueva
+function openDoc(k, m, forceNew = false) {
+  docSync(k);
+  const st = DOCS[k].state;
+  if (!forceNew && docIsBlank(k, st.list[st.active])) st.list[st.active] = m;
+  else {
+    if (st.list.length >= DOC_MAX) { toast(`Máximo ${DOC_MAX} pestañas: cierra alguna`); return false; }
+    st.list.splice(st.active + 1, 0, m); st.active++;
+  }
+  DOCS[k].set(m); renderDocTabs(k);
+  return true;
+}
+function closeDoc(k, i) {
+  docSync(k);
+  const st = DOCS[k].state;
+  st.list.splice(i, 1);
+  if (!st.list.length) st.list.push(DOCS[k].fresh());
+  if (i < st.active || st.active >= st.list.length) st.active = Math.max(0, st.active - (i < st.active ? 1 : 0));
+  st.active = Math.min(st.active, st.list.length - 1);
+  DOCS[k].set(st.list[st.active]); renderDocTabs(k);
+}
+// Etiqueta con los colores reales del nombre (degradados, negrita, etc.)
+function docLabel(k, m) {
+  const d = DOCS[k], base = d.color(m), span = el('span', { class: 'lbl' });
+  const parts = textParts(m.name).filter(p => p.text.trim() || p.text);
+  if (!parts.some(p => p.text.trim())) { span.style.color = base; span.textContent = d.fallback(m); return span; }
+  for (const p of parts) {
+    const c = p.color ? (p.color.startsWith('#') ? p.color : MC_COLORS[p.color]?.[1]) : base;
+    const st = [`color:${c || base}`];
+    if (p.bold) st.push('font-weight:700'); if (p.italic) st.push('font-style:italic');
+    const deco = [p.underlined && 'underline', p.strikethrough && 'line-through'].filter(Boolean).join(' ');
+    if (deco) st.push('text-decoration:' + deco);
+    span.append(el('span', { style: st.join(';') }, p.text));
+  }
+  return span;
+}
+function renderDocTabs(k) {
+  const bar = $('#docs-' + k); if (!bar) return;
+  docSync(k);
+  const st = DOCS[k].state;
+  bar.replaceChildren(...st.list.map((m, i) => {
+    const lbl = docLabel(k, m);
+    const tab = el('div', { class: 'doctab' + (i === st.active ? ' active' : ''), role: 'tab', 'aria-selected': String(i === st.active),
+      title: lbl.textContent, onclick: () => { if (i !== st.active) docActivate(k, i); } }, lbl);
+    tab.append(el('span', { class: 'x', title: 'Cerrar', onclick: e => { e.stopPropagation(); closeDoc(k, i); } }, '✕'));
+    tab.onauxclick = e => { if (e.button === 1) { e.preventDefault(); closeDoc(k, i); } };   // clic con la rueda: cerrar
+    return tab;
+  }), el('div', { class: 'doctab add', title: 'Nueva pestaña', onclick: () => openDoc(k, DOCS[k].fresh(), true) }, '+'),
+    // Solo aparece si hay algo que limpiar
+    ...(st.list.length > 1 || !docIsBlank(k, st.list[0])
+      ? [el('div', { class: 'doctab clear', title: 'Cerrar todas las pestañas', onclick: () => clearDocs(k) }, '🗑 Eliminar todo')] : []));
+}
+// Cierra todas las pestañas de la sección y reinicia la baraja de ejemplos
+function clearDocs(k) {
+  const st = DOCS[k].state, n = st.list.length;
+  if (!confirm(`¿Cerrar ${n === 1 ? 'la pestaña' : 'las ' + n + ' pestañas'} de esta sección? Lo que no hayas guardado en la Biblioteca se pierde.`)) return;
+  st.list = [DOCS[k].fresh()]; st.active = 0;
+  delete exampleDeck[{ items: 'item', potions: 'potion', mobs: 'mob', villagers: 'villager' }[k]];
+  DOCS[k].set(st.list[0]); renderDocTabs(k);
+  toast('Pestañas eliminadas');
+}
+// Botones Nuevo / Cargar ejemplo
+$('#itemReset').onclick = () => openDoc('items', newItem(), true);
+$('#potReset').onclick  = () => openDoc('potions', newPotion(), true);
+$('#mobReset').onclick  = () => openDoc('mobs', newMob(), true);
+$('#vilReset').onclick  = () => openDoc('villagers', newVillager(), true);
+
 // Baraja: recorre los 50 en orden aleatorio sin repetir
 const EXAMPLE_SETS = { item: RPG_ITEMS, mob: RPG_MOBS, potion: RPG_POTIONS, villager: RPG_VILLAGERS };
 const exampleDeck = {};
@@ -2902,12 +3005,12 @@ function nextExample(kind) {
   toast(`Ejemplo ${list.length - d.length}/${list.length}: ${plainName(m.name) || m.id}`);
   return m;
 }
-$('#itemExample').onclick = () => { item = nextExample('item'); renderItemForm(); };
-$('#potExample').onclick = () => { potion = nextExample('potion'); renderPotionForm(); };
-$('#mobExample').onclick = () => { mob = nextExample('mob'); renderMobForm(); };
-$('#vilExample').onclick = () => { villager = nextExample('villager'); renderVillagerForm(); };
+$('#itemExample').onclick = () => openDoc('items', nextExample('item'));
+$('#potExample').onclick  = () => openDoc('potions', nextExample('potion'));
+$('#mobExample').onclick  = () => openDoc('mobs', nextExample('mob'));
+$('#vilExample').onclick  = () => openDoc('villagers', nextExample('villager'));
+for (const k in DOCS) renderDocTabs(k);
 
-$('#vilReset').onclick = () => { villager = newVillager(); renderVillagerForm(); };
 
 TABS.villagers = { command: () => buildVillagerCommand(villager), model: () => villager, label: m => textPlain(m.name) || 'Aldeano ' + (NAMES.professions[m.profession] || m.profession) };
 
