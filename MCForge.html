@@ -1955,6 +1955,38 @@ const MOB_QUICK_ATTRS = [['attack_damage', 'Daño'], ['movement_speed', 'Velocid
   ['follow_range', 'Rango de seguimiento'], ['step_height', 'Altura de paso'], ['jump_strength', 'Fuerza de salto']];
 
 const newEquip = () => ({ mode: 'none', id: '', count: 1, name: '', data: null, drop: '' });
+// ¿Es un bloque? Todo lo que no sea item suelto (herramientas, comida, materiales...)
+const NOT_BLOCK_RE = /(_spawn_egg|_sword|_axe|_pickaxe|_shovel|_hoe|_horse_armor|_boat|_raft|_minecart|_bucket|_dye|_ingot|_nugget|_pottery_sherd|_smithing_template|_banner_pattern|_harness|_bundle|_map|_on_a_stick|_seeds|_shard|_scrap|_scute|_fragment|_spear|_nautilus_armor|_wolf_armor|_helmet|_chestplate|_leggings|_boots)$|^music_disc_|^cooked_/;
+const NOT_BLOCK = new Set(('apple armor_stand arrow baked_potato beef beetroot beetroot_soup blaze_powder blaze_rod blue_egg bone bone_meal book bow bowl bread ' +
+  'breeze_rod brick brown_egg brush bucket bundle carrot charcoal chicken chorus_fruit clay_ball clock coal cocoa_beans cod compass cookie crossbow ' +
+  'debug_stick diamond disc_fragment_5 dragon_breath dried_kelp egg elytra emerald enchanted_book enchanted_golden_apple end_crystal ender_eye ender_pearl ' +
+  'experience_bottle feather fermented_spider_eye fire_charge firework_rocket firework_star fishing_rod flint flint_and_steel ghast_tear glass_bottle ' +
+  'glistering_melon_slice glow_berries glow_ink_sac glow_item_frame glowstone_dust goat_horn golden_apple golden_carrot gunpowder heart_of_the_sea ' +
+  'honey_bottle honeycomb ink_sac item_frame knowledge_book lapis_lazuli lead leather lingering_potion mace magma_cream map melon_slice minecart ' +
+  'mushroom_stew mutton name_tag nautilus_shell nether_brick nether_star nether_wart ominous_bottle ominous_trial_key painting paper phantom_membrane ' +
+  'pitcher_pod poisonous_potato popped_chorus_fruit porkchop potato potion prismarine_crystals pufferfish pumpkin_pie quartz rabbit rabbit_foot ' +
+  'rabbit_hide rabbit_stew raw_gold raw_iron raw_copper recovery_compass redstone resin_brick resin_clump rotten_flesh saddle salmon shears shield shulker_shell ' +
+  'slime_ball snowball spectral_arrow spider_eye splash_potion spyglass stick string sugar suspicious_stew sweet_berries tipped_arrow ' +
+  'totem_of_undying trial_key trident tropical_fish wheat wind_charge writable_book written_book').split(' '));
+const isBlockItem = id => { id = stripNs(id); return !!NAMES.items[id] && !NOT_BLOCK.has(id) && !NOT_BLOCK_RE.test(id); };
+// Mobs que dibujan en la cabeza lo que llevan (bloques incluidos)
+const HEAD_BLOCK_MOBS = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'giant', 'skeleton', 'stray', 'wither_skeleton', 'bogged', 'parched',
+  'piglin', 'piglin_brute', 'zombified_piglin', 'villager', 'wandering_trader', 'pillager', 'vindicator', 'evoker', 'illusioner']);
+const HEAD_WEARABLE = id => /_helmet$|_head$|_skull$/.test(id) || id === 'carved_pumpkin';
+const ARMOR_SLOT_RULE = {
+  head:  { test: HEAD_WEARABLE, desc: 'cascos, calabaza tallada o cabezas' },
+  chest: { test: id => /_chestplate$/.test(id) || id === 'elytra', desc: 'pecheras o élitras' },
+  legs:  { test: id => /_leggings$/.test(id), desc: 'pantalones' },
+  feet:  { test: id => /_boots$/.test(id), desc: 'botas' }
+};
+// ¿Se puede poner este item en esta ranura de este mob?
+function equipAllowed(slot, mobId, itemId) {
+  const r = ARMOR_SLOT_RULE[slot]; if (!r || !itemId) return true;    // manos: cualquier cosa
+  itemId = stripNs(itemId);
+  if (itemId.includes(':')) return true;                               // items de mods: no se validan
+  return r.test(itemId) || (slot === 'head' && HEAD_BLOCK_MOBS.has(stripNs(mobId)) && isBlockItem(itemId));
+}
+const equipChoices = (slot, mobId) => ARMOR_SLOT_RULE[slot] ? DATA.items.filter(([id]) => equipAllowed(slot, mobId, id)) : DATA.items;
 function newMob() {
   return {
     id: 'zombie', x: '~', y: '~', z: '~',
@@ -2057,6 +2089,11 @@ function mobWarnings(m) {
   for (const [s, label] of EQUIP_SLOTS) {
     const e = m.equip[s];
     if (e.mode === 'vanilla' && e.id && !NAMES.items[stripNs(e.id)] && !e.id.includes(':')) w.push(['err', `${label}: "${e.id}" no es un item conocido.`]);
+    else {
+      const eid = e.mode === 'vanilla' ? e.id : e.mode === 'lib' ? e.data?.id : '';
+      if (eid && !equipAllowed(s, m.id, eid)) w.push(['err', `${label}: aquí solo van ${ARMOR_SLOT_RULE[s].desc}` +
+        (s === 'head' ? (HEAD_BLOCK_MOBS.has(id) ? ' o bloques.' : '. Este mob no muestra bloques en la cabeza.') : '.')]);
+    }
     if (e.drop !== '' && (+e.drop < 0 || +e.drop > 100)) w.push(['warn', `${label}: la probabilidad va de 0 a 100.`]);
   }
   m.attrs.forEach(a => { if (a.type && !NAMES.attributes[stripNs(a.type)] && !a.type.includes(':')) w.push(['err', `Atributo desconocido: ${a.type}`]); });
@@ -2082,7 +2119,7 @@ const MOB_IDS = new Set(['allay', 'armadillo', 'axolotl', 'bat', 'bee', 'blaze',
   'wandering_trader', 'warden', 'witch', 'wither', 'wither_skeleton', 'wolf', 'zoglin', 'zombie', 'zombie_horse', 'zombie_nautilus',
   'zombie_villager', 'zombified_piglin']);
 const MOB_LIST = DATA.entities.filter(([id]) => MOB_IDS.has(id));
-const acMob = autocomplete(MOB_LIST, mob.id, v => { mob.id = v; renderMobOpts(); updateMob(); }, 'zombie');
+const acMob = autocomplete(MOB_LIST, mob.id, v => { mob.id = v; renderMobOpts(); renderEquip(); updateMob(); }, 'zombie');
 $('#acMob').append(acMob);
 function renderMobName() { $('#mobNameEditor').replaceChildren(textEditor(mob.name, updateMob, { placeholder: 'Nombre del mob', defaultLabel: 'Blanco' })); }
 
@@ -2099,9 +2136,11 @@ function renderMobAttrs() {
 
 // Equipo: cada ranura puede ser vacía, item vanilla o item de la biblioteca
 function renderEquip() {
-  const libItems = libLoad().items || [];
+  const allItems = libLoad().items || [];
   $('#equipList').replaceChildren(...EQUIP_SLOTS.map(([slot, label]) => {
     const e = mob.equip[slot] ||= newEquip();
+    const ok = id => equipAllowed(slot, mob.id, id);
+    const libItems = allItems.filter(it => ok(it.data?.id));   // solo lo que cabe en esta ranura
     const mode = el('select', { style: 'width:auto', onchange: ev => {
       const v = ev.target.value;
       if (v === 'none' || v === 'vanilla') { e.mode = v; e.data = null; e.name = ''; }
@@ -2110,17 +2149,20 @@ function renderEquip() {
       renderEquip(); updateMob();
     } },
       el('option', { value: 'none' }, '— Vacío —'), el('option', { value: 'vanilla' }, 'Item vanilla'),
-      el('option', { value: 'current' }, 'Item abierto en la pestaña Items'),
+      el('option', { value: 'current', disabled: !ok(item.id) }, 'Item abierto en la pestaña Items' + (ok(item.id) ? '' : ' (no cabe aquí)')),
       libItems.length ? el('optgroup', { label: 'Mi biblioteca' }, libItems.map(it => el('option', { value: 'lib:' + it.uid }, it.name))) : null,
       e.mode === 'lib' ? el('option', { value: 'keep' }, '★ ' + (e.name || 'Item guardado')) : null);
     mode.value = e.mode === 'lib' ? 'keep' : e.mode;
     const row = el('div', { class: 'list-row', style: 'align-items:center' },
       el('div', { style: 'width:110px;font-size:12px;color:var(--muted)' }, label), mode);
-    if (e.mode === 'vanilla') row.append(autocomplete(DATA.items, e.id, v => { e.id = v; updateMob(); }, slot === 'head' ? 'iron_helmet' : slot === 'mainhand' ? 'iron_sword' : '', true));
+    const ph = { head: 'iron_helmet', chest: 'iron_chestplate', legs: 'iron_leggings', feet: 'iron_boots', mainhand: 'iron_sword' }[slot] || '';
+    if (e.mode === 'vanilla') row.append(autocomplete(equipChoices(slot, mob.id), e.id, v => { e.id = v; updateMob(); }, ph, true));
     if (e.mode !== 'none') {
       row.append(el('div', { class: 'f' }, el('span', {}, 'Cantidad'), el('input', { type: 'number', min: 1, max: 99, value: e.count, style: 'width:70px', oninput: ev => { e.count = ev.target.value; updateMob(); } })));
       row.append(el('div', { class: 'f' }, el('span', {}, '% soltar'), el('input', { type: 'number', min: 0, max: 100, step: 'any', value: e.drop, placeholder: '8.5', style: 'width:76px', oninput: ev => { e.drop = ev.target.value; updateMob(); } })));
     }
+    if (slot === 'head') row.append(el('small', { class: 'hint', style: 'flex-basis:100%;margin:0' },
+      HEAD_BLOCK_MOBS.has(stripNs(mob.id)) ? '✔ Este mob puede llevar cualquier bloque en la cabeza.' : 'Este mob solo acepta cascos, calabaza tallada o cabezas.'));
     return row;
   }));
 }
@@ -3815,6 +3857,68 @@ const Viewer = {
     grip.rotation.x = deg(35);                     // baja la diagonal de 45° a ~10°: la hoja apunta al frente y un poco arriba
     arm.add(grip);
   },
+  // Bloque en la cabeza (10 px, como el juego) o cabeza de mob; si no hay caras de bloque, item extruido
+  async addHeadBlock(parts, it, def) {
+    const id = stripNs(it.id), headTall = /villager|illager|witch/.test(def.geo) || /villager|illager|witch/.test(def.pivots);
+    const cy = headTall ? 5 : 4;
+    const SKULLS = { skeleton_skull: ['entity/skeleton/skeleton'], wither_skeleton_skull: ['entity/skeleton/wither_skeleton'],
+      zombie_head: ['entity/zombie/zombie'], creeper_head: ['entity/creeper/creeper'], piglin_head: ['entity/piglin/piglin'] };
+    if (SKULLS[id]) {
+      const tp = TEX.findTexture(SKULLS[id], SKULLS[id][0].split('/').pop());
+      const wide = id === 'piglin_head';
+      await this.addLayer(parts, [{ p: 'head', uv: [0, 0], box: wide ? [-5, -8, -4, 10, 8, 8] : [-4, -8, -4, 8, 8, 8], inflate: 0.75 }], tp,
+        { color: '#cccccc', texH: wide ? 64 : id === 'creeper_head' ? 32 : 64 });
+      return;
+    }
+    const faces = this.blockFaces(id);
+    if (faces) {
+      const leafTint = /_leaves$/.test(id) && !/cherry|azalea|pale_oak/.test(id) ? 0x59AE30 : null;
+      const load = async n => { const t = await this.texture('block/' + n.p, n.tint ?? leafTint); if (t && t.image.height > t.image.width) { t.repeat.set(1, t.image.width / t.image.height); t.offset.set(0, 1 - t.image.width / t.image.height); } return t; };
+      const [side, top, bottom, front] = await Promise.all([faces.side, faces.top, faces.bottom, faces.front].map(load));
+      const mat = t => new THREE.MeshLambertMaterial({ map: t, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide });
+      const ms = side ? mat(side) : null;
+      if (ms) {
+        // orden de BoxGeometry: +x, -x, +y, -y, +z (frente del mob), -z
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10), [ms, ms, top ? mat(top) : ms, bottom ? mat(bottom) : ms, front ? mat(front) : ms, ms]);
+        mesh.position.set(0, cy, 0); parts.head.add(mesh);
+        return;
+      }
+    }
+    // Plantas, losas, antorchas...: el item tal cual, como lo dibuja el juego
+    const icon = await TEX.icon({ id }); if (!icon) return;
+    const img = await new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = icon.src; });
+    if (!img) return;
+    const c = document.createElement('canvas'); c.width = img.naturalWidth || 16; c.height = img.naturalHeight || 16;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(img, 0, 0);
+    const tx = new THREE.CanvasTexture(c); tx.magFilter = tx.minFilter = THREE.NearestFilter; tx.generateMipmaps = false; tx.encoding = THREE.sRGBEncoding;
+    let geo = null; try { geo = this.extrudedItem(g.getImageData(0, 0, c.width, c.height).data, c.width, c.height, 10); } catch {}
+    const mesh = new THREE.Mesh(geo || new THREE.PlaneGeometry(10, 10), new THREE.MeshLambertMaterial({ map: tx, alphaTest: 0.1, side: THREE.DoubleSide }));
+    mesh.position.set(0, cy + 1, 0); parts.head.add(mesh);
+  },
+  // Texturas de las caras de un bloque completo: {side, top, bottom, front} o null si no es un cubo simple
+  blockFaces(id) {
+    const has = n => TEX.files.has(`minecraft/textures/block/${n}.png`);
+    const SPECIAL = {
+      carved_pumpkin: { front: 'carved_pumpkin', side: 'pumpkin_side', top: 'pumpkin_top' },
+      jack_o_lantern: { front: 'jack_o_lantern', side: 'pumpkin_side', top: 'pumpkin_top' },
+      pumpkin: { side: 'pumpkin_side', top: 'pumpkin_top' }, melon: { side: 'melon_side', top: 'melon_top' },
+      crafting_table: { front: 'crafting_table_front', side: 'crafting_table_side', top: 'crafting_table_top', bottom: 'oak_planks' },
+      bookshelf: { side: 'bookshelf', top: 'oak_planks' },
+      grass_block: { side: 'grass_block_side', top: { p: 'grass_block_top', tint: 0x79C05A }, bottom: 'dirt' }
+    };
+    const wrap = v => v == null ? null : typeof v === 'string' ? { p: v } : v;
+    let f = SPECIAL[id];
+    if (!f) {
+      let b = id.replace(/^waxed_/, '');
+      b = b.replace(/_wood$/, '_log').replace(/_hyphae$/, '_stem');
+      const pick = (...c) => c.find(n => n && has(n)) || null;
+      const side = pick(b + '_side', b, b + '_front');
+      if (!side) return null;
+      const top = pick(b + '_top', b) || side;
+      f = { side, top, bottom: pick(b + '_bottom') || top, front: pick(b + '_front') || side };
+    }
+    return { side: wrap(f.side), top: wrap(f.top || f.side), bottom: wrap(f.bottom || f.top || f.side), front: wrap(f.front || f.side) };
+  },
   /* Item "extruido" como en Minecraft: cada píxel opaco es un cubito de 1 px de grosor.
      Frente y reverso usan la textura completa; en la orilla de cada píxel se añade una cara lateral
      que toma el color de ese píxel. px = datos RGBA, W×H = tamaño de la textura, size = tamaño final. */
@@ -3992,6 +4096,9 @@ const Viewer = {
       const ok = await this.addLayer(parts, boxes, TEX.files.has(`minecraft/textures/${base}.png`) ? base : null, { tint, texH: 32, color: tint != null ? '#' + tint.toString(16).padStart(6, '0') : ARMOR_COLORS[mat] });
       if (ok && mat === 'leather') await this.addLayer(parts, boxes, `${base}_overlay`, { skipIfNoTex: true });
     }
+    // Bloque o cabeza de mob en la cabeza
+    const headIt = equipItem(m.equip?.head);
+    if (headIt && !armorMaterial(headIt.id) && HEAD_BLOCK_MOBS.has(id) && parts.head) await this.addHeadBlock(parts, headIt, def);
     // Items en las manos
     const main = equipItem(m.equip?.mainhand), off = equipItem(m.equip?.offhand);
     if (def.held !== false && parts.right_arm && main && !armorMaterial(main.id)) await this.addHeldItem(parts.right_arm, main, false);
