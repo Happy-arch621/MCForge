@@ -1567,7 +1567,6 @@ const ITEM_EXAMPLE = () => {
   });
   return m;
 };
-$('#itemExample').onclick = () => { item = ITEM_EXAMPLE(); renderItemForm(); toast('Ejemplo cargado'); };
 $('#itemReset').onclick = () => { item = newItem(); renderItemForm(); };
 
 /* =====================================================================
@@ -1901,7 +1900,6 @@ const POTION_EXAMPLE = () => Object.assign(newPotion(), {
     { ...newEffect('instant_health'), lvl: 2, secs: 1 }
   ]
 });
-$('#potExample').onclick = () => { potion = POTION_EXAMPLE(); renderPotionForm(); toast('Ejemplo cargado'); };
 $('#potReset').onclick = () => { potion = newPotion(); renderPotionForm(); };
 
 TABS.potions = { command: () => buildPotionCommand(potion), model: () => potion, label: m => textPlain(m.name) || POTION_TYPE_NAME[m.kind] };
@@ -2186,7 +2184,6 @@ const MOB_EXAMPLE = () => {
   m.equip.feet = { ...newEquip(), mode: 'vanilla', id: 'diamond_boots', drop: 0 };
   return m;
 };
-$('#mobExample').onclick = () => { mob = MOB_EXAMPLE(); renderMobForm(); toast('Ejemplo cargado'); };
 $('#mobReset').onclick = () => { mob = newMob(); renderMobForm(); };
 
 TABS.mobs = { command: () => buildMobCommand(mob), model: () => mob, label: m => textPlain(m.name) || NAMES.entities[stripNs(m.id)] || m.id };
@@ -2361,7 +2358,555 @@ const VILLAGER_EXAMPLE = () => {
   });
   return v;
 };
-$('#vilExample').onclick = () => { villager = VILLAGER_EXAMPLE(); renderVillagerForm(); toast('Ejemplo cargado'); };
+/* =====================================================================
+   EJEMPLOS RPG — 50 por pestaña, inspirados en Dark Souls, Zelda,
+   Persona, Genshin, Final Fantasy, Elden Ring, Monster Hunter, etc.
+   Formato compacto; los ayudantes de abajo los convierten al modelo.
+   ===================================================================== */
+// Texto: S('texto', color, formato). color: 'gold' | '#FF0000' | '#FF0000>#FFFF00' (degradado). formato: letras b i u s o
+const S = (t, c = '', f = '') => {
+  const s = newSeg(t);
+  if (c.includes('>')) { const [a, b] = c.split('>'); Object.assign(s, { cm: 'grad', hex: a, hex2: b }); }
+  else if (c.startsWith('#')) Object.assign(s, { cm: 'hex', hex: c });
+  else s.cm = c;
+  for (const k of f) s[k] = true;
+  return s;
+};
+const TX = segs => ({ segs: (Array.isArray(segs) ? segs : [segs]).map(x => typeof x === 'string' ? S(x) : x) });
+// Una línea de lore: texto suelto = gris en cursiva; arreglo = segmentos
+const LORE = lines => (lines || []).map(l => typeof l === 'string' ? TX(S(l, 'gray', 'i')) : TX(l));
+const plainName = n => (n?.segs || []).map(s => s.t).join('').trim();
+// Atributo de item: [tipo, cantidad, ranura]. '10%' = multiplicador sobre la base
+const ATR = a => a.map(([type, amt, slot = 'mainhand']) => {
+  const pct = typeof amt === 'string' && amt.endsWith('%');
+  return { type, amount: pct ? parseFloat(amt) / 100 : +amt, op: pct ? 'add_multiplied_base' : 'add_value', slot };
+});
+// Efectos: 'speed 2 30, strength 1 inf -p'  (id nivel segundos|inf, -p sin partículas, -i sin icono, amb ambiental)
+const EFX = str => (str || '').split(',').map(x => x.trim()).filter(Boolean).map(x => {
+  const [id, lvl = '1', secs = '60', ...fl] = x.split(/\s+/);
+  return { ...newEffect(id), lvl: +lvl, secs: secs === 'inf' ? 60 : +secs, inf: secs === 'inf',
+    particles: !fl.includes('-p'), icon: !fl.includes('-i'), ambient: fl.includes('amb') };
+});
+// Item completo
+function I(id, name, lore, o = {}) {
+  const m = newItem();
+  Object.assign(m, { id, name: TX(name), lore: LORE(lore) });
+  if (o.ench) m.enchants = o.ench.split(' ').map(e => { const [id, l] = e.split(':'); return { id, lvl: +l || 1 }; });
+  if (o.attrs) m.attrs = ATR(o.attrs);
+  if (o.unb) m.unbreakable = true;
+  if (o.rar) m.rarity = o.rar;
+  if (o.glint) m.glint = 'true';
+  if (o.hide) m.hidden = o.hide.split(' ');
+  if (o.dye) Object.assign(m, { dyeOn: true, dye: o.dye });
+  if (o.food) Object.assign(m, { foodOn: true, nutrition: o.food[0], saturation: o.food[1], eatSeconds: o.food[2] ?? 1.6, alwaysEat: !!o.food[3] });
+  if (o.count) m.count = o.count;
+  if (o.stack) m.maxStack = o.stack;
+  return m;
+}
+// Ranura de equipo / item de tradeo: 'diamond_sword' | 'emerald*12' | item de I()
+function SLOT(v, extra = {}) {
+  if (!v) return { ...newEquip(), ...extra };
+  if (typeof v === 'string') { const [id, n] = v.split('*'); return { ...newEquip(), mode: 'vanilla', id, count: +n || 1, ...extra }; }
+  return { ...newEquip(), mode: 'lib', name: plainName(v.name) || v.id, data: v, count: v.count || 1, ...extra };
+}
+// Mob
+function M(id, name, o = {}) {
+  const m = newMob();
+  Object.assign(m, { id, name: TX(name), persistent: true });
+  if (o.hp) m.maxHealth = o.hp;
+  if (o.attrs) m.attrs = Object.entries(o.attrs).map(([type, base]) => ({ type, base }));
+  if (o.eff) m.effects = EFX(o.eff);
+  for (const [slot, v] of Object.entries(o.eq || {})) m.equip[slot] = SLOT(v, { drop: o.drop?.[slot] ?? '' });
+  for (const k of ['glowing', 'baby', 'noAI', 'silent', 'invulnerable']) if (o[k]) m[k] = true;
+  if (o.opts) m.opts = { ...o.opts };
+  return m;
+}
+// Poción
+function P(kind, name, lore, color, eff, o = {}) {
+  return Object.assign(newPotion(), { kind, name: TX(name), lore: LORE(lore), effects: EFX(eff),
+    colorOn: !!color, color: color || '#FF00AA', glint: !!o.glint, count: o.count || 1, hideEffects: !!o.hide });
+}
+// Tradeo: T(compra, vende, {b: segunda compra, uses, inf, xp})
+const T = (buy, sell, o = {}) => {
+  const tr = { ...newTrade(), buy: SLOT(buy), buyB: SLOT(o.b), sell: SLOT(sell), xp: o.xp ?? 5, infinite: !!o.inf, maxUses: o.uses ?? 8 };
+  for (const k of ['buy', 'buyB', 'sell']) if (tr[k].mode === 'lib') tr[k].count = tr[k].data.count || 1;
+  return tr;
+};
+// Aldeano
+function V(profession, vtype, level, name, trades, o = {}) {
+  return Object.assign(newVillager(), { profession, vtype, level: String(level), name: TX(name), trades,
+    noAI: !!o.noAI, invulnerable: !!o.invul, silent: !!o.silent });
+}
+
+/* ------------------------------- ITEMS ------------------------------- */
+const RPG_ITEMS = [
+  () => I('netherite_sword', S('Filo del Dragón', '#FF5500>#FFDD00', 'b'),
+    ['Forjada en el fuego del End', '', [S('Habilidad: ', 'gold'), S('Ira ardiente', 'red', 'b')]],
+    { ench: 'sharpness:10 fire_aspect:3 looting:5', attrs: [['attack_damage', 20], ['attack_speed', -2], ['movement_speed', '10%']], unb: 1, rar: 'epic', glint: 1, hide: 'enchantments' }),
+  () => I('netherite_sword', S('Hoja de la Llama Moribunda', '#FF8C00>#5A1A00', 'b'),
+    ['Arde con lo último de una hoguera que se apaga.', 'Solo los no muertos pueden blandirla.'],
+    { ench: 'sharpness:7 fire_aspect:2', attrs: [['attack_damage', 14], ['attack_speed', -2.6]], rar: 'epic' }),
+  () => I('diamond_sword', S('Espada del Héroe Dormido', '#55FFFF>#FFFFFF', 'b'),
+    ['Descansa en un pedestal del bosque perdido.', [S('Solo un corazón valiente puede sacarla.', 'aqua', 'i')]],
+    { ench: 'smite:5 sharpness:5 unbreaking:3', attrs: [['attack_damage', 11], ['attack_speed', -2.2]], unb: 1, rar: 'rare', glint: 1 }),
+  () => I('mace', S('Martillo del Gigante de Hierro', '#AAAAAA>#555555', 'b'),
+    ['Pesa tanto como una montaña.', [S('Golpe sísmico', 'gold', 'b')]],
+    { ench: 'density:5 breach:4 wind_burst:2', attrs: [['attack_damage', 16], ['attack_speed', -3.2], ['movement_speed', '-15%']], rar: 'epic' }),
+  () => I('bow', S('Arco de la Cazadora Lunar', '#AAAAFF>#FFFFFF', 'b'),
+    ['Sus flechas brillan como la luna llena.'],
+    { ench: 'power:6 infinity:1 punch:2', attrs: [['luck', 2, 'mainhand']], unb: 1, rar: 'rare' }),
+  () => I('crossbow', S('Ballesta del Inquisidor', '#AA0000>#FF5555', 'b'),
+    ['"La herejía se castiga a distancia."'],
+    { ench: 'multishot:1 quick_charge:3 unbreaking:3', rar: 'uncommon' }),
+  () => I('trident', S('Tridente del Arconte de la Marea', '#00AAFF>#55FFFF', 'b'),
+    ['El poder del agua obedece a quien lo empuña.', [S('Elemento: ', 'gray'), S('Hidro', 'aqua', 'b')]],
+    { ench: 'loyalty:3 impaling:5 channeling:1', attrs: [['water_movement_efficiency', 1, 'mainhand'], ['oxygen_bonus', 4, 'mainhand']], rar: 'epic', glint: 1 }),
+  () => I('iron_sword', S('Katana del Ronin Errante', '#DDDDDD>#AA0000', 'b'),
+    ['Un filo sin señor, rápido como el viento.'],
+    { ench: 'sharpness:5 sweeping_edge:3', attrs: [['attack_damage', 8], ['attack_speed', -1.2], ['movement_speed', '8%']] }),
+  () => I('netherite_axe', S('Hacha del Berserker', '#AA0000>#550000', 'b'),
+    ['Cuanto más sangra su portador, más golpea.'],
+    { ench: 'sharpness:6 knockback:2', attrs: [['attack_damage', 18], ['attack_speed', -3.3], ['armor', -4, 'mainhand']], rar: 'epic' }),
+  () => I('netherite_hoe', S('Guadaña de la Cosecha Eterna', '#555555>#AA00AA', 'b'),
+    ['Siega almas como si fueran trigo.'],
+    { ench: 'sharpness:5 looting:3', attrs: [['attack_damage', 12], ['attack_speed', -2.4], ['entity_interaction_range', 1.5]], rar: 'epic' }),
+  () => I('golden_sword', S('Daga del Ladrón de Sombras', '#555555>#AAAAAA'),
+    ['Nadie vio de dónde salió el golpe.'],
+    { ench: 'sharpness:4 looting:4', attrs: [['attack_damage', 5], ['attack_speed', 2], ['sneaking_speed', 0.5, 'mainhand']], unb: 1 }),
+  () => I('blaze_rod', S('Báculo del Archimago', '#FF55FF>#5555FF', 'b'),
+    ['Canaliza el maná de mil estrellas.', '', [S('INT +20', 'light_purple')]],
+    { ench: 'fire_aspect:2 knockback:3', attrs: [['attack_damage', 9], ['luck', 3]], rar: 'epic', glint: 1, hide: 'enchantments' }),
+  () => I('breeze_rod', S('Vara del Viento Celeste', '#FFFFFF>#55FFFF', 'b'),
+    ['Quien la sostiene camina sobre las nubes.'],
+    { attrs: [['jump_strength', 0.3], ['safe_fall_distance', 10], ['gravity', '-30%']], rar: 'rare', glint: 1 }),
+  () => I('paper', S('Carta del Arcano Loco', '#FFFF55>#FF55FF', 'b'),
+    ['El viaje comienza con un salto al vacío.', [S('Arcano 0', 'yellow')]],
+    { attrs: [['luck', 5, 'offhand']], rar: 'rare', glint: 1, stack: 1 }),
+  () => I('shield', S('Escudo del Caballero Vacío', '#555555>#FFFFFF', 'b'),
+    ['Un escudo sin escudo de armas, sin nombre, sin rostro.'],
+    { ench: 'unbreaking:3 mending:1', attrs: [['knockback_resistance', 0.5, 'offhand'], ['armor', 4, 'offhand']] }),
+  () => I('shield', S('Égida del Alba', '#FFAA00>#FFFFFF', 'b'),
+    ['Brilla con la primera luz del día.'],
+    { ench: 'unbreaking:3', attrs: [['armor', 6, 'offhand'], ['armor_toughness', 3, 'offhand'], ['max_health', 4, 'offhand']], unb: 1, rar: 'epic', glint: 1 }),
+  () => I('netherite_helmet', S('Yelmo del Caballero Caído', '#555555>#AA0000', 'b'),
+    ['Aún huele a la última batalla de su dueño.'],
+    { ench: 'protection:5 respiration:3', attrs: [['armor', 5, 'head'], ['armor_toughness', 4, 'head'], ['max_health', 4, 'head']], rar: 'rare' }),
+  () => I('leather_chestplate', S('Coraza del Dragón Carmesí', '#FF5555>#AA0000', 'b'),
+    ['Hecha con las escamas de un wyvern rojo.', [S('Resistencia al fuego', 'gold')]],
+    { ench: 'fire_protection:6 protection:4', attrs: [['armor', 10, 'chest'], ['armor_toughness', 4, 'chest'], ['burning_time', '-50%', 'chest']], dye: '#B02020', unb: 1, rar: 'epic' }),
+  () => I('iron_leggings', S('Grebas del Peregrino', '#AAAAAA'),
+    ['Han recorrido todos los caminos del reino.'],
+    { ench: 'protection:3 swift_sneak:3', attrs: [['armor', 6, 'legs'], ['movement_speed', '5%', 'legs']] }),
+  () => I('leather_boots', S('Botas del Mensajero Alado', '#FFFFFF>#55FFFF', 'b'),
+    ['Tan ligeras que apenas tocan el suelo.'],
+    { ench: 'feather_falling:6 depth_strider:3', attrs: [['movement_speed', '25%', 'feet'], ['step_height', 0.5, 'feet'], ['armor', 2, 'feet']], dye: '#E8E8FF', rar: 'rare' }),
+  () => I('elytra', S('Capa del Viajero Celeste', '#5555FF>#FFFFFF', 'b'),
+    ['Tejida con plumas de un pájaro que nunca aterriza.'],
+    { ench: 'unbreaking:5 mending:1', attrs: [['armor', 4, 'chest']], unb: 1, rar: 'epic' }),
+  () => I('golden_helmet', S('Corona del Rey Ceniza', '#FFAA00>#555555', 'b'),
+    ['El trono quedó vacío; la corona, no.'],
+    { ench: 'protection:4 thorns:3', attrs: [['armor', 4, 'head'], ['max_health', 10, 'head'], ['scale', '10%', 'head']], unb: 1, rar: 'epic', glint: 1 }),
+  () => I('gold_nugget', S('Anillo de Vitalidad', '#FF5555>#FFAA00', 'b'),
+    ['Un anillo pequeño con un latido propio.'],
+    { attrs: [['max_health', 8, 'offhand']], rar: 'rare', glint: 1, stack: 1 }),
+  () => I('heart_of_the_sea', S('Amuleto del Mar Profundo', '#0000AA>#55FFFF', 'b'),
+    ['Respira donde otros se ahogan.'],
+    { attrs: [['oxygen_bonus', 10, 'offhand'], ['water_movement_efficiency', 1, 'offhand'], ['submerged_mining_speed', 3, 'offhand']], rar: 'rare' }),
+  () => I('nether_star', S('Fragmento de Estrella Fugaz', '#FFFF55>#FFFFFF', 'b'),
+    ['Pide un deseo antes de que se apague.'],
+    { attrs: [['luck', 10, 'offhand'], ['max_absorption', 8, 'offhand']], rar: 'epic' }),
+  () => I('enchanted_golden_apple', S('Fruto del Árbol del Mundo', '#55FF55>#FFFF55', 'b'),
+    ['Cae una vez cada mil años.'],
+    { food: [20, 20, 3, true], rar: 'epic', count: 3 }),
+  () => I('cooked_beef', S('Ración del Aventurero', '#FFAA00'),
+    ['Bien cocida, sin preguntas.'],
+    { food: [10, 12, 0.8], count: 16 }),
+  () => I('bread', S('Pan del Bosque Antiguo', '#FFFF55'),
+    ['Un bocado basta para todo un día de viaje.'],
+    { food: [20, 20, 1, true], rar: 'uncommon', count: 8 }),
+  () => I('netherite_pickaxe', S('Pico del Rey Enano', '#FFAA00>#AA5500', 'b'),
+    ['Excavó el salón más profundo de la montaña.'],
+    { ench: 'efficiency:10 fortune:5 unbreaking:5', attrs: [['mining_efficiency', 20], ['block_interaction_range', 2]], unb: 1, rar: 'epic' }),
+  () => I('diamond_shovel', S('Pala del Arqueólogo', '#AA5500'),
+    ['Siempre encuentra algo enterrado.'],
+    { ench: 'efficiency:6 silk_touch:1', attrs: [['luck', 2]] }),
+  () => I('fishing_rod', S('Caña del Pescador de Leyendas', '#55FFFF>#5555FF', 'b'),
+    ['Dicen que pescó al rey de los lagos.'],
+    { ench: 'luck_of_the_sea:5 lure:3', attrs: [['luck', 4]], unb: 1, rar: 'rare' }),
+  () => I('totem_of_undying', S('Tótem del Último Aliento', '#FFFF55>#55FF55', 'b'),
+    ['Una segunda oportunidad. Solo una.'], { rar: 'epic' }),
+  () => I('ender_eye', S('Ojo del Abismo', '#AA00AA>#000000', 'b'),
+    ['Mira hacia algo que te devuelve la mirada.'], { rar: 'rare', glint: 1 }),
+  () => I('carved_pumpkin', S('Máscara del Corazón Rebelde', '#FF5555>#000000', 'b'),
+    ['Arráncatela y despierta tu verdadero yo.'],
+    { ench: 'binding_curse:1', attrs: [['attack_damage', 3, 'head'], ['movement_speed', '10%', 'head']], rar: 'epic' }),
+  () => I('netherite_sword', S('Matadragones', '#555555', 'b'),
+    ['Demasiado grande para llamarse espada.', 'Era un enorme trozo de hierro.'],
+    { ench: 'sharpness:5 sweeping_edge:3', attrs: [['attack_damage', 30], ['attack_speed', -3.4], ['movement_speed', '-20%'], ['entity_interaction_range', 1.5]], rar: 'epic' }),
+  () => I('trident', S('Lanza del Dragón Celeste', '#5555FF>#FFFFFF', 'b'),
+    ['Salta, cae y atraviesa.'],
+    { ench: 'impaling:4 loyalty:2', attrs: [['jump_strength', 0.4], ['safe_fall_distance', 15], ['attack_damage', 10]], rar: 'rare' }),
+  () => I('stick', S('Bastón de la Sacerdotisa', '#FFFFFF>#FFFF55', 'b'),
+    ['Bendecido por la diosa de la cosecha.'],
+    { ench: 'knockback:2', attrs: [['max_health', 6], ['luck', 2]], glint: 1, rar: 'uncommon' }),
+  () => I('golden_sword', S('Mandoble del Sol Radiante', '#FFFF55>#FFAA00', 'b'),
+    [[S('¡Alaba al sol!', 'yellow', 'b')]],
+    { ench: 'smite:7 sharpness:3 unbreaking:3', attrs: [['attack_damage', 12], ['attack_speed', -2.8]], unb: 1, rar: 'rare' }),
+  () => I('diamond_sword', S('Espadón Sagrado', '#FFFFFF>#FFFF55', 'b'),
+    ['Purifica a los no muertos con cada golpe.'],
+    { ench: 'smite:10 unbreaking:3 mending:1', attrs: [['attack_damage', 10], ['attack_speed', -2.6]], rar: 'rare' }),
+  () => I('mace', S('Mazo del Juez Supremo', '#FFAA00>#AA0000', 'b'),
+    ['El veredicto cae desde arriba.'],
+    { ench: 'density:3 breach:2 wind_burst:3', attrs: [['attack_damage', 12], ['fall_damage_multiplier', '-50%']], unb: 1, rar: 'epic' }),
+  () => I('diamond_axe', S('Hacha del Invierno Eterno', '#FFFFFF>#55FFFF', 'b'),
+    ['Congela la sangre de quien la toca.', [S('Elemento: ', 'gray'), S('Cryo', 'aqua', 'b')]],
+    { ench: 'sharpness:5 knockback:1', attrs: [['attack_damage', 13], ['attack_speed', -3]], rar: 'rare' }),
+  () => I('bow', S('Arco de la Tormenta', '#AA00FF>#FFFF55', 'b'),
+    ['Cada flecha cae como un relámpago.', [S('Elemento: ', 'gray'), S('Electro', 'light_purple', 'b')]],
+    { ench: 'power:5 flame:1 punch:2', rar: 'rare', glint: 1 }),
+  () => I('book', S('Tomo de Hechizos Prohibidos', '#AA00AA>#000000', 'b'),
+    ['Sus páginas susurran por la noche.', [S('No lo abras.', 'dark_red', 'b')]],
+    { attrs: [['attack_damage', 6, 'offhand'], ['max_health', -4, 'offhand']], glint: 1, rar: 'epic', stack: 1 }),
+  () => I('fire_charge', S('Sello del Fuego Elemental', '#FF5500>#FFFF55', 'b'),
+    ['Un fragmento del corazón de un volcán.'],
+    { attrs: [['attack_damage', 4, 'offhand'], ['burning_time', '-100%', 'offhand']], glint: 1, rar: 'rare', stack: 1 }),
+  () => I('wind_charge', S('Sello del Viento Errante', '#55FF55>#FFFFFF', 'b'),
+    ['Libre como el viento que lo creó.'],
+    { attrs: [['movement_speed', '20%', 'offhand'], ['jump_strength', 0.2, 'offhand']], glint: 1, rar: 'rare', stack: 1 }),
+  () => I('feather', S('Pluma del Fénix', '#FF5555>#FFFF55', 'b'),
+    ['Quien la lleva no conoce el suelo.'],
+    { attrs: [['safe_fall_distance', 50, 'offhand'], ['gravity', '-50%', 'offhand']], glint: 1, rar: 'epic', stack: 1 }),
+  () => I('soul_lantern', S('Linterna de Almas Perdidas', '#55FFFF>#5555FF', 'b'),
+    ['Ilumina el camino de los que no encontraron descanso.'],
+    { attrs: [['luck', 3, 'offhand']], glint: 1 }),
+  () => I('ominous_trial_key', S('Llave del Jefe', '#FF5555>#FFAA00', 'b'),
+    ['Abre la puerta más grande de la mazmorra.'], { rar: 'epic' }),
+  () => I('emerald', S('Moneda del Gremio de Aventureros', '#55FF55'),
+    ['Aceptada en todas las posadas del reino.'], { count: 64 }),
+  () => I('diamond_chestplate', S('Armadura del Paladín', '#FFFFFF>#FFAA00', 'b'),
+    ['Juró proteger a los débiles.'],
+    { ench: 'protection:5 unbreaking:3', attrs: [['armor', 9, 'chest'], ['armor_toughness', 3, 'chest'], ['knockback_resistance', 0.3, 'chest'], ['max_health', 6, 'chest']], rar: 'rare' })
+];
+
+/* -------------------------------- MOBS -------------------------------- */
+const RPG_MOBS = [
+  () => M('zombie', [S('☠ ', 'dark_red'), S('Rey Zombie', '#55FF55>#FFAA00', 'b')], { hp: 100,
+    attrs: { attack_damage: 10, movement_speed: 0.3, scale: 1.5, knockback_resistance: 1 }, eff: 'fire_resistance 1 inf -p', glowing: true,
+    eq: { mainhand: 'golden_sword', offhand: 'shield', head: 'golden_helmet', chest: I('leather_chestplate', S('Pechera real', 'red'), [], { dye: '#8B1A1A', unb: 1 }), legs: 'iron_leggings', feet: 'diamond_boots' },
+    drop: { mainhand: 100, head: 0, chest: 0, legs: 0, feet: 0 } }),
+  () => M('wither_skeleton', S('Caballero Hueco', '#AAAAAA>#555555', 'b'), { hp: 150,
+    attrs: { attack_damage: 12, movement_speed: 0.28, armor: 10, knockback_resistance: 0.5 },
+    eq: { mainhand: 'netherite_sword', offhand: 'shield', head: 'netherite_helmet', chest: 'netherite_chestplate' }, drop: { mainhand: 5 } }),
+  () => M('wither_skeleton', S('Señor de la Ceniza', '#FFAA00>#555555', 'b'), { hp: 400,
+    attrs: { attack_damage: 18, scale: 1.6, armor: 15, knockback_resistance: 1 }, eff: 'fire_resistance 1 inf -p, strength 2 inf -p',
+    eq: { mainhand: I('netherite_sword', S('Espada de la Primera Llama', '#FF5500>#FFDD00', 'b'), [], { ench: 'fire_aspect:5' }), head: 'golden_helmet' },
+    drop: { mainhand: 100 }, glowing: true }),
+  () => M('phantom', S('Gárgola del Campanario', '#555555>#AAAAAA', 'b'), { hp: 80,
+    attrs: { attack_damage: 9, scale: 2 }, opts: { size: 8 } }),
+  () => M('slime', S('Rey Gelatina', '#55FF55>#55FFFF', 'b'), { hp: 200,
+    attrs: { attack_damage: 6 }, opts: { Size: 8 }, eq: { head: 'golden_helmet' } }),
+  () => M('piglin', S('Goblin Saqueador', '#55FF55'), { hp: 25,
+    attrs: { scale: 0.7, movement_speed: 0.4 }, opts: { IsImmuneToZombification: true }, eq: { mainhand: 'golden_axe' } }),
+  () => M('husk', S('Tribal Enmascarado', '#FFAA00'), { hp: 30,
+    attrs: { attack_damage: 5 }, eq: { head: 'carved_pumpkin', mainhand: 'wooden_sword' } }),
+  () => M('stray', S('Liche de la Torre Helada', '#55FFFF>#AA00FF', 'b'), { hp: 120,
+    attrs: { movement_speed: 0.2, armor: 8 }, eff: 'resistance 2 inf -p', glowing: true,
+    eq: { mainhand: I('bow', S('Arco de Escarcha', 'aqua'), [], { ench: 'power:8' }), head: 'diamond_helmet' } }),
+  () => M('enderman', S('Sombra del Inconsciente', '#000000>#AA0000', 'b'), { hp: 90,
+    attrs: { attack_damage: 12, scale: 1.2 }, eff: 'resistance 1 inf -p' }),
+  () => M('skeleton', S('El Segador', '#AA0000>#000000', 'b'), { hp: 666,
+    attrs: { attack_damage: 25, movement_speed: 0.35, scale: 1.4, knockback_resistance: 1, armor: 20 },
+    eq: { mainhand: 'netherite_hoe', offhand: 'netherite_hoe', head: 'netherite_helmet', chest: 'netherite_chestplate' },
+    eff: 'strength 3 inf -p', glowing: true, silent: true }),
+  () => M('iron_golem', S('Guardián Ancestral', '#FFAA00>#55FFFF', 'b'), { hp: 300,
+    attrs: { attack_damage: 25, movement_speed: 0.2, scale: 1.3 }, glowing: true }),
+  () => M('shulker', S('Cofre Mímico', '#FFAA00'), { hp: 60, attrs: { armor: 20 } }),
+  () => M('snow_golem', S('Hombre de Escarcha', '#FFFFFF>#55FFFF', 'b'), { hp: 60,
+    attrs: { scale: 1.8 }, opts: { Pumpkin: true }, eff: 'resistance 1 inf -p' }),
+  () => M('ravager', S('Bestia de Asedio', '#555555>#AA0000', 'b'), { hp: 250,
+    attrs: { attack_damage: 20, knockback_resistance: 1 } }),
+  () => M('witch', S('Hechicera del Pantano Venenoso', '#55FF55>#AA00AA', 'b'), { hp: 80,
+    attrs: { movement_speed: 0.3 }, eff: 'regeneration 1 inf -p' }),
+  () => M('evoker', S('Archinvocador', '#AA00AA>#5555FF', 'b'), { hp: 150,
+    attrs: { armor: 10 }, eff: 'resistance 1 inf -p', glowing: true }),
+  () => M('vindicator', S('Verdugo de la Fortaleza', '#AA0000', 'b'), { hp: 100,
+    attrs: { attack_damage: 16, scale: 1.2 }, eq: { mainhand: 'netherite_axe', head: 'iron_helmet' } }),
+  () => M('pillager', S('Arquero Bandido', '#AAAAAA'), { hp: 40,
+    eq: { mainhand: I('crossbow', S('Ballesta Oxidada', 'gray'), [], { ench: 'multishot:1' }) }, opts: { PatrolLeader: true } }),
+  () => M('illusioner', S('Maestro de Ilusiones', '#5555FF>#FF55FF', 'b'), { hp: 120, eff: 'invisibility 1 inf -p' }),
+  () => M('spider', S('Reina Araña de las Profundidades', '#AA0000>#000000', 'b'), { hp: 300,
+    attrs: { attack_damage: 14, scale: 3, movement_speed: 0.35 }, eff: 'resistance 1 inf -p' }),
+  () => M('cave_spider', S('Cría Venenosa', '#55FFFF'), { hp: 8, attrs: { movement_speed: 0.45 } }),
+  () => M('blaze', S('Ifrit Menor', '#FF5500>#FFFF55', 'b'), { hp: 80, attrs: { scale: 1.5, armor: 8 } }),
+  () => M('ghast', S('Llorón del Abismo', '#FFFFFF>#AA0000', 'b'), { hp: 100, opts: { ExplosionPower: 3 } }),
+  () => M('magma_cube', S('Núcleo de Lava', '#FF5500>#AA0000', 'b'), { hp: 120, opts: { Size: 6 }, attrs: { attack_damage: 10 } }),
+  () => M('hoglin', S('Jabalí Cornudo Furioso', '#AA5500>#AA0000', 'b'), { hp: 120,
+    attrs: { attack_damage: 14, scale: 1.4, movement_speed: 0.4 }, opts: { IsImmuneToZombification: true } }),
+  () => M('piglin_brute', S('Campeón de la Arena', '#FFAA00>#AA0000', 'b'), { hp: 150,
+    attrs: { attack_damage: 15, armor: 10 }, opts: { IsImmuneToZombification: true },
+    eq: { mainhand: 'netherite_axe', head: 'golden_helmet', chest: 'golden_chestplate' } }),
+  () => M('zombie', S('Necrófago del Cementerio', '#55AA55'), { hp: 40,
+    attrs: { attack_damage: 7, movement_speed: 0.32 }, opts: { CanBreakDoors: true }, eq: { mainhand: 'iron_shovel' } }),
+  () => M('husk', S('Momia del Desierto Rojo', '#FFAA00>#AA5500', 'b'), { hp: 90,
+    attrs: { attack_damage: 9 }, eff: 'fire_resistance 1 inf -p', eq: { head: 'golden_helmet', mainhand: 'golden_sword' } }),
+  () => M('drowned', S('Capitán del Barco Fantasma', '#55FFFF>#5555FF', 'b'), { hp: 120,
+    attrs: { attack_damage: 11 }, eq: { mainhand: I('trident', S('Tridente Maldito', 'dark_aqua'), [], { ench: 'impaling:5' }), head: 'leather_helmet' }, drop: { mainhand: 25 } }),
+  () => M('skeleton', S('Arquero Real', '#FFAA00'), { hp: 50,
+    eq: { mainhand: I('bow', S('Arco Real', 'gold'), [], { ench: 'power:5' }), head: 'golden_helmet', chest: 'golden_chestplate' } }),
+  () => M('stray', S('Centinela Escarchado', '#55FFFF'), { hp: 40, eq: { mainhand: 'bow', head: 'chainmail_helmet' } }),
+  () => M('bogged', S('Guardián del Pantano', '#55AA55>#AA5500', 'b'), { hp: 60, eq: { mainhand: 'bow' } }),
+  () => M('warden', S('Ser Antiguo de las Profundidades', '#00AAAA>#000000', 'b'), { hp: 1000, attrs: { attack_damage: 40 } }),
+  () => M('wolf', S('Gran Lobo Guardián', '#AAAAAA>#FFFFFF', 'b'), { hp: 200,
+    attrs: { scale: 3, attack_damage: 15, movement_speed: 0.4 }, eq: { mainhand: 'netherite_sword' } }),
+  () => M('fox', S('Kitsune de Nueve Colas', '#FFAA00>#FFFFFF', 'b'), { hp: 60,
+    attrs: { scale: 1.5, movement_speed: 0.45 }, eff: 'glowing 1 inf -p', eq: { mainhand: 'totem_of_undying' } }),
+  () => M('cat', S('Gato Mercader', '#FFAA00'), { hp: 20, eq: { mainhand: 'emerald' }, noAI: true }),
+  () => M('polar_bear', S('Oso Guerrero Acorazado', '#FFFFFF>#AAAAAA', 'b'), { hp: 180,
+    attrs: { attack_damage: 16, armor: 15, scale: 1.4 } }),
+  () => M('panda', S('Maestro Panda', '#FFFFFF>#555555', 'b'), { hp: 100,
+    attrs: { attack_damage: 10, scale: 1.3 }, eq: { mainhand: 'bamboo' } }),
+  () => M('skeleton_horse', S('Corcel Espectral', '#55FFFF>#AAAAAA', 'b'), { hp: 60,
+    attrs: { movement_speed: 0.4 }, eff: 'invisibility 1 inf -p' }),
+  () => M('creeper', S('Bomba Viviente', '#FF5555>#FFFF55', 'b'), { hp: 40,
+    opts: { powered: true, ExplosionRadius: 5, Fuse: 20 }, attrs: { movement_speed: 0.35 } }),
+  () => M('endermite', S('Larva del Vacío', '#AA00AA'), { hp: 15, attrs: { scale: 2 } }),
+  () => M('silverfish', S('Polilla de Piedra', '#AAAAAA'), { hp: 12, attrs: { scale: 1.5 } }),
+  () => M('vex', S('Hada Traviesa', '#FF55FF>#55FFFF', 'b'), { hp: 20, eq: { mainhand: 'iron_sword' } }),
+  () => M('allay', S('Espíritu Guía', '#55FFFF', 'b'), { hp: 50, invulnerable: true, glowing: true }),
+  () => M('elder_guardian', S('Leviatán Anciano', '#55FFFF>#5555FF', 'b'), { hp: 500, attrs: { scale: 1.5 } }),
+  () => M('glow_squid', S('Kraken Luminoso', '#55FFFF>#55FF55', 'b'), { hp: 150, attrs: { scale: 3 } }),
+  () => M('bee', S('Abeja Reina', '#FFFF55>#FFAA00', 'b'), { hp: 80, attrs: { scale: 2.5, attack_damage: 8 } }),
+  () => M('sniffer', S('Bestia de Carga Ancestral', '#AA5500>#55AA55', 'b'), { hp: 150, attrs: { scale: 1.3 } }),
+  () => M('zombie_villager', S('Aldeano Maldito', '#55AA55'), { hp: 40,
+    attrs: { attack_damage: 6 }, eq: { mainhand: 'stone_hoe' } }),
+  () => M('wither', S('Dios Caído de las Tres Cabezas', '#000000>#AA00AA', 'b'), { hp: 1024,
+    attrs: { armor: 20, armor_toughness: 10 } })
+];
+
+/* ------------------------------ POCIONES ------------------------------ */
+const RPG_POTIONS = [
+  () => P('splash_potion', S('Elixir del Vacío', '#AA00FF>#55FFFF', 'b'), ['Rómpela y desaparece'], '#8A2BE2',
+    'invisibility 1 120 -p, speed 3 90, slow_falling 1 inf -i, instant_health 2 1', { glint: true }),
+  () => P('potion', S('Frasco de Estus', '#FFAA00>#FF5500', 'b'), ['Se rellena en cada hoguera.'], '#FFA500', 'instant_health 3 1, regeneration 1 5'),
+  () => P('potion', S('Frasco de Ceniza', '#55FFFF>#5555FF', 'b'), ['Restaura el poder del alma.'], '#4FC3F7', 'haste 2 60, strength 1 60'),
+  () => P('potion', S('Elixir Rojo', 'red', 'b'), ['Cura heridas de inmediato.'], '#FF2020', 'instant_health 2 1'),
+  () => P('potion', S('Elixir Azul', 'blue', 'b'), ['Restaura el vigor y la magia.'], '#2040FF', 'instant_health 2 1, regeneration 2 30, haste 1 60'),
+  () => P('potion', S('Elixir Verde', 'green', 'b'), ['Llena la barra de resistencia.'], '#20C020', 'speed 2 120, jump_boost 1 120, saturation 1 1'),
+  () => P('potion', S('Lágrima de Fénix', '#FF5555>#FFFF55', 'b'), ['Devuelve la vida a los caídos.'], '#FF7F27', 'instant_health 5 1, absorption 4 120, regeneration 3 20, fire_resistance 1 120', { glint: true }),
+  () => P('potion', S('Hierba Curativa', 'green'), ['Amarga, pero funciona.'], '#7BC043', 'regeneration 1 20'),
+  () => P('potion', S('Antídoto del Herbolario', 'dark_green'), ['Neutraliza venenos comunes.'], '#2E7D32', 'regeneration 2 15, resistance 1 15'),
+  () => P('potion', S('Tónico de Furia', '#FF5555', 'b'), ['El dolor se vuelve fuerza.'], '#C62828', 'strength 3 60'),
+  () => P('potion', S('Licor del Berserker', '#AA0000>#FFAA00', 'b'), ['Pierdes el juicio, ganas la batalla.'], '#8B0000', 'strength 4 60, resistance 2 60, nausea 1 10, speed 1 60'),
+  () => P('splash_potion', S('Veneno de Basilisco', '#55FF55>#000000', 'b'), ['Lánzalo y aléjate.'], '#1B5E20', 'poison 3 20, slowness 2 20'),
+  () => P('lingering_potion', S('Nube de Peste', '#55AA55>#555555', 'b'), ['La niebla que vació aldeas enteras.'], '#556B2F', 'poison 2 30, weakness 2 60, hunger 3 60'),
+  () => P('tipped_arrow', S('Flecha de Rayo', '#FFFF55>#AA00FF', 'b'), ['El objetivo brilla y se paraliza.'], '#E1BEE7', 'glowing 1 30, slowness 3 8', { count: 16 }),
+  () => P('tipped_arrow', S('Flecha Somnífera', '#5555FF', 'b'), ['Dulces sueños.'], '#3949AB', 'slowness 5 10, blindness 1 10, weakness 2 10', { count: 16 }),
+  () => P('potion', S('Frasco de Sombras', '#555555>#000000', 'b'), ['Camina sin ser visto.'], '#212121', 'invisibility 1 180 -p, speed 1 180 -p'),
+  () => P('potion', S('Ojo de Gato', '#FFFF55'), ['Ve en la oscuridad como un felino.'], '#FDD835', 'night_vision 1 300'),
+  () => P('potion', S('Elixir de Pluma', '#FFFFFF>#55FFFF', 'b'), ['Salta alto y cae suave.'], '#E0F7FA', 'jump_boost 3 120, slow_falling 1 120'),
+  () => P('potion', S('Sangre de Dragón', '#AA0000>#FFAA00', 'b'), ['El fuego ya no te quema.'], '#BF360C', 'fire_resistance 1 480, strength 2 120', { glint: true }),
+  () => P('potion', S('Té Helado del Viajero', '#55FFFF'), ['Fresco y revitalizante.'], '#80DEEA', 'speed 1 300, saturation 1 1'),
+  () => P('potion', S('Elixir de Gigante', '#AA5500', 'b'), ['Te sentirás como una montaña.'], '#795548', 'health_boost 5 300, resistance 2 300, slowness 1 300'),
+  () => P('potion', S('Elixir del Duende', '#55FF55'), ['Pequeño y escurridizo.'], '#76FF03', 'speed 4 60, jump_boost 2 60'),
+  () => P('potion', S('Poción de Megavida', '#FF55FF>#FF5555', 'b'), ['Más corazones de los que caben.'], '#F06292', 'health_boost 10 600, instant_health 5 1', { glint: true }),
+  () => P('potion', S('Brebaje del Alquimista Loco', '#FF55FF>#55FF55', 'b'), ['Nadie sabe qué tiene. Ni él.'], '#9C27B0', 'speed 2 60, nausea 1 20, levitation 1 3, luck 3 120, glowing 1 60'),
+  () => P('potion', S('Agua Bendita', '#FFFFFF>#FFFF55', 'b'), ['Purifica cuerpo y alma.'], '#FFFDE7', 'regeneration 2 60, resistance 1 60, hero_of_the_village 1 600'),
+  () => P('splash_potion', S('Agua Bendita Arrojadiza', '#FFFFFF>#FFFF55', 'b'), ['Daño sagrado a los no muertos.'], '#FFF9C4', 'instant_health 3 1'),
+  () => P('potion', S('Esencia de Sirena', '#55FFFF>#5555FF', 'b'), ['Canta bajo el agua.'], '#00838F', 'water_breathing 1 600, dolphins_grace 1 300, conduit_power 1 300, night_vision 1 300'),
+  () => P('potion', S('Elixir de la Suerte', '#55FF55>#FFFF55', 'b'), ['Hoy es tu día.'], '#9CCC65', 'luck 5 600'),
+  () => P('splash_potion', S('Maldición del Gato Negro', '#000000>#555555', 'b'), ['Lánzala a tu peor enemigo.'], '#263238', 'unluck 5 600, weakness 1 120'),
+  () => P('potion', S('Elixir del Monje', '#FFAA00'), ['Disciplina, equilibrio, fuerza.'], '#FFB300', 'strength 1 600, resistance 1 600, regeneration 1 600 -p amb'),
+  () => P('potion', S('Tónico del Minero Enano', '#AA5500'), ['Pica más rápido que nadie.'], '#8D6E63', 'haste 3 600, night_vision 1 600'),
+  () => P('lingering_potion', S('Santuario del Sanador', '#FF55FF>#FFFFFF', 'b'), ['Un círculo donde las heridas se cierran.'], '#F8BBD0', 'regeneration 2 30, resistance 1 30'),
+  () => P('lingering_potion', S('Niebla de la Ceguera', '#000000', 'b'), ['Nadie verá nada.'], '#111111', 'blindness 1 30, darkness 1 30'),
+  () => P('splash_potion', S('Frasco de Gravedad Inversa', '#AA00FF>#FFFFFF', 'b'), ['Arriba, arriba y más arriba.'], '#CE93D8', 'levitation 2 6'),
+  () => P('tipped_arrow', S('Flecha Marchitadora', '#555555', 'b'), ['Pudre todo lo que toca.'], '#424242', 'wither 2 10', { count: 16 }),
+  () => P('tipped_arrow', S('Flecha Vampírica', '#AA0000', 'b'), ['Drena la vida del objetivo.'], '#7F0000', 'instant_damage 2 1, weakness 1 10', { count: 8 }),
+  () => P('potion', S('Elixir de Cristal Ámbar', '#FFAA00>#FFFF55', 'b'), ['Un escudo dorado que absorbe golpes.'], '#FFC107', 'absorption 5 120'),
+  () => P('potion', S('Vino de la Taberna', '#AA0000'), ['Para olvidar el último jefe.'], '#880E4F', 'nausea 1 30, strength 1 60, regeneration 1 30'),
+  () => P('potion', S('Sopa del Dragón Hambriento', '#FFAA00'), ['Llena el estómago por días.'], '#FF8F00', 'saturation 10 1, regeneration 1 10'),
+  () => P('splash_potion', S('Bomba de Humo Ninja', '#AAAAAA', 'b'), ['Desaparece en una nube.'], '#9E9E9E', 'invisibility 1 30 -p, speed 3 10 -p'),
+  () => P('potion', S('Elixir del Vendaval', '#FFFFFF>#55FF55', 'b'), ['Salta sobre el viento.'], '#B2FF59', 'wind_charged 1 60, jump_boost 2 60, slow_falling 1 60'),
+  () => P('splash_potion', S('Frasco de Telarañas', '#FFFFFF'), ['Atrapa a tus enemigos.'], '#F5F5F5', 'weaving 1 60, slowness 3 20'),
+  () => P('splash_potion', S('Frasco del Limo', '#55FF55'), ['Lo que muere, rebota.'], '#69F0AE', 'oozing 1 60'),
+  () => P('splash_potion', S('Frasco de Plaga', '#AAAAAA'), ['Cada golpe libera alimañas.'], '#90A4AE', 'infested 1 60'),
+  () => P('potion', S('Presagio del Desafío', '#00AAAA', 'b'), ['La cámara de pruebas te espera.'], '#16A6A6', 'trial_omen 1 900'),
+  () => P('potion', S('Bendición del Héroe', '#55FF55>#FFFF55', 'b'), ['Los aldeanos te recordarán.'], '#44FF44', 'hero_of_the_village 5 1200'),
+  () => P('potion', S('Elixir de Velocidad Divina', '#55FFFF>#FFFFFF', 'b'), ['Más rápido que el pensamiento.'], '#00E5FF', 'speed 10 30'),
+  () => P('potion', S('Poción de la Última Defensa', '#AAAAAA>#FFFFFF', 'b'), ['Ningún golpe te derribará.'], '#CFD8DC', 'resistance 4 20, slowness 2 20'),
+  () => P('potion', S('Esencia del Héroe Legendario', '#FFAA00>#FF55FF', 'b'), ['Todo a la vez, por un momento.'], '#FFD54F',
+    'strength 3 120, speed 2 120, resistance 2 120, regeneration 2 120, fire_resistance 1 120, jump_boost 2 120, night_vision 1 120', { glint: true }),
+  () => P('splash_potion', S('Explosión de Maná Oscuro', '#AA00AA>#000000', 'b'), ['Mejor no estar cerca.'], '#4A148C', 'instant_damage 3 1, darkness 1 10, wither 1 10')
+];
+
+/* ------------------------------ ALDEANOS ------------------------------ */
+const RPG_VILLAGERS = [
+  () => V('weaponsmith', 'snow', 5, S('Herrero Legendario', 'gold', 'b'), [
+    T('emerald*32', I('diamond_sword', S('Espada de Fuego', 'red', 'b'), [], { ench: 'fire_aspect:5 sharpness:7' }), { inf: 1, xp: 0 }),
+    T('diamond*3', 'experience_bottle*16', { b: 'book', uses: 4, xp: 10 }),
+    T('rotten_flesh*64', 'emerald', { inf: 1, xp: 0 })], { noAI: 1, invul: 1, silent: 1 }),
+  () => V('cleric', 'desert', 5, S('Guardiana de la Hoguera', '#FFAA00>#FF5500', 'b'), [
+    T('emerald*10', P('potion', S('Frasco de Estus', '#FFAA00>#FF5500', 'b'), [], '#FFA500', 'instant_health 3 1')),
+    T('gold_ingot*5', 'experience_bottle*8'),
+    T('bone*16', 'emerald*2')], { noAI: 1, invul: 1 }),
+  () => V('armorer', 'taiga', 5, S('Forjador Enano', '#AA5500', 'b'), [
+    T('iron_ingot*24', I('iron_chestplate', S('Coraza de Mithril', '#FFFFFF>#55FFFF', 'b'), [], { ench: 'protection:5', unb: 1 })),
+    T('diamond*8', 'diamond_helmet', { b: 'emerald*10' }),
+    T('coal*32', 'emerald*3', { inf: 1 })]),
+  () => V('librarian', 'plains', 5, S('Archivista de la Gran Biblioteca', '#5555FF>#AA00FF', 'b'), [
+    T('emerald*20', I('book', S('Grimorio de Fuego', '#FF5500', 'b'), ['Hechizos de nivel 1'], { glint: 1 }), { b: 'book' }),
+    T('paper*24', 'emerald*2', { inf: 1 }),
+    T('emerald*5', 'bookshelf*4')]),
+  () => V('cartographer', 'savanna', 4, S('Explorador de Ruinas', '#FFAA00'), [
+    T('emerald*15', I('map', S('Mapa del Templo Perdido', '#FFAA00', 'b'), ['Marca un lugar que nadie ha visto.'], {}), { b: 'compass' }),
+    T('emerald*3', 'spyglass'),
+    T('glass_pane*12', 'emerald')]),
+  () => V('fletcher', 'jungle', 5, S('Maestra Arquera Élfica', '#55FF55>#FFFF55', 'b'), [
+    T('emerald*20', I('bow', S('Arco del Bosque Eterno', 'green', 'b'), [], { ench: 'power:6 infinity:1' })),
+    T('emerald*4', P('tipped_arrow', S('Flecha Venenosa', 'dark_green'), [], '#2E7D32', 'poison 1 10', { count: 16 })),
+    T('stick*32', 'emerald', { inf: 1 })]),
+  () => V('toolsmith', 'taiga', 4, S('Minero del Rey Enano', '#AA5500>#FFAA00', 'b'), [
+    T('emerald*25', I('diamond_pickaxe', S('Pico Rompemontañas', '#FFAA00', 'b'), [], { ench: 'efficiency:7 fortune:3' })),
+    T('raw_iron*16', 'emerald*2', { inf: 1 }),
+    T('emerald*2', 'torch*32')]),
+  () => V('butcher', 'plains', 3, S('Posadero del Ciervo Dorado', '#FFAA00'), [
+    T('emerald*1', I('cooked_beef', S('Estofado de la Posada', '#FFAA00'), ['Repone fuerzas.'], { food: [12, 14], count: 4 }), { inf: 1 }),
+    T('emerald*2', 'bread*12', { inf: 1 }),
+    T('chicken*8', 'emerald')]),
+  () => V('farmer', 'plains', 2, S('Granjera del Valle Tranquilo', '#55FF55'), [
+    T('wheat*20', 'emerald', { inf: 1 }), T('emerald', 'golden_carrot*4'), T('emerald*3', 'cake')]),
+  () => V('fisherman', 'swamp', 4, S('Viejo Pescador del Lago', '#55FFFF'), [
+    T('emerald*12', I('fishing_rod', S('Caña de la Fortuna', '#55FFFF', 'b'), [], { ench: 'luck_of_the_sea:3 lure:3' })),
+    T('cod*16', 'emerald', { inf: 1 }), T('emerald*8', 'heart_of_the_sea', { uses: 1 })]),
+  () => V('shepherd', 'savanna', 3, S('Tejedora de Capas', '#FF55FF'), [
+    T('emerald*6', I('leather_chestplate', S('Capa del Errante', '#5555FF', 'b'), [], { dye: '#3040A0' })),
+    T('white_wool*16', 'emerald', { inf: 1 }), T('emerald*2', 'white_banner')]),
+  () => V('leatherworker', 'desert', 4, S('Curtidor del Desierto', '#AA5500'), [
+    T('emerald*8', I('leather_boots', S('Botas de Arena', '#FFAA00'), [], { dye: '#D8B060', ench: 'feather_falling:3', attrs: [['movement_speed', '10%', 'feet']] })),
+    T('leather*12', 'emerald', { inf: 1 }), T('emerald*4', 'saddle')]),
+  () => V('mason', 'snow', 3, S('Cantero del Castillo', '#AAAAAA'), [
+    T('clay_ball*16', 'emerald', { inf: 1 }), T('emerald', 'polished_andesite*16'), T('emerald*4', 'quartz_pillar*8')]),
+  () => V('farmer', 'plains', 1, S('Bufón de la Corte', '#FF55FF>#FFFF55', 'b'), [
+    T('emerald', 'cookie*3', { inf: 1 }), T('pumpkin_pie', 'emerald')], { silent: 1 }),
+  () => V('weaponsmith', 'desert', 5, S('Mercader de Katanas', '#AA0000>#FFFFFF', 'b'), [
+    T('emerald*30', I('iron_sword', S('Katana Kiri', '#FFFFFF', 'b'), [], { ench: 'sharpness:6 sweeping_edge:3', attrs: [['attack_damage', 9], ['attack_speed', -1.2]] })),
+    T('emerald*45', I('netherite_sword', S('Katana Oscura', '#AA0000', 'b'), [], { ench: 'sharpness:8' }), { b: 'netherite_ingot', uses: 1 })]),
+  () => V('cleric', 'swamp', 5, S('Alquimista del Pantano', '#55FF55>#AA00AA', 'b'), [
+    T('emerald*6', P('splash_potion', S('Veneno de Basilisco', 'dark_green'), [], '#1B5E20', 'poison 3 20')),
+    T('emerald*8', P('potion', S('Elixir Rojo', 'red'), [], '#FF2020', 'instant_health 2 1')),
+    T('spider_eye*8', 'emerald', { inf: 1 }), T('emerald*4', 'brewing_stand')]),
+  () => V('armorer', 'snow', 5, S('Herrera de las Montañas Heladas', '#55FFFF>#FFFFFF', 'b'), [
+    T('emerald*40', I('diamond_chestplate', S('Coraza del Hielo Eterno', '#55FFFF', 'b'), [], { ench: 'protection:5 frost_walker:2' })),
+    T('emerald*20', I('diamond_boots', S('Botas de Escarcha', '#55FFFF'), [], { ench: 'frost_walker:2 feather_falling:4' }))]),
+  () => V('librarian', 'taiga', 5, S('Sabio Ermitaño', '#AAAAAA>#FFFFFF', 'b'), [
+    T('emerald*64', I('book', S('Tomo del Conocimiento Absoluto', '#FFFF55>#FF55FF', 'b'), ['Contiene todas las respuestas.'], { glint: 1, rar: 'epic' }), { uses: 1 }),
+    T('book*3', 'emerald', { inf: 1 })], { noAI: 1, invul: 1, silent: 1 }),
+  () => V('cartographer', 'plains', 1, S('Viajero sin Rumbo', '#AAAAAA'), [T('emerald', 'apple*4', { inf: 1 })]),
+  () => V('cartographer', 'snow', 5, S('Navegante de los Cielos', '#55FFFF>#5555FF', 'b'), [
+    T('emerald*40', I('elytra', S('Alas de Ícaro', '#FFFF55', 'b'), [], { ench: 'unbreaking:3' }), { uses: 1 }),
+    T('emerald*2', 'firework_rocket*16', { inf: 1 })]),
+  () => V('weaponsmith', 'jungle', 4, S('Cazador de Monstruos', '#55FF55>#AA5500', 'b'), [
+    T('emerald*18', I('iron_axe', S('Gran Hacha del Cazador', '#AA5500', 'b'), [], { ench: 'sharpness:5 knockback:2' })),
+    T('emerald*10', I('crossbow', S('Ballesta Pesada', '#555555', 'b'), [], { ench: 'piercing:4 quick_charge:2' })),
+    T('bone*12', 'emerald', { inf: 1 })]),
+  () => V('cleric', 'plains', 4, S('Sacerdotisa del Templo del Alba', '#FFFFFF>#FFFF55', 'b'), [
+    T('emerald*12', P('potion', S('Agua Bendita', '#FFFFFF>#FFFF55', 'b'), [], '#FFFDE7', 'regeneration 2 60, resistance 1 60')),
+    T('emerald*20', 'totem_of_undying', { uses: 2 }), T('rotten_flesh*24', 'emerald', { inf: 1 })]),
+  () => V('fletcher', 'savanna', 3, S('Flechero Nómada', '#FFAA00'), [
+    T('emerald', 'arrow*16', { inf: 1 }),
+    T('emerald*5', P('tipped_arrow', S('Flecha de Rayo', '#FFFF55'), [], '#E1BEE7', 'glowing 1 30, slowness 2 8', { count: 8 })),
+    T('flint*20', 'emerald', { inf: 1 })]),
+  () => V('toolsmith', 'desert', 5, S('Excavador de Tumbas', '#FFAA00>#AA5500', 'b'), [
+    T('emerald*15', I('diamond_shovel', S('Pala del Saqueador', '#FFAA00'), [], { ench: 'efficiency:5 unbreaking:3' })),
+    T('emerald*6', 'brush'), T('gold_ingot*4', 'emerald*3', { inf: 1 })]),
+  () => V('butcher', 'taiga', 4, S('Cocinera del Gremio', '#FF5555'), [
+    T('emerald*4', I('golden_apple', S('Manzana del Gremio', '#FFAA00', 'b'), [], { food: [8, 12, 1.6, true], count: 2 })),
+    T('emerald*2', 'cooked_porkchop*8', { inf: 1 }), T('emerald', 'rabbit_stew', { inf: 1 })]),
+  () => V('librarian', 'jungle', 4, S('Escriba de Runas Antiguas', '#00AAAA', 'b'), [
+    T('emerald*10', I('paper', S('Pergamino de Teletransporte', '#AA00FF', 'b'), ['Uso único.'], { glint: 1, count: 3 })),
+    T('ink_sac*8', 'emerald', { inf: 1 })]),
+  () => V('armorer', 'jungle', 3, S('Escudero Novato', '#AAAAAA'), [
+    T('emerald*3', 'shield'), T('emerald*6', 'chainmail_chestplate'), T('iron_ingot*4', 'emerald', { inf: 1 })]),
+  () => V('weaponsmith', 'snow', 5, S('Herrero de la Espada Rota', '#555555>#AAAAAA', 'b'), [
+    T('emerald*64', I('netherite_sword', S('Matadragones', '#555555', 'b'), ['Un enorme trozo de hierro.'], { attrs: [['attack_damage', 30], ['attack_speed', -3.4]] }), { b: 'netherite_block', uses: 1 })],
+    { noAI: 1, invul: 1 }),
+  () => V('farmer', 'jungle', 3, S('Herbolaria del Bosque', '#55FF55>#55FFFF', 'b'), [
+    T('emerald*2', P('potion', S('Hierba Curativa', 'green'), [], '#7BC043', 'regeneration 1 20')),
+    T('sweet_berries*16', 'emerald', { inf: 1 }), T('emerald', 'glow_berries*8')]),
+  () => V('fisherman', 'snow', 5, S('Pescador del Mar Helado', '#55FFFF', 'b'), [
+    T('emerald*25', I('trident', S('Arpón de Hielo', '#55FFFF', 'b'), [], { ench: 'impaling:4 loyalty:3' })),
+    T('salmon*12', 'emerald', { inf: 1 })]),
+  () => V('mason', 'desert', 5, S('Arquitecto de Pirámides', '#FFAA00'), [
+    T('emerald*2', 'chiseled_sandstone*16'), T('emerald*8', 'gold_block'), T('clay_ball*12', 'emerald', { inf: 1 })]),
+  () => V('shepherd', 'snow', 4, S('Tejedor de Estandartes', '#FFFFFF>#5555FF', 'b'), [
+    T('emerald*3', 'blue_banner'), T('emerald*3', 'red_banner'), T('white_wool*12', 'emerald', { inf: 1 })]),
+  () => V('leatherworker', 'swamp', 5, S('Talabartero de Monturas', '#AA5500', 'b'), [
+    T('emerald*6', 'saddle', { inf: 1 }), T('emerald*12', 'diamond_horse_armor'), T('leather*10', 'emerald', { inf: 1 })]),
+  () => V('cleric', 'taiga', 5, S('Nigromante Exiliado', '#000000>#AA00AA', 'b'), [
+    T('emerald*16', I('totem_of_undying', S('Filacteria', '#AA00AA', 'b'), ['Guarda un trozo de alma.'], {})),
+    T('emerald*5', P('splash_potion', S('Explosión de Maná Oscuro', '#AA00AA'), [], '#4A148C', 'instant_damage 2 1')),
+    T('bone*20', 'emerald', { inf: 1 })], { silent: 1 }),
+  () => V('weaponsmith', 'savanna', 3, S('Vendedor de Mazas', '#AA5500'), [
+    T('emerald*24', I('mace', S('Maza del Martillo Sísmico', '#AA5500', 'b'), [], { ench: 'density:3' }), { b: 'heavy_core' }),
+    T('emerald*4', 'wind_charge*8', { inf: 1 })]),
+  () => V('cartographer', 'jungle', 3, S('Buscador de Tesoros', '#FFFF55', 'b'), [
+    T('emerald*12', 'compass'), T('emerald*20', 'recovery_compass'), T('emerald*4', 'map', { inf: 1 })]),
+  () => V('toolsmith', 'plains', 5, S('Forjador de Herramientas Mágicas', '#55FFFF>#FF55FF', 'b'), [
+    T('emerald*35', I('netherite_axe', S('Hacha del Leñador Eterno', '#55FF55', 'b'), [], { ench: 'efficiency:8 unbreaking:5', unb: 1 })),
+    T('emerald*20', I('shears', S('Tijeras Encantadas', '#FF55FF'), [], { ench: 'efficiency:5 unbreaking:3' }))]),
+  () => V('librarian', 'swamp', 5, S('Bibliotecaria de Hechizos Prohibidos', '#AA0000>#000000', 'b'), [
+    T('emerald*30', I('book', S('Tomo de Hechizos Prohibidos', '#AA00AA', 'b'), [], { glint: 1, attrs: [['attack_damage', 6, 'offhand']] }), { b: 'ender_eye' }),
+    T('emerald*8', 'ender_pearl*4')]),
+  () => V('butcher', 'desert', 2, S('Vendedor de Brochetas', '#FFAA00'), [
+    T('emerald', 'cooked_mutton*6', { inf: 1 }), T('emerald', 'cooked_chicken*6', { inf: 1 })]),
+  () => V('farmer', 'savanna', 4, S('Apicultora Real', '#FFFF55'), [
+    T('emerald*3', 'honey_bottle*4', { inf: 1 }), T('emerald*6', 'honeycomb*8'), T('emerald*12', 'bee_nest')]),
+  () => V('armorer', 'desert', 4, S('Armero del Coliseo', '#FFAA00>#AA0000', 'b'), [
+    T('emerald*10', I('golden_helmet', S('Yelmo del Gladiador', '#FFAA00', 'b'), [], { ench: 'protection:4', unb: 1 })),
+    T('emerald*14', I('iron_chestplate', S('Peto del Gladiador', '#AAAAAA', 'b'), [], { ench: 'protection:4 thorns:2' }))]),
+  () => V('fletcher', 'taiga', 5, S('Montaraz del Norte', '#55AA55>#555555', 'b'), [
+    T('emerald*25', I('crossbow', S('Ballesta del Montaraz', '#55AA55', 'b'), [], { ench: 'multishot:1 quick_charge:3 unbreaking:3' })),
+    T('emerald*3', 'spectral_arrow*16', { inf: 1 })]),
+  () => V('fisherman', 'jungle', 3, S('Pescador de Tesoros', '#FFFF55'), [
+    T('emerald*10', 'nautilus_shell*2'), T('tropical_fish*6', 'emerald', { inf: 1 }), T('emerald*15', 'name_tag')]),
+  () => V('cleric', 'snow', 3, S('Monje de la Montaña', '#FFAA00'), [
+    T('emerald*8', P('potion', S('Elixir del Monje', '#FFAA00'), [], '#FFB300', 'strength 1 600, resistance 1 600')),
+    T('emerald*2', 'lapis_lazuli*8'), T('redstone*16', 'emerald', { inf: 1 })]),
+  () => V('weaponsmith', 'plains', 5, S('Maestro de Armas del Reino', '#FFFF55>#FFAA00', 'b'), [
+    T('emerald*20', I('diamond_sword', S('Espada del Caballero', '#FFFFFF', 'b'), [], { ench: 'sharpness:5 unbreaking:3' })),
+    T('emerald*20', I('bow', S('Arco del Caballero', '#FFFFFF', 'b'), [], { ench: 'power:5 unbreaking:3' })),
+    T('emerald*15', I('shield', S('Escudo del Caballero', '#FFFFFF', 'b'), [], { ench: 'unbreaking:3' }))]),
+  () => V('mason', 'taiga', 4, S('Escultor de Gárgolas', '#555555'), [
+    T('emerald*3', 'chiseled_stone_bricks*16'), T('emerald*5', 'deepslate_tiles*32'), T('stone*32', 'emerald', { inf: 1 })]),
+  () => V('librarian', 'desert', 3, S('Vendedor de Pergaminos', '#FFAA00'), [
+    T('emerald*2', 'paper*16', { inf: 1 }), T('emerald*4', 'writable_book'), T('emerald*6', 'lectern')]),
+  () => V('cleric', 'swamp', 1, S('Mendigo Misterioso', '#555555>#FFFF55', 'b'), [
+    T('emerald*64', 'nether_star', { uses: 1, xp: 0 }), T('emerald', 'stick', { inf: 1, xp: 0 })], { noAI: 1, invul: 1 }),
+  () => V('toolsmith', 'snow', 3, S('Herrero de Herraduras', '#AAAAAA'), [
+    T('emerald*5', 'iron_horse_armor'), T('emerald*8', 'golden_horse_armor'), T('emerald*2', 'lead*2', { inf: 1 })]),
+  () => V('cartographer', 'plains', 5, S('Guardián de los Portales', '#AA00AA>#55FFFF', 'b'), [
+    T('emerald*30', 'ender_eye*4', { uses: 3 }), T('emerald*20', 'obsidian*10'), T('emerald*50', 'end_crystal', { uses: 1 })], { noAI: 1, invul: 1, silent: 1 })
+];
+
+// Baraja: recorre los 50 en orden aleatorio sin repetir
+const EXAMPLE_SETS = { item: RPG_ITEMS, mob: RPG_MOBS, potion: RPG_POTIONS, villager: RPG_VILLAGERS };
+const exampleDeck = {};
+function nextExample(kind) {
+  const list = EXAMPLE_SETS[kind];
+  let d = exampleDeck[kind];
+  if (!d || !d.length) {
+    d = exampleDeck[kind] = list.map((_, i) => i);
+    for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
+  }
+  const idx = d.shift(), m = list[idx]();
+  toast(`Ejemplo ${list.length - d.length}/${list.length}: ${plainName(m.name) || m.id}`);
+  return m;
+}
+$('#itemExample').onclick = () => { item = nextExample('item'); renderItemForm(); };
+$('#potExample').onclick = () => { potion = nextExample('potion'); renderPotionForm(); };
+$('#mobExample').onclick = () => { mob = nextExample('mob'); renderMobForm(); };
+$('#vilExample').onclick = () => { villager = nextExample('villager'); renderVillagerForm(); };
+
 $('#vilReset').onclick = () => { villager = newVillager(); renderVillagerForm(); };
 
 TABS.villagers = { command: () => buildVillagerCommand(villager), model: () => villager, label: m => textPlain(m.name) || 'Aldeano ' + (NAMES.professions[m.profession] || m.profession) };
