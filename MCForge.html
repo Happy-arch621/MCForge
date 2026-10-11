@@ -1159,6 +1159,7 @@ const TEX = {
       const s = await this.drawSpecial(pick.special, id);
       if (s) return s;
     }
+    if (id === 'shield' && !ctx.itemModel?.trim()) { const sh = await this.drawShield(); if (sh) return sh; }   // packs sin items/
     const m = this.resolveModel(pick.model);
     const tint = i => this.tintColor(pick.tints[i], ctx);
     if (m.generated) return this.drawFlat(m.textures, tint);
@@ -1241,9 +1242,22 @@ const TEX = {
     return drew ? { src: c.toDataURL(), pixel: true } : null;
   },
 
+  // Escudo (modelo "special"): su archivo solo trae madera de relleno; se dibuja la cara de la textura real
+  async drawShield() {
+    const tex = this.findTexture(['entity/shield_base_nopattern', 'entity/shield/shield_base_nopattern', 'entity/shield/base_nopattern'], 'shield_base_nopattern');
+    if (!tex) return null;
+    const b = await this.bitmap(tex); if (!b) return null;
+    const k = b.width / 64;                        // texturas HD
+    const c = document.createElement('canvas'); c.width = c.height = 24 * k;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    // Placa del escudo: caja 12x22x1 con UV (0,0) → la cara frontal está en (1,1) y mide 12x22
+    g.drawImage(b, 1 * k, 1 * k, 12 * k, 22 * k, 6 * k, 1 * k, 12 * k, 22 * k);
+    return { src: c.toDataURL(), pixel: true };
+  },
   // Cabezas de mobs y jugador (modelo "special"): cubo con la cara de la textura de la entidad
   async drawSpecial(spec, id) {
     const t = stripNs(spec.type);
+    if (t === 'shield') return this.drawShield();
     let tex = null;
     if (t === 'player_head') tex = this.findTexture(['entity/player/wide/steve'], 'steve');
     else if (t === 'head') {
@@ -2942,6 +2956,266 @@ const RPG_VILLAGERS = [
     T('emerald*30', 'ender_eye*4', { uses: 3 }), T('emerald*20', 'obsidian*10'), T('emerald*50', 'end_crystal', { uses: 1 })], { noAI: 1, invul: 1, silent: 1 })
 ];
 
+/* ---------------------------------------------------------------------
+   +200 EJEMPLOS POR SECCIÓN: 25 temáticas RPG × arquetipos.
+   Cada temática trae colores, frases, lore, efectos y mobs propios.
+   --------------------------------------------------------------------- */
+const RPG_THEMES = [
+  { l: 'Fuego', c: '#FF5500>#FFDD00', ph: ['de la Llama Eterna', 'del Volcán Dormido', 'del Fénix Ardiente', 'de las Brasas'],
+    lore: ['Arde sin consumirse.', 'Forjado en el corazón de un volcán.', 'Huele a ceniza y a victoria.'], ench: 'fire_aspect:2',
+    buff: 'fire_resistance 1 300, strength 1 60', bad: 'instant_damage 1 1, weakness 1 10', mobs: ['blaze', 'magma_cube', 'strider'],
+    hum: ['wither_skeleton', 'piglin_brute', 'husk'], dye: '#C0301A', vt: 'desert', meff: 'fire_resistance 1 inf -p', attr: ['burning_time', '-50%'] },
+  { l: 'Hielo', c: '#FFFFFF>#55FFFF', ph: ['del Invierno Eterno', 'de la Escarcha', 'del Glaciar Silente', 'de la Ventisca'],
+    lore: ['Frío al tacto, incluso en el Nether.', 'Congela el aliento de quien lo mira.', 'Tallado en hielo que nunca se derrite.'], ench: 'knockback:1',
+    buff: 'resistance 1 120, slow_falling 1 60', bad: 'slowness 3 15, mining_fatigue 1 15', mobs: ['stray', 'polar_bear', 'snow_golem'],
+    hum: ['stray', 'skeleton'], dye: '#A0E0FF', vt: 'snow', meff: 'resistance 1 inf -p', attr: ['knockback_resistance', 0.2] },
+  { l: 'Electro', c: '#AA00FF>#FFFF55', ph: ['de la Tormenta Eterna', 'del Relámpago', 'del Trueno Errante', 'del Cielo Furioso'],
+    lore: ['Chispea cuando hay peligro cerca.', 'Cayó del cielo durante una tormenta.', 'Su eco suena como un trueno.'], ench: 'knockback:2',
+    buff: 'speed 2 120, haste 1 120', bad: 'glowing 1 30, slowness 2 10', mobs: ['creeper', 'breeze', 'phantom'],
+    hum: ['skeleton', 'drowned'], dye: '#7A3AD0', vt: 'plains', meff: 'speed 1 inf -p', attr: ['attack_speed', 0.5] },
+  { l: 'Anemo', c: '#55FF55>#FFFFFF', ph: ['del Viento Errante', 'de los Cielos Abiertos', 'del Halcón', 'de la Brisa Libre'],
+    lore: ['Ligero como una pluma.', 'El viento susurra su nombre.', 'Nunca se queda quieto.'], ench: 'knockback:2',
+    buff: 'jump_boost 2 120, slow_falling 1 120, speed 1 120', bad: 'levitation 1 5', mobs: ['breeze', 'phantom', 'parrot'],
+    hum: ['pillager', 'skeleton'], dye: '#B0F0B0', vt: 'savanna', meff: 'slow_falling 1 inf -p', attr: ['movement_speed', '10%'] },
+  { l: 'Geo', c: '#AA5500>#FFAA00', ph: ['de la Montaña', 'de la Roca Viva', 'del Coloso de Piedra', 'de las Raíces Profundas'],
+    lore: ['Pesado como una montaña.', 'Ni un terremoto lo movería.', 'Hecho de piedra que aún respira.'], ench: 'unbreaking:3',
+    buff: 'resistance 2 120, health_boost 2 120', bad: 'slowness 2 20, mining_fatigue 2 20', mobs: ['iron_golem', 'ravager', 'sniffer'],
+    hum: ['vindicator', 'husk'], dye: '#8A5A2A', vt: 'taiga', meff: 'resistance 1 inf -p', attr: ['knockback_resistance', 0.3] },
+  { l: 'Hidro', c: '#00AAFF>#55FFFF', ph: ['de la Marea', 'de las Profundidades', 'del Arrecife', 'de la Lluvia Sagrada'],
+    lore: ['Siempre está húmedo.', 'Huele a mar abierto.', 'Las olas lo devolvieron a la orilla.'], ench: 'unbreaking:2',
+    buff: 'water_breathing 1 300, dolphins_grace 1 120, conduit_power 1 120', bad: 'slowness 1 20, blindness 1 5', mobs: ['guardian', 'glow_squid', 'dolphin', 'axolotl'],
+    hum: ['drowned'], dye: '#2080C0', vt: 'swamp', meff: 'water_breathing 1 inf -p', attr: ['oxygen_bonus', 4] },
+  { l: 'Dendro', c: '#55FF55>#FFFF55', ph: ['del Bosque Antiguo', 'de la Raíz Madre', 'del Gran Roble', 'de la Primavera'],
+    lore: ['Brotan flores donde pisa.', 'El bosque lo reconoce como suyo.', 'Huele a lluvia sobre la hierba.'], ench: 'unbreaking:2',
+    buff: 'regeneration 1 120, saturation 1 1, luck 1 300', bad: 'poison 1 15, hunger 2 30', mobs: ['bee', 'fox', 'panda', 'frog'],
+    hum: ['zombie'], dye: '#4A9A3A', vt: 'jungle', meff: 'regeneration 1 inf -p', attr: ['max_health', 4] },
+  { l: 'Sagrado', c: '#FFFFFF>#FFFF55', ph: ['de la Luz Sagrada', 'del Alba', 'de los Santos', 'del Juramento'],
+    lore: ['Brilla suavemente en la oscuridad.', 'Bendecido por la Diosa.', 'Los no muertos huyen de su luz.'], ench: 'smite:5',
+    buff: 'regeneration 2 60, resistance 1 120, absorption 2 120', bad: 'instant_health 2 1, glowing 1 20', mobs: ['allay', 'iron_golem'],
+    hum: ['vindicator'], dye: '#F0F0E0', vt: 'plains', meff: 'regeneration 1 inf -p', attr: ['max_health', 4] },
+  { l: 'Sombra', c: '#555555>#000000', ph: ['de las Sombras', 'de la Noche Sin Luna', 'del Asesino Silente', 'del Eclipse'],
+    lore: ['Absorbe la luz a su alrededor.', 'Nadie lo ve llegar.', 'Pertenece a la noche.'], ench: 'looting:2',
+    buff: 'invisibility 1 120 -p, night_vision 1 300, speed 1 120', bad: 'blindness 1 10, darkness 1 15', mobs: ['enderman', 'phantom', 'cave_spider'],
+    hum: ['wither_skeleton', 'illusioner', 'skeleton'], dye: '#202028', vt: 'swamp', meff: 'invisibility 1 inf -p', attr: ['sneaking_speed', 0.3] },
+  { l: 'Sangre', c: '#AA0000>#FF5555', ph: ['de la Luna de Sangre', 'del Vampiro', 'del Pacto Carmesí', 'de la Sed Eterna'],
+    lore: ['Siempre tiene sed.', 'Late como un corazón.', 'Gotea aunque esté seco.'], ench: 'looting:3',
+    buff: 'strength 2 60, regeneration 1 30, health_boost 1 120', bad: 'wither 1 10, weakness 2 20', mobs: ['spider', 'hoglin', 'bat'],
+    hum: ['zombie', 'vindicator', 'piglin_brute'], dye: '#8B0000', vt: 'desert', meff: 'strength 1 inf -p', attr: ['attack_damage', 2] },
+  { l: 'Muerte', c: '#AAAAAA>#555555', ph: ['del Rey Esqueleto', 'de la Tumba', 'del Último Suspiro', 'del Osario'],
+    lore: ['Huele a tierra removida.', 'Lo encontraron entre huesos.', 'Los muertos lo reclaman.'], ench: 'smite:3',
+    buff: 'resistance 1 120, night_vision 1 300', bad: 'wither 2 10, hunger 2 30', mobs: ['skeleton_horse', 'zombie_horse', 'zoglin'],
+    hum: ['skeleton', 'zombie', 'wither_skeleton', 'stray', 'bogged', 'husk'], dye: '#606060', vt: 'taiga', meff: 'resistance 1 inf -p', attr: ['armor', 2] },
+  { l: 'Dragón', c: '#AA00AA>#FF55FF', ph: ['del Dragón Ancestral', 'de la Escama Negra', 'del Wyvern', 'del Aliento de Dragón'],
+    lore: ['Arrancado de la guarida de un dragón.', 'Aún conserva el calor del aliento.', 'Los dragones lo temen.'], ench: 'sharpness:2',
+    buff: 'strength 2 120, fire_resistance 1 300, resistance 1 120', bad: 'instant_damage 2 1, wither 1 10', mobs: ['ender_dragon', 'phantom', 'ghast'],
+    hum: ['wither_skeleton', 'piglin_brute'], dye: '#5A1A6A', vt: 'snow', meff: 'fire_resistance 1 inf -p', attr: ['armor_toughness', 2] },
+  { l: 'Cosmos', c: '#5555FF>#FFFFFF', ph: ['de las Estrellas', 'del Cosmos', 'de la Constelación Perdida', 'del Cometa'],
+    lore: ['Contiene polvo de estrellas.', 'Brilla como la noche despejada.', 'Cayó del cielo hace mil años.'], ench: 'unbreaking:3',
+    buff: 'luck 2 600, night_vision 1 300, slow_falling 1 120', bad: 'levitation 2 5, glowing 1 30', mobs: ['allay', 'phantom', 'vex'],
+    hum: ['illusioner', 'evoker'], dye: '#2A2A8A', vt: 'plains', meff: 'glowing 1 inf -p', attr: ['luck', 2] },
+  { l: 'Luna', c: '#AAAAFF>#FFFFFF', ph: ['de la Luna Llena', 'de la Cazadora Lunar', 'de la Marea Plateada', 'del Lobo Blanco'],
+    lore: ['Más fuerte bajo la luna.', 'Plateado como la noche.', 'Aúlla en silencio.'], ench: 'unbreaking:2',
+    buff: 'night_vision 1 300, speed 1 120, jump_boost 1 120', bad: 'slowness 1 20, weakness 1 20', mobs: ['wolf', 'fox', 'bat'],
+    hum: ['stray', 'skeleton'], dye: '#C0C0E0', vt: 'taiga', meff: 'night_vision 1 inf -p', attr: ['jump_strength', 0.1] },
+  { l: 'Sol', c: '#FFFF55>#FFAA00', ph: ['del Sol Radiante', 'del Mediodía', 'del Imperio Dorado', 'del Carro Solar'],
+    lore: ['¡Alaba al sol!', 'Cálido como el mediodía.', 'Refleja la luz con orgullo.'], ench: 'smite:3',
+    buff: 'strength 1 120, regeneration 1 60, fire_resistance 1 120', bad: 'blindness 1 5, nausea 1 10', mobs: ['blaze', 'bee', 'camel'],
+    hum: ['husk', 'vindicator', 'piglin'], dye: '#E0B020', vt: 'savanna', meff: 'regeneration 1 inf -p', attr: ['attack_damage', 1] },
+  { l: 'Ceniza', c: '#FFAA00>#555555', ph: ['de la Ceniza', 'de la Llama Moribunda', 'del Reino Caído', 'del No Muerto'],
+    lore: ['Lo último de un reino que se apagó.', 'Se deshace en ceniza al tocarlo.', 'Recuerda tiempos mejores.'], ench: 'fire_aspect:1',
+    buff: 'resistance 1 120, strength 1 60', bad: 'wither 1 10, weakness 1 30', mobs: ['wither_skeleton', 'blaze', 'ghast'],
+    hum: ['wither_skeleton', 'zombified_piglin', 'husk'], dye: '#5A5A50', vt: 'desert', meff: 'fire_resistance 1 inf -p', attr: ['armor', 2] },
+  { l: 'Feérico', c: '#FF55FF>#55FFFF', ph: ['de las Hadas', 'del Reino Feérico', 'del Duende Travieso', 'del Polvo de Hada'],
+    lore: ['Brilla con colores que no existen.', 'Ríe cuando nadie lo mira.', 'Hecho de risas y polvo de hada.'], ench: 'unbreaking:2',
+    buff: 'jump_boost 2 120, slow_falling 1 120, luck 2 300', bad: 'nausea 1 15, levitation 1 3', mobs: ['allay', 'vex', 'axolotl', 'bee'],
+    hum: ['illusioner', 'witch'], dye: '#E070E0', vt: 'jungle', meff: 'glowing 1 inf -p', attr: ['luck', 3] },
+  { l: 'Ancestral', c: '#FFAA00>#55FFFF', ph: ['de los Antiguos', 'del Santuario Perdido', 'de la Era Olvidada', 'del Guardián Ancestral'],
+    lore: ['Tecnología de una civilización olvidada.', 'Zumba con una energía extraña.', 'Lleva runas que nadie sabe leer.'], ench: 'unbreaking:3',
+    buff: 'haste 2 300, resistance 1 120, night_vision 1 300', bad: 'glowing 1 30, mining_fatigue 2 30', mobs: ['iron_golem', 'guardian', 'shulker'],
+    hum: ['skeleton'], dye: '#C08030', vt: 'desert', meff: 'resistance 1 inf -p', attr: ['armor', 2] },
+  { l: 'Realeza', c: '#FFFF55>#FFAA00', ph: ['del Rey', 'de la Reina Perdida', 'de la Corona', 'del Trono de Oro'],
+    lore: ['Solo la realeza puede portarlo.', 'Vale más que un reino.', 'Lleva el sello de la casa real.'], ench: 'unbreaking:3',
+    buff: 'absorption 2 300, luck 2 300, hero_of_the_village 1 600', bad: 'weakness 1 20, slowness 1 10', mobs: ['piglin', 'iron_golem', 'horse'],
+    hum: ['piglin', 'piglin_brute', 'zombified_piglin'], dye: '#D0A020', vt: 'plains', meff: 'absorption 1 inf -p', attr: ['max_health', 2] },
+  { l: 'Veneno', c: '#55FF55>#000000', ph: ['del Pantano', 'de la Serpiente', 'del Basilisco', 'de la Ciénaga Negra'],
+    lore: ['Gotea un líquido verde.', 'No lo pruebes.', 'Las plantas mueren a su alrededor.'], ench: 'bane_of_arthropods:3',
+    buff: 'regeneration 1 60, resistance 1 60', bad: 'poison 2 20, hunger 2 30', mobs: ['cave_spider', 'slime', 'frog'],
+    hum: ['bogged', 'witch', 'drowned'], dye: '#2A6A1A', vt: 'swamp', meff: 'regeneration 1 inf -p', attr: ['attack_damage', 1] },
+  { l: 'Arcano', c: '#FF55FF>#5555FF', ph: ['del Archimago', 'de la Torre Arcana', 'del Sello Prohibido', 'del Grimorio Perdido'],
+    lore: ['Zumba con maná puro.', 'Sus runas cambian de lugar.', 'Solo los sabios lo entienden.'], ench: 'knockback:1',
+    buff: 'haste 2 120, luck 1 300, night_vision 1 300', bad: 'nausea 1 15, weakness 2 20', mobs: ['evoker', 'witch', 'vex'],
+    hum: ['evoker', 'illusioner', 'witch'], dye: '#6A2AA0', vt: 'swamp', meff: 'resistance 1 inf -p', attr: ['luck', 2] },
+  { l: 'Cazador', c: '#AA5500>#55AA55', ph: ['del Cazador de Monstruos', 'de la Gran Cacería', 'de la Bestia Alfa', 'del Rastreador'],
+    lore: ['Marcado por mil cacerías.', 'Lleva trofeos de bestias legendarias.', 'Huele a cuero y a sangre seca.'], ench: 'looting:2',
+    buff: 'strength 1 120, speed 1 120, night_vision 1 300', bad: 'glowing 1 30, slowness 1 10', mobs: ['hoglin', 'ravager', 'wolf', 'polar_bear'],
+    hum: ['pillager', 'vindicator'], dye: '#7A5A2A', vt: 'savanna', meff: 'speed 1 inf -p', attr: ['attack_damage', 1] },
+  { l: 'Abismo', c: '#AA00AA>#000000', ph: ['del Abismo', 'del Vacío', 'del Fin del Mundo', 'del Ojo que Observa'],
+    lore: ['Mira hacia el vacío.', 'Susurra en un idioma olvidado.', 'No pertenece a este mundo.'], ench: 'unbreaking:3',
+    buff: 'slow_falling 1 120, night_vision 1 300, resistance 1 60', bad: 'darkness 1 15, levitation 1 5', mobs: ['enderman', 'endermite', 'shulker'],
+    hum: ['wither_skeleton'], dye: '#3A1A4A', vt: 'snow', meff: 'slow_falling 1 inf -p', attr: ['safe_fall_distance', 5] },
+  { l: 'Desierto', c: '#FFFF55>#AA5500', ph: ['del Desierto Rojo', 'del Faraón', 'de las Dunas', 'del Oasis Perdido'],
+    lore: ['Siempre tiene arena dentro.', 'Encontrado en una tumba bajo la arena.', 'Brilla como el sol del desierto.'], ench: 'unbreaking:2',
+    buff: 'fire_resistance 1 300, speed 1 120', bad: 'hunger 3 30, weakness 1 20', mobs: ['camel', 'armadillo', 'husk'],
+    hum: ['husk', 'parched'], dye: '#D0A060', vt: 'desert', meff: 'fire_resistance 1 inf -p', attr: ['movement_speed', '5%'] },
+  { l: 'Rebelde', c: '#FF5555>#FFFF55', ph: ['del Corazón Rebelde', 'de la Máscara', 'del Yo Interior', 'del Ladrón Fantasma'],
+    lore: ['Arranca tu máscara.', 'Robará tu corazón.', 'El verdadero tú despierta.'], ench: 'looting:1',
+    buff: 'speed 2 120, strength 1 120, luck 1 300', bad: 'nausea 1 10, glowing 1 20', mobs: ['fox', 'cat', 'vex'],
+    hum: ['skeleton', 'pillager', 'zombie'], dye: '#B02020', vt: 'plains', meff: 'speed 1 inf -p', attr: ['attack_speed', 0.3] }
+];
+const thFirst = th => th.c.split('>')[0];
+const affinity = th => [S('Afinidad: ', 'gray'), S(th.l, th.c.split('>')[1] === '#000000' ? thFirst(th) : th.c.split('>')[1], 'b')];
+// Todos los nombres ya usados (para no repetir)
+const USED_NAMES = new Set();
+for (const list of [RPG_ITEMS, RPG_MOBS, RPG_POTIONS, RPG_VILLAGERS]) list.forEach(f => USED_NAMES.add(plainName(f().name)));
+function uniqueName(nouns, th, k) {
+  for (let a = 0; a < nouns.length * th.ph.length; a++) {
+    const n = `${nouns[(k + a) % nouns.length]} ${th.ph[(k + Math.floor(a / nouns.length)) % th.ph.length]}`;
+    if (!USED_NAMES.has(n)) { USED_NAMES.add(n); return n; }
+  }
+  const n = `${nouns[k % nouns.length]} ${th.ph[k % th.ph.length]} ${['II', 'III', 'IV', 'V'][k % 4]}`; USED_NAMES.add(n); return n;
+}
+const pick = (arr, i) => arr[i % arr.length];
+
+/* ---------- Items: 20 arquetipos ---------- */
+const TIER_RAR = ['uncommon', 'rare', 'epic'];
+const ITEM_ARCH = [
+  { n: ['Espada', 'Hoja', 'Filo', 'Mandoble'], ids: ['iron_sword', 'diamond_sword', 'netherite_sword'], slot: 'mainhand', weapon: 1,
+    ench: t => `sharpness:${3 + t * 2} unbreaking:3`, attrs: t => [['attack_damage', [8, 11, 15][t]], ['attack_speed', -2.4]] },
+  { n: ['Hacha', 'Gran Hacha', 'Segur'], ids: ['iron_axe', 'diamond_axe', 'netherite_axe'], slot: 'mainhand', weapon: 1,
+    ench: t => `sharpness:${2 + t * 2} unbreaking:3`, attrs: t => [['attack_damage', [10, 13, 18][t]], ['attack_speed', -3]] },
+  { n: ['Arco', 'Arco Largo', 'Arco Corto'], ids: ['bow', 'bow', 'bow'], slot: 'mainhand', ranged: 1,
+    ench: t => `power:${3 + t * 2} unbreaking:3` + (t === 2 ? ' infinity:1' : '') },
+  { n: ['Ballesta', 'Ballesta Pesada'], ids: ['crossbow', 'crossbow', 'crossbow'], slot: 'mainhand', ranged: 1,
+    ench: t => `quick_charge:${1 + t} piercing:${1 + t}` },
+  { n: ['Tridente', 'Lanza', 'Arpón'], ids: ['trident', 'trident', 'trident'], slot: 'mainhand', weapon: 1,
+    ench: t => `impaling:${2 + t} loyalty:${1 + t}`, attrs: t => [['attack_damage', [9, 12, 16][t]], ['attack_speed', -2.9]] },
+  { n: ['Maza', 'Martillo', 'Mazo'], ids: ['mace', 'mace', 'mace'], slot: 'mainhand', weapon: 1,
+    ench: t => `density:${2 + t} wind_burst:${1 + t}`, attrs: t => [['attack_damage', [8, 12, 16][t]], ['attack_speed', -3.2]] },
+  { n: ['Guadaña', 'Hoz'], ids: ['iron_hoe', 'diamond_hoe', 'netherite_hoe'], slot: 'mainhand', weapon: 1,
+    ench: t => `sharpness:${2 + t * 2}`, attrs: t => [['attack_damage', [7, 10, 14][t]], ['attack_speed', -2.6], ['entity_interaction_range', 1]] },
+  { n: ['Pico', 'Zapapico'], ids: ['iron_pickaxe', 'diamond_pickaxe', 'netherite_pickaxe'], slot: 'mainhand',
+    ench: t => `efficiency:${3 + t * 2} fortune:${1 + t} unbreaking:3`, attrs: t => [['mining_efficiency', [4, 9, 16][t]]] },
+  { n: ['Escudo', 'Égida', 'Baluarte'], ids: ['shield', 'shield', 'shield'], slot: 'offhand',
+    ench: () => 'unbreaking:3', attrs: t => [['armor', [2, 4, 6][t], 'offhand']] },
+  { n: ['Yelmo', 'Casco'], ids: ['iron_helmet', 'diamond_helmet', 'netherite_helmet'], slot: 'head',
+    ench: t => `protection:${2 + t}`, attrs: t => [['armor', [2, 3, 4][t], 'head'], ['armor_toughness', t, 'head']] },
+  { n: ['Coraza', 'Armadura', 'Peto'], ids: ['leather_chestplate', 'leather_chestplate', 'leather_chestplate'], slot: 'chest', dye: 1,
+    ench: t => `protection:${2 + t} unbreaking:3`, attrs: t => [['armor', [6, 8, 10][t], 'chest'], ['armor_toughness', t * 2, 'chest']] },
+  { n: ['Grebas', 'Musleras'], ids: ['leather_leggings', 'leather_leggings', 'leather_leggings'], slot: 'legs', dye: 1,
+    ench: t => `protection:${2 + t}`, attrs: t => [['armor', [4, 6, 8][t], 'legs']] },
+  { n: ['Botas', 'Escarpes'], ids: ['leather_boots', 'leather_boots', 'leather_boots'], slot: 'feet', dye: 1,
+    ench: t => `feather_falling:${2 + t} protection:${1 + t}`, attrs: t => [['armor', [2, 3, 4][t], 'feet'], ['movement_speed', `${5 + t * 5}%`, 'feet']] },
+  { n: ['Anillo', 'Sortija', 'Sello'], ids: ['gold_nugget', 'iron_nugget', 'gold_nugget'], slot: 'offhand', trinket: 1,
+    attrs: t => [['max_health', [2, 4, 8][t], 'offhand']] },
+  { n: ['Amuleto', 'Colgante', 'Talismán'], ids: ['amethyst_shard', 'heart_of_the_sea', 'nether_star'], slot: 'offhand', trinket: 1,
+    attrs: t => [['luck', [1, 2, 4][t], 'offhand'], ['max_absorption', [0, 2, 4][t], 'offhand']] },
+  { n: ['Báculo', 'Cetro', 'Vara'], ids: ['stick', 'blaze_rod', 'breeze_rod'], slot: 'mainhand', weapon: 1,
+    ench: t => `knockback:${1 + t}`, attrs: t => [['attack_damage', [4, 7, 10][t]], ['luck', 1 + t]] },
+  { n: ['Tomo', 'Grimorio', 'Códice'], ids: ['book', 'book', 'book'], slot: 'offhand', trinket: 1,
+    attrs: t => [['attack_damage', [2, 4, 6][t], 'offhand']] },
+  { n: ['Fruto', 'Manzana', 'Ofrenda'], ids: ['apple', 'golden_apple', 'enchanted_golden_apple'], food: 1 },
+  { n: ['Gema', 'Cristal', 'Fragmento'], ids: ['emerald', 'diamond', 'echo_shard'], slot: 'offhand', trinket: 1,
+    attrs: t => [['luck', [1, 3, 5][t], 'offhand']] },
+  { n: ['Daga', 'Puñal', 'Estilete'], ids: ['stone_sword', 'golden_sword', 'iron_sword'], slot: 'mainhand', weapon: 1,
+    ench: t => `sharpness:${2 + t} looting:${1 + t}`, attrs: t => [['attack_damage', [4, 6, 8][t]], ['attack_speed', 1], ['sneaking_speed', 0.2]] }
+];
+// Item temático: arquetipo a, temática th, nivel t (0-2), variante k
+function genItem(a, th, t, k, fixedName) {
+  const A = ITEM_ARCH[a], name = fixedName || `${pick(A.n, k)} ${pick(th.ph, k + a)}`;   // equipo/tradeos: nombre temático sin reservar
+  const o = { rar: TIER_RAR[t] };
+  if (A.food) {
+    o.food = [[6, 10, 20][t], [6, 12, 20][t], 1.6, t > 0]; o.count = [8, 4, 2][t];
+    return I(A.ids[t], S(name, th.c, 'b'), [pick(th.lore, k), '', affinity(th)], o);
+  }
+  const ench = [A.ench ? A.ench(t) : '', A.weapon ? th.ench : ''].filter(Boolean).join(' ');
+  // sin encantamientos repetidos (se queda el de nivel más alto)
+  if (ench) { const m = {}; ench.split(' ').forEach(e => { const [id, l] = e.split(':'); m[id] = Math.max(m[id] || 0, +l); }); o.ench = Object.entries(m).map(([id, l]) => id + ':' + l).join(' '); }
+  const slot = A.slot === 'offhand' ? 'offhand' : A.slot;
+  o.attrs = [...(A.attrs ? A.attrs(t) : []), [th.attr[0], th.attr[1], slot]].filter(x => !(typeof x[1] === 'number' && x[1] === 0));
+  if (A.dye) o.dye = th.dye;
+  if (A.trinket) { o.glint = 1; o.stack = 1; }
+  if (t === 2) o.unb = 1;
+  return I(A.ids[t], S(name, th.c, 'b'), [pick(th.lore, k), '', affinity(th)], o);
+}
+for (let i = 0; i < 200; i++) {
+  const a = i % 20, k = Math.floor(i / 20), th = RPG_THEMES[(a * 7 + k * 2) % 25], t = (k + a) % 3;
+  const name = uniqueName(ITEM_ARCH[a].n, th, k);
+  RPG_ITEMS.push(() => genItem(a, th, t, k, name));
+}
+
+/* ---------- Pociones ---------- */
+const POT_NOUNS = ['Elixir', 'Tónico', 'Brebaje', 'Esencia', 'Frasco', 'Filtro', 'Néctar', 'Destilado'];
+const POT_KINDS = ['potion', 'potion', 'splash_potion', 'lingering_potion', 'tipped_arrow'];
+function scaleEff(str, t) {
+  return EFX(str).map(e => /^instant_/.test(e.id) ? { ...e, lvl: e.lvl + (t === 2 ? 1 : 0) }
+    : { ...e, secs: e.secs * [1, 2, 4][t], lvl: e.lvl + (t === 2 ? 1 : 0) });
+}
+for (let i = 0; i < 200; i++) {
+  const nIdx = i % 8, k = Math.floor(i / 8), th = RPG_THEMES[(nIdx * 3 + k) % 25], t = k % 3, kind = POT_KINDS[(i + k) % 5];
+  const offensive = kind === 'splash_potion' || kind === 'tipped_arrow';
+  const nouns = kind === 'tipped_arrow' ? ['Flecha', 'Saeta', 'Dardo'] : [POT_NOUNS[nIdx], ...POT_NOUNS];
+  const name = uniqueName(nouns, th, k);
+  RPG_POTIONS.push(() => Object.assign(P(kind, S(name, th.c, 'b'), [pick(th.lore, k), '', affinity(th)], thFirst(th) === '#FFFFFF' ? '#E0E0E0' : thFirst(th), '',
+    { glint: t === 2, count: kind === 'tipped_arrow' ? 16 : 1 }), { effects: scaleEff(offensive ? th.bad : th.buff, t) }));
+}
+
+/* ---------- Mobs ---------- */
+const MOB_ROLES = ['Esbirro', 'Centinela', 'Guerrero', 'Caballero', 'Guardián', 'Campeón', 'Heraldo', 'Señor', 'Tirano', 'Avatar'];
+const MOB_HP = [20, 30, 45, 60, 80, 120, 180, 250, 400, 800];
+const HUGE = new Set(['ender_dragon', 'ghast', 'ravager', 'iron_golem', 'elder_guardian', 'sniffer', 'camel', 'polar_bear']);
+const ARCHER = new Set(['skeleton', 'stray', 'bogged', 'parched']);
+const NO_WEAPON = new Set(['witch', 'evoker', 'illusioner']);
+function genMob(r, th, k, name) {
+  const humanoid = r < 6 || k % 2 === 0, id = humanoid ? pick(th.hum, k + r) : pick(th.mobs, k + r);
+  const t = Math.min(2, Math.floor(r / 3));
+  const attrs = { attack_damage: 3 + r * 2, armor: r * 2 };
+  if (r >= 6 && !HUGE.has(id)) attrs.scale = +(1 + (r - 5) * 0.15).toFixed(2);
+  if (r >= 4) attrs.knockback_resistance = Math.min(1, (r - 3) * 0.2);
+  const o = { hp: MOB_HP[r], attrs, eff: r >= 3 ? th.meff : '', glowing: r >= 8, eq: {}, drop: {} };
+  if (id === 'slime' || id === 'magma_cube') o.opts = { Size: 1 + Math.floor(r / 2) };
+  if (MOB_IDS.has(id) && HEAD_BLOCK_MOBS.has(id)) {
+    if (!NO_WEAPON.has(id)) {
+      o.eq.mainhand = id === 'drowned' ? genItem(4, th, t, k) : id === 'pillager' ? genItem(3, th, t, k) : ARCHER.has(id) ? genItem(2, th, t, k) : genItem(r % 2 ? 1 : 0, th, t, k);
+      o.drop.mainhand = r >= 7 ? 100 : 5;
+    }
+    o.eq.chest = genItem(10, th, t, k); o.drop.chest = 0;
+    if (r >= 2) { o.eq.head = ['iron_helmet', 'diamond_helmet', 'netherite_helmet'][t]; o.drop.head = 0; }
+    if (r >= 4) { o.eq.legs = genItem(11, th, t, k); o.eq.feet = genItem(12, th, t, k); o.drop.legs = o.drop.feet = 0; }
+    if (r >= 5 && !ARCHER.has(id) && id !== 'pillager' && !NO_WEAPON.has(id)) o.eq.offhand = genItem(8, th, t, k);
+  }
+  return M(id, S(name, th.c, 'b'), o);
+}
+for (let i = 0; i < 200; i++) {
+  const r = i % 10, k = Math.floor(i / 10), th = RPG_THEMES[(r * 3 + k) % 25];
+  const name = uniqueName([MOB_ROLES[r]], th, k);
+  RPG_MOBS.push(() => genMob(r, th, k, name));
+}
+
+/* ---------- Aldeanos ---------- */
+const VIL_PROF = [
+  ['weaponsmith', ['Herrero', 'Forjador', 'Maestro de Armas'], (th, t, k) => [T('emerald*' + (10 + t * 12), genItem(k % 2, th, t, k)), T('emerald*' + (8 + t * 8), genItem(19, th, t, k)), T('coal*16', 'emerald', { inf: 1 })]],
+  ['armorer', ['Armero', 'Forjador de Armaduras'], (th, t, k) => [T('emerald*' + (12 + t * 10), genItem(10, th, t, k)), T('emerald*' + (8 + t * 8), genItem(9, th, t, k)), T('iron_ingot*6', 'emerald', { inf: 1 })]],
+  ['cleric', ['Alquimista', 'Sacerdote', 'Curandera'], (th, t, k) => [T('emerald*' + (4 + t * 4), P('potion', S('Elixir ' + th.ph[0], th.c, 'b'), [], thFirst(th), th.buff)),
+    T('emerald*' + (5 + t * 4), P('splash_potion', S('Frasco ' + th.ph[1], th.c, 'b'), [], thFirst(th), th.bad)), T('rotten_flesh*24', 'emerald', { inf: 1 })]],
+  ['librarian', ['Escriba', 'Archivista', 'Sabio'], (th, t, k) => [T('emerald*' + (10 + t * 10), genItem(16, th, t, k), { b: 'book' }), T('paper*24', 'emerald', { inf: 1 }), T('emerald*4', 'bookshelf*2')]],
+  ['fletcher', ['Flechero', 'Arquera'], (th, t, k) => [T('emerald*' + (10 + t * 8), genItem(2, th, t, k)),
+    T('emerald*' + (3 + t * 2), P('tipped_arrow', S('Flecha ' + th.ph[2], th.c, 'b'), [], thFirst(th), th.bad, { count: 16 })), T('stick*32', 'emerald', { inf: 1 })]],
+  ['toolsmith', ['Artesano', 'Herramentero'], (th, t, k) => [T('emerald*' + (12 + t * 10), genItem(7, th, t, k)), T('raw_iron*12', 'emerald', { inf: 1 })]],
+  ['cartographer', ['Cartógrafo', 'Explorador'], (th, t, k) => [T('emerald*' + (8 + t * 6), I('map', S('Mapa ' + th.ph[3], th.c, 'b'), [pick(th.lore, k)], {}), { b: 'compass' }),
+    T('emerald*' + (6 + t * 6), genItem(14, th, t, k)), T('glass_pane*12', 'emerald', { inf: 1 })]],
+  ['butcher', ['Cocinero', 'Posadero'], (th, t, k) => [T('emerald*' + (2 + t * 3), genItem(17, th, t, k)), T('emerald', 'cooked_beef*6', { inf: 1 }), T('chicken*8', 'emerald', { inf: 1 })]],
+  ['farmer', ['Granjero', 'Herbolaria'], (th, t, k) => [T('emerald*' + (3 + t * 3), P('potion', S('Té ' + th.ph[2], th.c), [], thFirst(th), th.buff)), T('wheat*20', 'emerald', { inf: 1 }), T('emerald', 'bread*6', { inf: 1 })]],
+  ['fisherman', ['Pescador', 'Navegante'], (th, t, k) => [T('emerald*' + (8 + t * 8), genItem(4, th, t, k)), T('cod*14', 'emerald', { inf: 1 })]],
+  ['leatherworker', ['Curtidor', 'Talabartero'], (th, t, k) => [T('emerald*' + (6 + t * 6), genItem(12, th, t, k)), T('emerald*' + (7 + t * 6), genItem(11, th, t, k)), T('leather*10', 'emerald', { inf: 1 })]],
+  ['shepherd', ['Tejedora', 'Sastre'], (th, t, k) => [T('emerald*' + (8 + t * 8), genItem(10, th, t, k)), T('white_wool*16', 'emerald', { inf: 1 })]],
+  ['mason', ['Cantero', 'Escultor', 'Joyero'], (th, t, k) => [T('emerald*' + (6 + t * 8), genItem(18, th, t, k)), T('emerald*' + (8 + t * 8), genItem(13, th, t, k)), T('clay_ball*12', 'emerald', { inf: 1 })]]
+];
+for (let i = 0; i < 200; i++) {
+  const p = i % 13, k = Math.floor(i / 13), th = RPG_THEMES[(p * 2 + k) % 25], t = k % 3, [prof, nouns, trades] = VIL_PROF[p];
+  const name = uniqueName(nouns, th, k);
+  RPG_VILLAGERS.push(() => V(prof, th.vt, 1 + (k % 5), S(name, th.c, 'b'), trades(th, t, k), { noAI: k % 4 === 0, invul: k % 4 === 0 }));
+}
+
 /* =====================================================================
    PESTAÑAS DE DOCUMENTO: varios items / pociones / mobs / aldeanos abiertos
    ===================================================================== */
@@ -3053,7 +3327,6 @@ function nextExample(kind) {
     for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
   }
   const idx = d.shift(), m = list[idx]();
-  toast(`Ejemplo ${list.length - d.length}/${list.length}: ${plainName(m.name) || m.id}`);
   return m;
 }
 $('#itemExample').onclick = () => openDoc('items', nextExample('item'));
@@ -3834,10 +4107,11 @@ const Viewer = {
     if (!img) return;
     // Refleja el sprite sobre su diagonal (mango abajo-izq → punta arriba-der): el mango y la punta no se mueven,
     // pero la cabeza de hachas/picos/azadas queda del lado correcto, como en el juego.
+    const isShield = stripNs(it.id) === 'shield';
     const W = img.naturalWidth || 16, H = img.naturalHeight || 16, flip = document.createElement('canvas');
     flip.width = W; flip.height = H;
     const fg = flip.getContext('2d'); fg.imageSmoothingEnabled = false;
-    fg.setTransform(0, -H / W, -W / H, 0, W, H);   // (x, y) → (W - y, H - x)
+    if (!isShield) fg.setTransform(0, -H / W, -W / H, 0, W, H);   // (x, y) → (W - y, H - x)
     fg.drawImage(img, 0, 0);
     const tx = new THREE.CanvasTexture(flip); tx.needsUpdate = true;
     tx.magFilter = THREE.NearestFilter; tx.minFilter = THREE.NearestFilter; tx.generateMipmaps = false; tx.encoding = THREE.sRGBEncoding;
@@ -3848,8 +4122,13 @@ const Viewer = {
     const item3d = new THREE.Mesh(geo || new THREE.PlaneGeometry(size, size), mat);
     // El sprite queda vertical a lo largo de la dirección en que mira el mob (se ve de lado, como en el juego).
     // En el sprite la punta va arriba-derecha y el mango abajo-izquierda; tras el giro, "derecha" = hacia el frente.
-    item3d.rotation.y = -Math.PI / 2;
+    item3d.rotation.y = isShield ? 0 : -Math.PI / 2;   // el escudo mira al frente
     g.add(item3d);
+    if (isShield) {   // derecho, delante del antebrazo
+      const grip = new THREE.Group(); item3d.scale.setScalar(1.6); grip.add(g);
+      grip.position.set(isLeft ? 1 : -1, -6, 2.5); arm.add(grip);
+      return;
+    }
     const grip = new THREE.Group();
     g.position.set(0, size * 0.42, size * 0.42);   // mueve el sprite para que el mango quede justo en el origen (el puño)
     grip.add(g);
