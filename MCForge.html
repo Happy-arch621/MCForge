@@ -1983,6 +1983,9 @@ const NOT_BLOCK = new Set(('apple armor_stand arrow baked_potato beef beetroot b
   'slime_ball snowball spectral_arrow spider_eye splash_potion spyglass stick string sugar suspicious_stew sweet_berries tipped_arrow ' +
   'totem_of_undying trial_key trident tropical_fish wheat wind_charge writable_book written_book').split(' '));
 const isBlockItem = id => { id = stripNs(id); return !!NAMES.items[id] && !NOT_BLOCK.has(id) && !NOT_BLOCK_RE.test(id); };
+// Mobs que dibujan la armadura puesta (casco, pechera, pantalones y botas)
+const ARMOR_RENDER_MOBS = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'giant', 'skeleton', 'stray', 'wither_skeleton',
+  'bogged', 'parched', 'piglin', 'piglin_brute', 'zombified_piglin']);
 // Mobs que dibujan en la cabeza lo que llevan (bloques incluidos)
 const HEAD_BLOCK_MOBS = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'giant', 'skeleton', 'stray', 'wither_skeleton', 'bogged', 'parched',
   'piglin', 'piglin_brute', 'zombified_piglin', 'villager', 'wandering_trader', 'pillager', 'vindicator', 'evoker', 'illusioner']);
@@ -2175,6 +2178,8 @@ function renderEquip() {
       row.append(el('div', { class: 'f' }, el('span', {}, 'Cantidad'), el('input', { type: 'number', min: 1, max: 99, value: e.count, style: 'width:70px', oninput: ev => { e.count = ev.target.value; updateMob(); } })));
       row.append(el('div', { class: 'f' }, el('span', {}, '% soltar'), el('input', { type: 'number', min: 0, max: 100, step: 'any', value: e.drop, placeholder: '8.5', style: 'width:76px', oninput: ev => { e.drop = ev.target.value; updateMob(); } })));
     }
+    if (slot === 'chest' && !ARMOR_RENDER_MOBS.has(stripNs(mob.id))) row.append(el('small', { class: 'hint', style: 'flex-basis:100%;margin:0' },
+      'Este mob no muestra la armadura puesta: el comando se la pone y le da protección, pero no se ve (ni en el juego ni en la vista 3D).'));
     if (slot === 'head') row.append(el('small', { class: 'hint', style: 'flex-basis:100%;margin:0' },
       HEAD_BLOCK_MOBS.has(stripNs(mob.id)) ? '✔ Este mob puede llevar cualquier bloque en la cabeza.' : 'Este mob solo acepta cascos, calabaza tallada o cabezas.'));
     return row;
@@ -4365,8 +4370,8 @@ const Viewer = {
       const p = TEX.findTexture(L.tex, L.tex[0].split('/').pop());
       await this.addLayer(parts, GEO[L.geo](L.opt), p, { skipIfNoTex: true, body: true, texW: L.texW || def.texW, tint: L.tint });
     }
-    // Armadura (solo en mobs con cuerpo humanoide)
-    if (def.armor !== false) for (const [slot, piece] of Object.entries(ARMOR_PIECES)) {
+    // Armadura: solo en los mobs que la muestran en el juego
+    if (def.armor !== false && ARMOR_RENDER_MOBS.has(id)) for (const [slot, piece] of Object.entries(ARMOR_PIECES)) {
       const it = equipItem(m.equip?.[slot]); if (!it) continue;
       const mat = armorMaterial(it.id); if (!mat || (mat === 'turtle_scute' && slot !== 'head')) continue;
       const boxes = GEO.humanoid({ inflate: piece.inflate, hat: false }).filter(b => piece.parts.includes(b.p));
