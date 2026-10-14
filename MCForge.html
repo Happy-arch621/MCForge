@@ -4871,6 +4871,36 @@ function mqProfile(name) {
   })());
   return MQ_PROFILE.get(key);
 }
+// Procesa la skin igual que Minecraft: pasa las de 64x32 al formato nuevo, quita la "transparencia de Notch"
+// del sombrero en skins viejas y hace sólida la capa base. Devuelve una ruta de textura ya procesada.
+function fixSkin(path, tex) {
+  const key = 'skinfix:' + path;
+  if (!Viewer.texCache.has(key + '|')) Viewer.texCache.set(key + '|', (async () => {
+    const src = tex.image, W = src.width, legacy = src.height * 2 === W, k = W / 64;
+    const c = document.createElement('canvas'); c.width = W; c.height = W;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(src, 0, 0);
+    if (legacy) {
+      // Brazo y pierna izquierdos = derechos en espejo (cada cara por separado, como el juego)
+      const copy = (sx, sy, w, h, dx, dy) => { g.save(); g.translate((dx + w) * k, dy * k); g.scale(-1, 1); g.drawImage(src, sx * k, sy * k, w * k, h * k, 0, 0, w * k, h * k); g.restore(); };
+      [[4, 16, 4, 4, 20, 48], [8, 16, 4, 4, 24, 48], [0, 20, 4, 12, 24, 52], [4, 20, 4, 12, 20, 52], [8, 20, 4, 12, 16, 52], [12, 20, 4, 12, 28, 52],
+       [44, 16, 4, 4, 36, 48], [48, 16, 4, 4, 40, 48], [40, 20, 4, 12, 40, 52], [44, 20, 4, 12, 36, 52], [48, 20, 4, 12, 32, 52], [52, 20, 4, 12, 44, 52]]
+        .forEach(a => copy(...a));
+    }
+    const img = g.getImageData(0, 0, W, W), d = img.data;
+    const rect = (x0, y0, x1, y1, fn) => { for (let y = y0 * k; y < y1 * k; y++) for (let x = x0 * k; x < x1 * k; x++) fn((y * W + x) * 4); };
+    if (legacy) {   // sombrero totalmente opaco en skins viejas = no hay sombrero
+      let opaque = true; rect(32, 0, 64, 16, i => { if (d[i + 3] < 128) opaque = false; });
+      if (opaque) rect(32, 0, 64, 16, i => { d[i + 3] = 0; });
+    }
+    // Capa base sin transparencia (cabeza, cuerpo, brazos y piernas)
+    [[0, 0, 32, 16], [0, 16, 64, 32], [16, 48, 48, 64]].forEach(([a, b, e, f]) => rect(a, b, e, f, i => { d[i + 3] = 255; }));
+    g.putImageData(img, 0, 0);
+    const tx = new THREE.CanvasTexture(c);
+    tx.magFilter = THREE.NearestFilter; tx.minFilter = THREE.NearestFilter; tx.generateMipmaps = false; tx.encoding = THREE.sRGBEncoding;
+    return tx;
+  })());
+  return key;
+}
 // Primera textura que cargue de una lista de direcciones
 async function firstTexture(urls) { for (const u of urls) { const t = await Viewer.texture('url:' + u); if (t) return ['url:' + u, t]; } return [null, null]; }
 // Skins Alex: la columna exterior del brazo derecho (x 54-55, y 20-31) está vacía
@@ -4890,11 +4920,12 @@ MOB_MODELS.mannequin = {
     const q = m._mq, t = q.skinTexture.trim(), who = q.profile.trim(), packPath = v => stripNs(v).replace(/^textures\//, '').replace(/\.png$/, '');
     let skinPath = null, capeUrl = null; m._skinSrc = '';
     if (t && TEX.files.has(`minecraft/textures/${packPath(t)}.png`)) {
-      skinPath = packPath(t); const tx = await Viewer.texture(skinPath); if (tx) m._slim = skinIsSlim(tx);
+      const tx = await Viewer.texture(packPath(t));
+      if (tx) { skinPath = fixSkin(packPath(t), tx); m._slim = skinIsSlim(tx); }
     } else if (who && /^[A-Za-z0-9_]{3,16}$/.test(who)) {
       const pr = await mqProfile(who);
       const [sp, tx] = await firstTexture([...(pr?.skins || []), 'https://mc-heads.net/skin/' + encodeURIComponent(who)]);
-      if (tx) { skinPath = sp; m._slim = pr?.slim ?? skinIsSlim(tx); m._skinSrc = pr?.src || 'mc-heads'; }
+      if (tx) { skinPath = fixSkin(sp, tx); m._slim = pr?.slim ?? skinIsSlim(tx); m._skinSrc = pr?.src || 'mc-heads'; }
       else console.warn('[Maniquí] No cargó la skin de', who, '→ se usa Steve/Alex');
       capeUrl = pr?.capes || [];
     }
