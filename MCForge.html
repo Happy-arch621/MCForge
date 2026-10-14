@@ -4586,7 +4586,7 @@ const Viewer = {
     });
     this.glow = !!m.glowing || hasEff('glowing');
     this.renderer.domElement.classList.toggle('glow', this.glow);
-    this.badge.textContent = def.flat ? 'modelo aproximado' : hasTex ? 'con texturas' : 'colores de muestra';
+    if (!def.after) this.badge.textContent = def.flat ? 'modelo aproximado' : hasTex ? 'con texturas' : 'colores de muestra';   // el maniquí pone su propio estado
     this.lastName = id + (textPlain(m.name) ? '-' + textPlain(m.name).replace(/[^\w\-]+/g, '_') : '');
   },
   clear() {
@@ -4825,21 +4825,103 @@ GEO.player = ({ slim = false, hide = [] } = {}) => {
   layer('left_pants_leg', { p: 'left_leg', uv: [0, 48], box: [-2, 0, -2, 4, 12, 4], inflate: 0.25 });
   return b;
 };
-const mqSlim = q => q.skinModel === 'slim' || (!q.skinModel && /\/slim\//.test(q.skinTexture));
+// Modelo: el elegido; en "Por defecto" se detecta de la skin (m._slim) o de la ruta de textura
+const mqSlim = (q, m) => q.skinModel ? q.skinModel === 'slim' : (m?._slim ?? /\/slim\//.test(q.skinTexture));
+// Perfil del jugador: skin, capas (varias direcciones a probar) y tipo de brazos. Prueba varios servicios con CORS.
+const MQ_PROFILE = new Map();
+async function getJson(url, ms = 6000) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  try { const r = await fetch(url, { signal: ctl.signal }); return r.ok ? await r.json() : null; } catch { return null; } finally { clearTimeout(t); }
+}
+function mqProfile(name) {
+  const key = name.toLowerCase();
+  if (!MQ_PROFILE.has(key)) MQ_PROFILE.set(key, (async () => {
+    // 1) ashcon: trae skin y capa ya como imagen
+    const a = await getJson('https://api.ashcon.app/mojang/v2/user/' + encodeURIComponent(name));
+    if (a?.textures) {
+      const t = a.textures, png = x => x?.data ? 'data:image/png;base64,' + x.data : null, id = String(a.uuid || '').replace(/-/g, '');
+      const res = { src: 'ashcon', skins: [png(t.skin), t.skin?.url].filter(Boolean),
+        capes: [png(t.cape), id && t.cape ? 'https://crafatar.com/capes/' + id : null, t.cape?.url].filter(Boolean), slim: typeof t.slim === 'boolean' ? t.slim : null };
+      console.info('[Maniquí] Perfil de', name, 'desde ashcon:', res.capes.length ? 'con capa' : 'sin capa', res.slim ? '(Alex)' : '(Steve)');
+      return res;
+    }
+    // 2) mc-heads (copia del perfil de Mojang): skin por mc-heads, capa por crafatar
+    const m = await getJson('https://mc-heads.net/minecraft/profile/' + encodeURIComponent(name));
+    if (m?.id) {
+      let tex = {};
+      try { tex = JSON.parse(atob((m.properties || []).find(p => p.name === 'textures')?.value || '')).textures || {}; } catch {}
+      const res = { src: 'mc-heads', skins: ['https://mc-heads.net/skin/' + m.id, tex.SKIN?.url].filter(Boolean),
+        capes: tex.CAPE ? ['https://crafatar.com/capes/' + m.id, tex.CAPE.url] : [], slim: tex.SKIN ? tex.SKIN.metadata?.model === 'slim' : null };
+      console.info('[Maniquí] Perfil de', name, 'desde mc-heads:', res.capes.length ? 'con capa' : 'sin capa', res.slim ? '(Alex)' : '(Steve)');
+      return res;
+    }
+    // 3) playerdb: UUID y texturas del perfil; capa por crafatar
+    const d = (await getJson('https://playerdb.co/api/player/minecraft/' + encodeURIComponent(name)))?.data?.player;
+    if (d?.raw_id || d?.id) {
+      const id = String(d.raw_id || d.id).replace(/-/g, '');
+      let tex = {};
+      try { tex = JSON.parse(atob((d.properties || []).find(p => p.name === 'textures')?.value || '')).textures || {}; } catch {}
+      const res = { src: 'playerdb', skins: ['https://mc-heads.net/skin/' + id, d.skin_texture, tex.SKIN?.url].filter(Boolean),
+        capes: ['https://crafatar.com/capes/' + id, tex.CAPE?.url].filter(Boolean), slim: tex.SKIN ? tex.SKIN.metadata?.model === 'slim' : null };
+      console.info('[Maniquí] Perfil de', name, 'desde playerdb:', tex.CAPE ? 'con capa' : 'capa no confirmada, se intenta igual', res.slim ? '(Alex)' : '(Steve)');
+      return res;
+    }
+    console.warn('[Maniquí] No se pudo leer el perfil de', name, '(sin internet o los servicios no respondieron)');
+    return null;
+  })());
+  return MQ_PROFILE.get(key);
+}
+// Primera textura que cargue de una lista de direcciones
+async function firstTexture(urls) { for (const u of urls) { const t = await Viewer.texture('url:' + u); if (t) return ['url:' + u, t]; } return [null, null]; }
+// Skins Alex: la columna exterior del brazo derecho (x 54-55, y 20-31) está vacía
+function skinIsSlim(tex) {
+  try {
+    const c = tex.image; if (!c?.getContext || c.height < c.width) return false;
+    const k = c.width / 64, g = c.getContext('2d');
+    for (let y = 20; y < 32; y++) if (g.getImageData(Math.floor(54 * k), Math.floor(y * k), 1, 1).data[3] !== 0) return false;
+    return true;
+  } catch { return false; }
+}
 MOB_MODELS.mannequin = {
   geo: 'player', pivots: 'humanoid', anim: 'still', tex: ['entity/player/wide/steve'], colors: ['#c49a7c', '#3a8ad8', '#c49a7c', '#3a3a8a'],
-  geoOpt: m => ({ slim: mqSlim(m._mq), hide: m._mq.hidden }),
-  // Skin: textura avanzada del pack > skin del jugador (internet) > Steve / Alex
+  geoOpt: m => ({ slim: mqSlim(m._mq, m), hide: m._mq.hidden }),
+  // Skin: textura avanzada del pack > skin del jugador (internet) > Steve / Alex. También carga la capa.
   async skin(m) {
-    const q = m._mq, t = q.skinTexture.trim();
-    if (t) { const p = stripNs(t).replace(/^textures\//, '').replace(/\.png$/, ''); if (TEX.files.has(`minecraft/textures/${p}.png`)) return p; }
-    const who = q.profile.trim();
-    if (who && /^[A-Za-z0-9_]{3,16}$/.test(who)) { const u = 'url:https://mc-heads.net/skin/' + encodeURIComponent(who); if (await Viewer.texture(u)) return u; }
-    return mqSlim(q) ? TEX.findTexture(['entity/player/slim/alex'], 'alex') : TEX.findTexture(['entity/player/wide/steve'], 'steve');
+    const q = m._mq, t = q.skinTexture.trim(), who = q.profile.trim(), packPath = v => stripNs(v).replace(/^textures\//, '').replace(/\.png$/, '');
+    let skinPath = null, capeUrl = null; m._skinSrc = '';
+    if (t && TEX.files.has(`minecraft/textures/${packPath(t)}.png`)) {
+      skinPath = packPath(t); const tx = await Viewer.texture(skinPath); if (tx) m._slim = skinIsSlim(tx);
+    } else if (who && /^[A-Za-z0-9_]{3,16}$/.test(who)) {
+      const pr = await mqProfile(who);
+      const [sp, tx] = await firstTexture([...(pr?.skins || []), 'https://mc-heads.net/skin/' + encodeURIComponent(who)]);
+      if (tx) { skinPath = sp; m._slim = pr?.slim ?? skinIsSlim(tx); m._skinSrc = pr?.src || 'mc-heads'; }
+      else console.warn('[Maniquí] No cargó la skin de', who, '→ se usa Steve/Alex');
+      capeUrl = pr?.capes || [];
+    }
+    m._skinAuto = !!skinPath && !q.skinModel;
+    // Capa: la del pack (opciones avanzadas) o la del jugador
+    if (!q.hidden.includes('cape')) {
+      const c = q.skinCape.trim();
+      m._capeTex = c && TEX.files.has(`minecraft/textures/${packPath(c)}.png`) ? await Viewer.texture(packPath(c)) : capeUrl?.length ? (await firstTexture(capeUrl))[1] : null;
+      m._capeInfo = m._capeTex ? 'con capa' : who || c ? 'sin capa' : '';
+      if (capeUrl?.length && !m._capeTex) console.warn('[Maniquí] El jugador tiene capa pero no se pudo descargar:', capeUrl);
+    }
+    return skinPath || (mqSlim(q, m) ? TEX.findTexture(['entity/player/slim/alex'], 'alex') : TEX.findTexture(['entity/player/wide/steve'], 'steve'));
   },
   // Pose y descripción bajo el nombre
   after(m, parts, body, model, k, height, hasName) {
     const q = m._mq;
+    // Capa colgando en la espalda (textura de 64x32: cara exterior en (1,1) de 10x16)
+    if (m._capeTex && parts.body) {
+      const ct = m._capeTex, th = 64 * ct.image.height / ct.image.width;
+      const mesh = this.boxMesh({ box: [-5, 0, -1, 10, 16, 1], uv: [0, 0] }, 64, th, this.material(ct));
+      const tilt = new THREE.Group(), flip = new THREE.Group();
+      tilt.position.set(0, 0, -2); tilt.rotation.x = 0.12;   // un poco separada del cuerpo
+      flip.rotation.y = Math.PI;                             // la cara de la textura mira hacia atrás
+      flip.add(mesh); tilt.add(flip); parts.body.add(tilt);
+    }
+    this.badge.textContent = [(mqSlim(q, m) ? 'Alex' : 'Steve') + (m._skinAuto ? ' (detectado)' : ''),
+      q.profile.trim() ? (m._skinSrc ? 'skin cargada' : 'skin NO cargó') : 'skin por defecto', q.hidden.includes('cape') ? 'capa oculta' : m._capeInfo].filter(Boolean).join(' · ');
     if (q.pose === 'crouching') { parts.body.rotation.x = 0.5; parts.right_arm.rotation.x = parts.left_arm.rotation.x = 0.4; parts.head.position.y -= 1; body.position.y = -3 * k; }
     if (q.pose === 'swimming' || q.pose === 'fall_flying') { body.rotation.x = Math.PI / 2; body.position.set(0, 4 * k, -14 * k); }
     if (q.pose === 'sleeping') { body.rotation.x = -Math.PI / 2; body.position.set(0, 3 * k, 14 * k); }
