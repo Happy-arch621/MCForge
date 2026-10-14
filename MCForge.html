@@ -228,6 +228,7 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
   <button data-tab="mobs" role="tab">Mobs</button>
   <button data-tab="potions" role="tab">Pociones</button>
   <button data-tab="villagers" role="tab">Aldeanos</button>
+  <button data-tab="mannequins" role="tab">Maniquí</button>
 </nav>
 
 <main>
@@ -662,6 +663,137 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
         </div>
       </div>
       <div class="warns" id="vilWarns"></div>
+    </aside>
+  </div>
+</section>
+
+<!-- =================== MANIQUÍ (mannequin, 1.21.9+) =================== -->
+<section class="tab" id="tab-mannequins">
+  <div class="layout">
+    <div id="mqForm">
+      <div class="doctabs" id="docs-mannequins" role="tablist" aria-label="Abiertos"></div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn sm" type="button" id="mqReset">Nuevo</button>
+        <button class="btn sm" type="button" id="mqExample">Cargar ejemplo</button>
+      </div>
+
+      <details class="sec bevel" open>
+        <summary>Invocar</summary>
+        <div class="sec-body">
+          <div class="row">
+            <div class="f grow"><span>Perfil (nombre de jugador)</span><input type="text" data-k="profile" placeholder="happychon" maxlength="16" spellcheck="false"></div>
+          </div>
+          <p class="hint" style="margin-top:0">Usa la skin de ese jugador. Déjalo vacío para una skin por defecto, o si vas a usar las opciones avanzadas.</p>
+          <div class="f"><span>Capas ocultas</span></div>
+          <div class="row" id="mqLayers" style="gap:4px 16px"></div>
+          <div class="row">
+            <div class="f"><span>Mano principal</span>
+              <select data-k="mainHand" style="width:auto"><option value="right">Derecha (por defecto)</option><option value="left">Izquierda</option></select></div>
+            <div class="f"><span>Pose</span>
+              <select data-k="pose" style="width:auto">
+                <option value="standing">De pie (por defecto)</option><option value="crouching">Agachado</option>
+                <option value="swimming">Nadando</option><option value="fall_flying">Planeando (élitras)</option><option value="sleeping">Durmiendo</option>
+              </select></div>
+          </div>
+          <label class="chk"><input type="checkbox" data-k="immovable"> Inmóvil (no lo mueven golpes ni empujones)</label>
+          <div class="f" style="margin-top:8px"><span>Descripción (texto bajo el nombre; por defecto "NPC")</span></div>
+          <div id="mqDescEditor"></div>
+          <label class="chk"><input type="checkbox" data-k="hideDesc"> Ocultar descripción</label>
+          <details class="sec inset" style="margin-top:10px">
+            <summary>Opciones avanzadas</summary>
+            <div class="sec-body">
+              <p class="hint" style="margin-top:0">Texturas propias de tu resource pack (ej. <code>minecraft:entity/player/slim/alex</code>). Solo úsalas si sabes lo que haces, y deja el perfil vacío.</p>
+              <div class="row">
+                <div class="f grow"><span>Textura (skin)</span><input type="text" data-k="skinTexture" spellcheck="false"></div>
+                <div class="f grow"><span>Capa</span><input type="text" data-k="skinCape" spellcheck="false"></div>
+              </div>
+              <div class="row">
+                <div class="f grow"><span>Élitras</span><input type="text" data-k="skinElytra" spellcheck="false"></div>
+                <div class="f"><span>Modelo</span>
+                  <select data-k="skinModel" style="width:auto"><option value="">Por defecto</option><option value="wide">Ancho (Steve)</option><option value="slim">Delgado (Alex)</option></select></div>
+              </div>
+            </div>
+          </details>
+          <div class="row">
+            <div class="f"><span>X</span><input type="text" data-k="x" style="width:90px"></div>
+            <div class="f"><span>Y</span><input type="text" data-k="y" style="width:90px"></div>
+            <div class="f"><span>Z</span><input type="text" data-k="z" style="width:90px"></div>
+          </div>
+        </div>
+      </details>
+
+      <details class="sec bevel" open>
+        <summary>Propiedades</summary>
+        <div class="sec-body">
+          <div id="mqNameEditor"></div>
+          <label class="chk"><input type="checkbox" data-k="nameVisible"> Nombre siempre visible</label>
+          <div class="row" style="gap:4px 18px;margin-top:6px">
+            <label class="chk"><input type="checkbox" data-k="invulnerable"> Invulnerable</label>
+            <label class="chk"><input type="checkbox" data-k="silent"> Silencioso</label>
+            <label class="chk"><input type="checkbox" data-k="noGravity"> Sin gravedad</label>
+            <label class="chk"><input type="checkbox" data-k="glowing"> Brillante (contorno)</label>
+          </div>
+          <div class="row">
+            <div class="f"><span>Vida</span><input type="number" data-k="health" min="0" step="any" placeholder="20" style="width:90px"></div>
+            <div class="f"><span>En llamas (seg)</span><input type="number" data-k="fire" min="0" step="any" placeholder="0" style="width:90px"></div>
+            <div class="f"><span>Giro horizontal (°)</span><input type="number" data-k="yaw" step="any" placeholder="0" style="width:100px"></div>
+            <div class="f"><span>Giro vertical (°)</span><input type="number" data-k="pitch" min="-90" max="90" step="any" placeholder="0" style="width:100px"></div>
+          </div>
+          <p class="hint">Giro horizontal: 0 = mira al sur, 90 = oeste, 180 = norte, -90 = este.</p>
+        </div>
+      </details>
+
+      <details class="sec bevel">
+        <summary>Efectos activos <span class="badge" id="mqEffBadge">0</span></summary>
+        <div class="sec-body">
+          <div id="mqEffList"></div>
+          <button class="btn sm" type="button" id="mqEffAdd">+ Efecto</button>
+        </div>
+      </details>
+
+      <details class="sec bevel">
+        <summary>Etiquetas de grupo <span class="badge" id="mqTagBadge">0</span></summary>
+        <div class="sec-body">
+          <div id="mqTagList" class="row" style="gap:6px"></div>
+          <div class="row">
+            <input type="text" id="mqTagInput" placeholder="tienda_principal" spellcheck="false" style="flex:1">
+            <button class="btn sm" type="button" id="mqTagAdd">+ Etiqueta</button>
+          </div>
+          <p class="hint">Sirven para encontrarlo luego con comandos, ej. <code>@e[type=mannequin,tag=tienda_principal]</code>. Sin espacios.</p>
+        </div>
+      </details>
+
+      <details class="sec bevel">
+        <summary>Objetos</summary>
+        <div class="sec-body">
+          <div id="mqEquipList"></div>
+          <p class="hint">Un maniquí no suelta lo que lleva. Puedes usar un item vanilla, uno de tu biblioteca o el que tengas abierto en la pestaña Items.</p>
+        </div>
+      </details>
+
+      <details class="sec bevel">
+        <summary>Atributos <span class="badge" id="mqAttrBadge">0</span></summary>
+        <div class="sec-body">
+          <div id="mqAttrList"></div>
+          <div class="row">
+            <select id="mqAttrQuick" style="width:auto"><option value="">+ Atributo rápido…</option></select>
+            <button class="btn sm" type="button" id="mqAttrAdd">+ Otro atributo</button>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <aside class="side">
+      <div class="bevel preview-wrap">
+        <div class="row" style="margin:0;align-items:center"><h3 style="flex:1">Vista 3D</h3><span class="badge" id="mqViewerBadge"></span></div>
+        <div id="mqViewer" class="viewer3d inset"><div class="viewer-msg"></div></div>
+        <div class="row" style="margin:0;justify-content:center">
+          <button class="btn sm v-pause" type="button">⏸ Pausar</button>
+          <button class="btn sm v-reset" type="button">⟲ Cámara</button>
+          <button class="btn sm v-png" type="button">⬇ PNG</button>
+        </div>
+      </div>
+      <div class="warns" id="mqWarns"></div>
     </aside>
   </div>
 </section>
@@ -1687,6 +1819,7 @@ function libCommand(type, data) {
   if (type === 'potions') return buildPotionCommand({ ...newPotion(), ...data });
   if (type === 'mobs') return buildMobCommand({ ...newMob(), ...data });
   if (type === 'villagers') return buildVillagerCommand({ ...newVillager(), ...data });
+  if (type === 'mannequins') return buildMannequinCommand({ ...newMannequin(), ...data });
   return '';
 }
 function libOpen(type, entry) {
@@ -3341,7 +3474,7 @@ function clearDocs(k) {
   const st = DOCS[k].state;
   st.undo = { list: st.list, active: st.active };   // por si fue sin querer
   st.list = [DOCS[k].fresh()]; st.active = 0;
-  delete exampleDeck[{ items: 'item', potions: 'potion', mobs: 'mob', villagers: 'villager' }[k]];
+  delete exampleDeck[{ items: 'item', potions: 'potion', mobs: 'mob', villagers: 'villager', mannequins: 'mannequin' }[k]];
   DOCS[k].set(st.list[0]); renderDocTabs(k);
   toast('Pestañas eliminadas');
 }
@@ -4068,7 +4201,7 @@ const Viewer = {
       } else if (A === 'slime') {
         const q = 1 + Math.sin(s * 3) * 0.04; P.body.scale.set(1 / Math.sqrt(q), q, 1 / Math.sqrt(q));
       }
-      if (P.head && A !== 'blaze') P.head.rotation.y = Math.sin(s * 0.7) * 0.15;
+      if (P.head && A !== 'blaze' && A !== 'still') P.head.rotation.y = Math.sin(s * 0.7) * 0.15;
     }
     const cy = this.centerY || 16;
     this.camera.position.set(Math.sin(this.yaw) * Math.cos(this.pitch) * this.dist, cy + Math.sin(this.pitch) * this.dist, Math.cos(this.yaw) * Math.cos(this.pitch) * this.dist);
@@ -4080,7 +4213,10 @@ const Viewer = {
   async texture(path, tint) {
     const key = path + '|' + (tint ?? '');
     if (!this.texCache.has(key)) this.texCache.set(key, (async () => {
-      const bmp = await TEX.bitmap(path); if (!bmp) return null;
+      const bmp = path.startsWith('url:')   // skin de un jugador desde internet
+        ? await new Promise(r => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => r(i); i.onerror = () => r(null); i.src = path.slice(4); setTimeout(() => r(null), 6000); })
+        : await TEX.bitmap(path);
+      if (!bmp) return null;
       const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
       const g = c.getContext('2d'); g.drawImage(bmp, 0, 0);
       if (tint != null) {   // teñido (armadura de cuero)
@@ -4400,8 +4536,8 @@ const Viewer = {
     for (const [name, [px, py, pz]] of Object.entries(pv)) {
       const g = new THREE.Group(); g.position.set(px, 24 - py, -pz); body.add(g); parts[name] = g;
     }
-    const texPath = def.flat || !def.tex ? null : TEX.findTexture(def.tex, def.tex[0].split('/').pop());
-    const hasTex = await this.addLayer(parts, GEO[def.geo](def.opt), texPath, { colors: def.colors, body: true, texW: def.texW });
+    const texPath = def.skin ? await def.skin.call(this, m) : def.flat || !def.tex ? null : TEX.findTexture(def.tex, def.tex[0].split('/').pop());
+    const hasTex = await this.addLayer(parts, GEO[def.geo](def.geoOpt ? def.geoOpt(m) : def.opt), texPath, { colors: def.colors, body: true, texW: def.texW });
     for (const L of [...(def.layers || []), ...(def.extraLayers ? def.extraLayers(m) : [])]) {
       const p = TEX.findTexture(L.tex, L.tex[0].split('/').pop());
       await this.addLayer(parts, GEO[L.geo](L.opt), p, { skipIfNoTex: true, body: true, texW: L.texW || def.texW, tint: L.tint });
@@ -4433,9 +4569,10 @@ const Viewer = {
     const height = (def.h || 32) * k;
     const np = textParts(m.name);
     if (np.length) { const sp = this.nameSprite(np); sp.position.y = height + 5 + 2 * k; model.add(sp); }
+    const afterRes = def.after ? def.after.call(this, m, parts, body, model, k, height, np.length > 0) : null;
     model.rotation.y = this.model ? this.model.rotation.y : 0;
     this.clear(); this.root.add(model); this.model = model; this.parts = parts; this.armsForward = !!def.armsForward; this.animType = def.anim || 'biped';
-    this.centerY = height / 2 + (np.length ? 4 : 0);
+    this.centerY = afterRes?.centerY ?? height / 2 + (np.length ? 4 : 0);
     const newFit = Math.max(0.6, height / 32);
     if (newFit !== this.fit) { this.dist *= newFit / (this.fit || 1); this.fit = newFit; }
     // ---------- Efectos de poción ----------
@@ -4486,6 +4623,7 @@ function switchTab(name) {
   $$('.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
   if (name === 'mobs') { renderEquip(); renderPassengers(); Viewer.attach('mobs'); Viewer.update(mob); }   // la biblioteca pudo cambiar
   if (name === 'villagers') { renderTrades(); Viewer.attach('villagers'); Viewer.update(villagerView(villager)); }
+  if (name === 'mannequins') { renderMqEquip(); Viewer.attach('mannequins'); Viewer.update(mannequinView(mannequin)); }
   refreshCommand();
 }
 $$('nav.tabs button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
@@ -4493,7 +4631,261 @@ for (const [k, v] of Object.entries(VERSIONS)) $('#verSel').append(el('option', 
 try { VERSION = localStorage.getItem('mccmdforge.version') || 'modern'; } catch {}
 if (!VERSIONS[VERSION]) VERSION = 'modern';
 $('#verSel').value = VERSION;
-$('#verSel').onchange = e => { VERSION = e.target.value; try { localStorage.setItem('mccmdforge.version', VERSION); } catch {} updateItem(); updatePotion(); updateMob(); updateVillager(); };
+$('#verSel').onchange = e => { VERSION = e.target.value; try { localStorage.setItem('mccmdforge.version', VERSION); } catch {} updateItem(); updatePotion(); updateMob(); updateVillager(); updateMannequin(); };
+
+/* =====================================================================
+   MANIQUÍ (mannequin): entidad con aspecto de jugador, 1.21.9 en adelante
+   ===================================================================== */
+const MQ_LAYERS = [['cape', 'Capa'], ['jacket', 'Chaqueta'], ['left_sleeve', 'Manga izquierda'], ['right_sleeve', 'Manga derecha'],
+  ['left_pants_leg', 'Pierna izq. del pantalón'], ['right_pants_leg', 'Pierna der. del pantalón'], ['hat', 'Sombrero']];
+const MQ_POSE_NAME = { standing: 'de pie', crouching: 'agachado', swimming: 'nadando', fall_flying: 'planeando', sleeping: 'durmiendo' };
+function newMannequin() {
+  return {
+    x: '~', y: '~', z: '~', profile: '', hidden: [], mainHand: 'right', pose: 'standing', immovable: false,
+    desc: newText(''), hideDesc: false, skinTexture: '', skinCape: '', skinElytra: '', skinModel: '',
+    name: newText(''), nameVisible: true, invulnerable: false, silent: false, noGravity: false, glowing: false,
+    health: '', fire: '', yaw: '', pitch: '',
+    effects: [], tags: [], attrs: [],
+    equip: Object.fromEntries(EQUIP_SLOTS.map(([s]) => [s, newEquip()]))
+  };
+}
+const nsTex = s => { s = String(s || '').trim(); return !s ? '' : s.includes(':') ? s : 'minecraft:' + s; };
+function mannequinNbt(q, ver) {
+  // Lo común (nombre, vida, efectos, atributos, equipo, etc.) lo arma el mismo código de los mobs
+  const o = {};
+  const name = q.profile.trim(), adv = { texture: nsTex(q.skinTexture), cape: nsTex(q.skinCape), elytra: nsTex(q.skinElytra), model: q.skinModel };
+  const prof = {};
+  if (name) prof.name = name;
+  for (const [k, v] of Object.entries(adv)) if (v) prof[k] = v;
+  if (Object.keys(prof).length) o.profile = prof;
+  if (q.hidden.length) o.hidden_layers = [...q.hidden];
+  if (q.mainHand === 'left') o.main_hand = 'left';
+  if (q.pose && q.pose !== 'standing') o.pose = q.pose;
+  if (q.immovable) o.immovable = true;
+  const d = textComponent(q.desc, {});
+  if (d) o.description = new Raw(ver === 'v1214' ? jsonInSnbt(d) : SNBT.val(d));
+  if (q.hideDesc) o.hide_description = true;
+  if (q.noGravity) o.NoGravity = true;
+  if (q.fire !== '' && +q.fire > 0) o.Fire = new Typed(Math.round(+q.fire * 20), 's');
+  if ((q.yaw !== '' && +q.yaw) || (q.pitch !== '' && +q.pitch)) o.Rotation = [new Typed(+q.yaw || 0, 'f'), new Typed(Math.max(-90, Math.min(90, +q.pitch || 0)), 'f')];
+  const tags = q.tags.map(t => t.trim()).filter(Boolean);
+  if (tags.length) o.Tags = tags;
+  const extra = SNBT.val(o).slice(1, -1);
+  const equip = Object.fromEntries(Object.entries(q.equip).map(([s, e]) => [s, { ...e, drop: '' }]));
+  return mobNbt({ ...newMob(), id: 'mannequin', name: q.name, nameVisible: q.nameVisible, maxHealth: '', health: q.health,
+    attrs: q.attrs, effects: q.effects, equip, invulnerable: q.invulnerable, silent: q.silent, glowing: q.glowing,
+    persistent: false, extra }, ver);
+}
+function buildMannequinCommand(q, ver = VERSION) {
+  const nbt = mannequinNbt(q, ver);
+  const pos = [q.x, q.y, q.z].map(c => String(c).trim() || '~').join(' ');
+  return `/summon mannequin ${pos}${nbt === '{}' ? '' : ' ' + nbt}`;
+}
+function mannequinWarnings(q) {
+  const w = [];
+  if (VERSION === 'v1214') w.push(['err', 'El maniquí existe desde la 1.21.9: cambia la versión arriba a 1.21.5 – 26.x.']);
+  const p = q.profile.trim();
+  if (p && !/^[A-Za-z0-9_]{3,16}$/.test(p)) w.push(['warn', 'Un nombre de jugador tiene de 3 a 16 caracteres: letras, números y _.']);
+  if (p && (q.skinTexture.trim() || q.skinCape.trim() || q.skinElytra.trim())) w.push(['warn', 'Usas perfil y texturas avanzadas a la vez: las texturas avanzadas reemplazan a las del jugador.']);
+  q.tags.forEach(t => { if (/\s/.test(t)) w.push(['err', `La etiqueta "${t}" tiene espacios: no se puede usar.`]); });
+  q.attrs.forEach(a => { if (a.type && !NAMES.attributes[stripNs(a.type)] && !a.type.includes(':')) w.push(['err', `Atributo desconocido: ${a.type}`]); });
+  q.effects.forEach(e => { if (e.id && !NAMES.effects[stripNs(e.id)] && !e.id.includes(':')) w.push(['err', `Efecto desconocido: ${e.id}`]); });
+  for (const [s, label] of EQUIP_SLOTS) {
+    const e = q.equip[s], id = e?.mode === 'vanilla' ? e.id : e?.mode === 'lib' ? e.data?.id : '';
+    if (id && e.mode === 'vanilla' && !NAMES.items[stripNs(id)] && !id.includes(':')) w.push(['err', `${label}: "${id}" no es un item conocido.`]);
+    else if (id && !equipAllowed(s, 'mannequin', id)) w.push(['err', `${label}: aquí solo van ${ARMOR_SLOT_RULE[s].desc} o bloques.`]);
+  }
+  if (q.pitch !== '' && Math.abs(+q.pitch) > 90) w.push(['warn', 'El giro vertical va de -90 (arriba) a 90 (abajo).']);
+  return w;
+}
+
+// ---------- Interfaz ----------
+let mannequin = newMannequin();
+const mqForm = $('#mqForm');
+bindSimpleFields(mqForm, () => mannequin, () => updateMannequin());
+function renderMqLayers() {
+  $('#mqLayers').replaceChildren(...MQ_LAYERS.map(([id, label]) => el('label', { class: 'chk' },
+    el('input', { type: 'checkbox', checked: mannequin.hidden.includes(id), onchange: e => {
+      mannequin.hidden = e.target.checked ? [...new Set([...mannequin.hidden, id])] : mannequin.hidden.filter(x => x !== id); updateMannequin();
+    } }), label)));
+}
+function renderMqTexts() {
+  $('#mqNameEditor').replaceChildren(textEditor(mannequin.name, updateMannequin, { placeholder: 'Nombre del maniquí', defaultLabel: 'Blanco' }));
+  $('#mqDescEditor').replaceChildren(textEditor(mannequin.desc, updateMannequin, { placeholder: 'NPC', defaultLabel: 'Gris' }));
+}
+function renderMqEffects() {
+  $('#mqEffList').replaceChildren(...mannequin.effects.map((e, i) => {
+    const secs = el('input', { type: 'number', min: 1, step: 'any', value: e.secs, disabled: e.inf, oninput: ev => { e.secs = ev.target.value; updateMannequin(); } });
+    const chk = (k, label) => el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: e[k], onchange: ev => { e[k] = ev.target.checked; if (k === 'inf') secs.disabled = e.inf; updateMannequin(); } }), label);
+    return el('div', { class: 'list-row' },
+      autocomplete(DATA.effects, e.id, v => { e.id = v; updateMannequin(); }, 'speed'),
+      el('div', { class: 'f' }, el('span', {}, 'Nivel'), el('input', { type: 'number', min: 1, max: 256, value: e.lvl, oninput: ev => { e.lvl = ev.target.value; updateMannequin(); } })),
+      el('div', { class: 'f' }, el('span', {}, 'Segundos'), secs), chk('inf', '∞'), chk('particles', 'Partículas'), chk('icon', 'Icono'),
+      el('button', { class: 'btn icon danger', type: 'button', title: 'Quitar', onclick: () => { mannequin.effects.splice(i, 1); renderMqEffects(); updateMannequin(); } }, '✕'));
+  }));
+  $('#mqEffBadge').textContent = mannequin.effects.length;
+}
+$('#mqEffAdd').onclick = () => { mannequin.effects.push({ ...newEffect(''), inf: true }); renderMqEffects(); updateMannequin(); };
+function renderMqTags() {
+  $('#mqTagList').replaceChildren(...mannequin.tags.map((t, i) => el('span', { class: 'badge', style: 'display:inline-flex;align-items:center;gap:6px;padding:4px 8px' }, t,
+    el('button', { class: 'btn icon danger', type: 'button', title: 'Quitar', style: 'min-height:20px;padding:0 5px', onclick: () => { mannequin.tags.splice(i, 1); renderMqTags(); updateMannequin(); } }, '✕'))));
+  $('#mqTagBadge').textContent = mannequin.tags.length;
+}
+const addMqTag = () => {
+  const inp = $('#mqTagInput'), v = inp.value.trim().replace(/\s+/g, '_');
+  if (!v) return;
+  if (!mannequin.tags.includes(v)) mannequin.tags.push(v);
+  inp.value = ''; renderMqTags(); updateMannequin();
+};
+$('#mqTagAdd').onclick = addMqTag;
+$('#mqTagInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addMqTag(); } });
+MOB_QUICK_ATTRS.forEach(([id, n]) => $('#mqAttrQuick').append(el('option', { value: id }, n)));
+$('#mqAttrQuick').onchange = e => { if (!e.target.value) return; mannequin.attrs.push({ type: e.target.value, base: e.target.value === 'scale' ? 2 : 1 }); e.target.value = ''; renderMqAttrs(); updateMannequin(); };
+$('#mqAttrAdd').onclick = () => { mannequin.attrs.push({ type: '', base: 1 }); renderMqAttrs(); updateMannequin(); };
+function renderMqAttrs() {
+  $('#mqAttrList').replaceChildren(...mannequin.attrs.map((a, i) => el('div', { class: 'list-row' },
+    autocomplete(DATA.attributes, a.type, v => { a.type = v; updateMannequin(); }, 'scale'),
+    el('div', { class: 'f' }, el('span', {}, 'Valor base'), el('input', { type: 'number', step: 'any', value: a.base, oninput: e => { a.base = e.target.value; updateMannequin(); } })),
+    el('button', { class: 'btn icon danger', type: 'button', title: 'Quitar', onclick: () => { mannequin.attrs.splice(i, 1); renderMqAttrs(); updateMannequin(); } }, '✕'))));
+  $('#mqAttrBadge').textContent = mannequin.attrs.length;
+}
+function renderMqEquip() {
+  const allItems = libLoad().items || [];
+  $('#mqEquipList').replaceChildren(...EQUIP_SLOTS.map(([slot, label]) => {
+    const e = mannequin.equip[slot] ||= newEquip();
+    const ok = id => equipAllowed(slot, 'mannequin', id);
+    const libItems = allItems.filter(it => ok(it.data?.id));
+    const mode = el('select', { style: 'width:auto', onchange: ev => {
+      const v = ev.target.value;
+      if (v === 'none' || v === 'vanilla') { e.mode = v; e.data = null; e.name = ''; }
+      else if (v === 'current') { e.mode = 'lib'; e.data = clone(item); e.name = textPlain(item.name) || stripNs(item.id) + ' (pestaña Items)'; }
+      else if (v.startsWith('lib:')) { const it = libItems.find(x => x.uid === v.slice(4)); if (it) { e.mode = 'lib'; e.data = clone(it.data); e.name = it.name; } }
+      renderMqEquip(); updateMannequin();
+    } },
+      el('option', { value: 'none' }, '— Vacío —'), el('option', { value: 'vanilla' }, 'Item vanilla'),
+      el('option', { value: 'current', disabled: !ok(item.id) }, 'Item abierto en la pestaña Items' + (ok(item.id) ? '' : ' (no cabe aquí)')),
+      libItems.length ? el('optgroup', { label: 'Mi biblioteca' }, libItems.map(it => el('option', { value: 'lib:' + it.uid }, it.name))) : null,
+      e.mode === 'lib' ? el('option', { value: 'keep' }, '★ ' + (e.name || 'Item guardado')) : null);
+    mode.value = e.mode === 'lib' ? 'keep' : e.mode;
+    const row = el('div', { class: 'list-row', style: 'align-items:center' },
+      el('div', { style: 'width:110px;font-size:12px;color:var(--muted)' }, label), mode);
+    const ph = { head: 'iron_helmet', chest: 'iron_chestplate', legs: 'iron_leggings', feet: 'iron_boots', mainhand: 'iron_sword', offhand: 'shield' }[slot] || '';
+    if (e.mode === 'vanilla') row.append(autocomplete(equipChoices(slot, 'mannequin'), e.id, v => { e.id = v; updateMannequin(); }, ph, true));
+    if (e.mode !== 'none') row.append(el('div', { class: 'f' }, el('span', {}, 'Cantidad'), el('input', { type: 'number', min: 1, max: 99, value: e.count, style: 'width:70px', oninput: ev => { e.count = ev.target.value; updateMannequin(); } })));
+    return row;
+  }));
+}
+// Lo que dibuja el visor 3D: un "mob" con el modelo de jugador
+const mannequinView = q => {
+  const equip = { ...q.equip };
+  if (q.mainHand === 'left') [equip.mainhand, equip.offhand] = [equip.offhand, equip.mainhand];   // zurdo: el arma va en la izquierda
+  return { ...newMob(), id: 'mannequin', name: q.name, attrs: q.attrs, effects: q.effects, glowing: q.glowing, equip, _mq: q };
+};
+function renderMannequinForm() {
+  mannequin = { ...newMannequin(), ...mannequin };
+  mannequin.equip = { ...Object.fromEntries(EQUIP_SLOTS.map(([s]) => [s, newEquip()])), ...(mannequin.equip || {}) };
+  fillSimpleFields(mqForm, mannequin);
+  renderMqLayers(); renderMqTexts(); renderMqEffects(); renderMqTags(); renderMqAttrs(); renderMqEquip();
+  updateMannequin();
+}
+function updateMannequin() {
+  $('#mqWarns').replaceChildren(...mannequinWarnings(mannequin).map(([lvl, t]) => el('div', { class: 'warn' + (lvl === 'err' ? ' err' : '') }, t)));
+  refreshCommand();
+  if (currentTab === 'mannequins') Viewer.update(mannequinView(mannequin));
+}
+TABS.mannequins = { command: () => buildMannequinCommand(mannequin), model: () => mannequin,
+  label: m => textPlain(m.name) || m.profile.trim() || 'Maniquí' };
+LIB_TYPES.mannequins = 'Maniquíes';
+
+// Pestañas de documento y ejemplos
+DOCS.mannequins = { get: () => mannequin, set: m => { mannequin = m; renderMannequinForm(); }, fresh: newMannequin,
+  fallback: m => m.profile.trim() || 'Maniquí', color: () => '#FFFFFF', state: { list: [mannequin], active: 0 } };
+const Q = (name, o = {}) => {
+  const q = Object.assign(newMannequin(), o, { name: TX(name), desc: o.desc ? TX(o.desc) : newText('') });
+  for (const [slot, v] of Object.entries(o.eq || {})) q.equip[slot] = SLOT(v);
+  delete q.eq;
+  if (o.eff) q.effects = EFX(o.eff);
+  delete q.eff;
+  return q;
+};
+const RPG_MANNEQUINS = [
+  () => Q(S('Guardia de la Ciudadela', '#AAAAAA>#FFFFFF', 'b'), { desc: S('Centinela', 'gray'), immovable: true, invulnerable: true,
+    eq: { mainhand: 'iron_sword', offhand: 'shield', head: 'iron_helmet', chest: 'iron_chestplate', legs: 'iron_leggings', feet: 'iron_boots' }, tags: ['guardia'] }),
+  () => Q(S('Mercader Errante', '#FFAA00', 'b'), { desc: S('Tienda', 'yellow'), immovable: true, invulnerable: true, silent: true,
+    eq: { mainhand: 'emerald', head: I('leather_helmet', S('Sombrero de viaje', 'gold'), [], { dye: '#6A4A2A' }) }, tags: ['tienda'] }),
+  () => Q(S('Caballero Caído', '#555555>#AA0000', 'b'), { pose: 'sleeping', desc: S('Descansa en paz', 'dark_gray', 'i'), immovable: true,
+    eq: { chest: 'netherite_chestplate', legs: 'netherite_leggings', feet: 'netherite_boots' }, tags: ['tumba'] }),
+  () => Q(S('Maestra Herrera', '#FF5555>#FFAA00', 'b'), { desc: S('Forja', 'gold'), immovable: true, invulnerable: true,
+    eq: { mainhand: 'mace', chest: I('leather_chestplate', S('Mandil de cuero', 'gold'), [], { dye: '#5A3A1A' }) } }),
+  () => Q(S('Arquero del Bosque', '#55FF55', 'b'), { mainHand: 'left', desc: S('Cazador', 'green'),
+    eq: { mainhand: 'bow', head: I('leather_helmet', S('Capucha verde', 'green'), [], { dye: '#2E7D32' }), chest: I('leather_chestplate', S('Túnica verde', 'green'), [], { dye: '#2E7D32' }) } }),
+  () => Q(S('Explorador de Ruinas', '#FFFF55'), { pose: 'crouching', desc: S('Buscando algo…', 'gray', 'i'),
+    eq: { mainhand: 'brush', head: 'leather_helmet' } }),
+  () => Q(S('Nadador del Arrecife', '#55FFFF'), { pose: 'swimming', noGravity: true, hideDesc: true, eq: { head: 'turtle_helmet' }, eff: 'water_breathing 1 inf -p' }),
+  () => Q(S('Piloto del Cielo', '#5555FF>#FFFFFF', 'b'), { pose: 'fall_flying', noGravity: true, desc: S('Vuelo libre', 'aqua'), eq: { chest: 'elytra', head: 'golden_helmet' } }),
+  () => Q(S('Rey del Castillo', '#FFFF55>#FFAA00', 'b'), { desc: S('Su Majestad', 'gold', 'b'), immovable: true, invulnerable: true, glowing: true,
+    eq: { head: 'golden_helmet', chest: 'golden_chestplate', mainhand: I('golden_sword', S('Espada Real', 'gold', 'b'), [], { ench: 'sharpness:5', glint: 1 }) }, attrs: [{ type: 'scale', base: 1.2 }] }),
+  () => Q(S('Estatua Gigante', '#AAAAAA', 'b'), { hideDesc: true, immovable: true, invulnerable: true, silent: true,
+    eq: { mainhand: 'stone_sword', head: 'chiseled_stone_bricks' }, attrs: [{ type: 'scale', base: 4 }] }),
+  () => Q(S('Espantapájaros', '#FFAA00'), { desc: S('Granja', 'gray'), immovable: true, eq: { head: 'carved_pumpkin', mainhand: 'wheat' } }),
+  () => Q(S('Fantasma de la Torre', '#FFFFFF>#55FFFF', 'b'), { desc: S('Boo', 'aqua', 'i'), noGravity: true, eff: 'invisibility 1 inf -p', glowing: true, eq: { head: 'skeleton_skull' } }),
+  () => Q(S('Hechicera Ardiente', '#FF5500>#FFDD00', 'b'), { desc: S('Maga de fuego', 'red'), fire: 9999, invulnerable: true,
+    eq: { mainhand: 'blaze_rod', chest: I('leather_chestplate', S('Túnica ígnea', 'red'), [], { dye: '#B02020' }) }, eff: 'fire_resistance 1 inf -p' }),
+  () => Q(S('Guía del Spawn', '#55FF55>#55FFFF', 'b'), { desc: S('¡Clic derecho para empezar!', 'yellow'), immovable: true, invulnerable: true, silent: true, tags: ['npc', 'spawn'] }),
+  () => Q(S('Mini Duende', '#55FF55'), { desc: S('Travieso', 'green', 'i'), attrs: [{ type: 'scale', base: 0.5 }], eq: { mainhand: 'golden_carrot' } })
+];
+EXAMPLE_SETS.mannequin = RPG_MANNEQUINS;
+$('#mqReset').onclick = () => openDoc('mannequins', newMannequin(), true);
+$('#mqExample').onclick = () => openDoc('mannequins', nextExample('mannequin'));
+
+// Visor 3D: modelo de jugador (brazos finos o anchos, capas exteriores ocultables)
+ARMOR_RENDER_MOBS.add('mannequin'); HEAD_BLOCK_MOBS.add('mannequin');
+Viewer.hosts.mannequins = ['#mqViewer', '#mqViewerBadge'];
+GEO.player = ({ slim = false, hide = [] } = {}) => {
+  const aw = slim ? 3 : 4, b = [
+    { p: 'head', uv: [0, 0], box: [-4, -8, -4, 8, 8, 8] },
+    { p: 'body', uv: [16, 16], box: [-4, 0, -2, 8, 12, 4] },
+    { p: 'right_arm', uv: [40, 16], box: [-(aw - 1), -2, -2, aw, 12, 4] },
+    { p: 'left_arm', uv: [32, 48], box: [-1, -2, -2, aw, 12, 4] },
+    { p: 'right_leg', uv: [0, 16], box: [-2, 0, -2, 4, 12, 4] },
+    { p: 'left_leg', uv: [16, 48], box: [-2, 0, -2, 4, 12, 4] }];
+  const layer = (id, x) => { if (!hide.includes(id)) b.push(x); };
+  layer('hat', { p: 'head', uv: [32, 0], box: [-4, -8, -4, 8, 8, 8], inflate: 0.5 });
+  layer('jacket', { p: 'body', uv: [16, 32], box: [-4, 0, -2, 8, 12, 4], inflate: 0.25 });
+  layer('right_sleeve', { p: 'right_arm', uv: [40, 32], box: [-(aw - 1), -2, -2, aw, 12, 4], inflate: 0.25 });
+  layer('left_sleeve', { p: 'left_arm', uv: [48, 48], box: [-1, -2, -2, aw, 12, 4], inflate: 0.25 });
+  layer('right_pants_leg', { p: 'right_leg', uv: [0, 32], box: [-2, 0, -2, 4, 12, 4], inflate: 0.25 });
+  layer('left_pants_leg', { p: 'left_leg', uv: [0, 48], box: [-2, 0, -2, 4, 12, 4], inflate: 0.25 });
+  return b;
+};
+const mqSlim = q => q.skinModel === 'slim' || (!q.skinModel && /\/slim\//.test(q.skinTexture));
+MOB_MODELS.mannequin = {
+  geo: 'player', pivots: 'humanoid', anim: 'still', tex: ['entity/player/wide/steve'], colors: ['#c49a7c', '#3a8ad8', '#c49a7c', '#3a3a8a'],
+  geoOpt: m => ({ slim: mqSlim(m._mq), hide: m._mq.hidden }),
+  // Skin: textura avanzada del pack > skin del jugador (internet) > Steve / Alex
+  async skin(m) {
+    const q = m._mq, t = q.skinTexture.trim();
+    if (t) { const p = stripNs(t).replace(/^textures\//, '').replace(/\.png$/, ''); if (TEX.files.has(`minecraft/textures/${p}.png`)) return p; }
+    const who = q.profile.trim();
+    if (who && /^[A-Za-z0-9_]{3,16}$/.test(who)) { const u = 'url:https://mc-heads.net/skin/' + encodeURIComponent(who); if (await Viewer.texture(u)) return u; }
+    return mqSlim(q) ? TEX.findTexture(['entity/player/slim/alex'], 'alex') : TEX.findTexture(['entity/player/wide/steve'], 'steve');
+  },
+  // Pose y descripción bajo el nombre
+  after(m, parts, body, model, k, height, hasName) {
+    const q = m._mq;
+    if (q.pose === 'crouching') { parts.body.rotation.x = 0.5; parts.right_arm.rotation.x = parts.left_arm.rotation.x = 0.4; parts.head.position.y -= 1; body.position.y = -3 * k; }
+    if (q.pose === 'swimming' || q.pose === 'fall_flying') { body.rotation.x = Math.PI / 2; body.position.set(0, 4 * k, -14 * k); }
+    if (q.pose === 'sleeping') { body.rotation.x = -Math.PI / 2; body.position.set(0, 3 * k, 14 * k); }
+    if (!q.hideDesc) {
+      const dp = textParts(q.desc), parts2 = dp.length ? dp.map(p => ({ ...p, color: p.color || 'gray' })) : [{ text: 'NPC', color: 'gray' }];
+      const sp = this.nameSprite(parts2); sp.scale.multiplyScalar(0.8);
+      sp.position.y = height + (hasName ? 1 : 5) + 2 * k; model.add(sp);
+    }
+    if (['swimming', 'fall_flying', 'sleeping'].includes(q.pose)) return { centerY: 8 * k };   // acostado: la cámara mira más abajo
+  }
+};
+renderMannequinForm();
+renderDocTabs('mannequins');
 
 // ---------- Diálogo de texturas ----------
 function texStatus() {
