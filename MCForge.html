@@ -4977,19 +4977,38 @@ MOB_MODELS.mannequin = {
   after(m, parts, body, model, k, height, hasName) {
     const q = m._mq;
     // Capa colgando en la espalda (textura de 64x32: cara exterior en (1,1) de 10x16)
-    if (m._capeTex && parts.body) {
+    if (m._capeTex && parts.body && q.pose !== 'sleeping') {
       const ct = m._capeTex, th = 64 * ct.image.height / ct.image.width;
       const mesh = this.boxMesh({ box: [-5, 0, -1, 10, 16, 1], uv: [0, 0] }, 64, th, this.material(ct));
       const tilt = new THREE.Group(), flip = new THREE.Group();
-      tilt.position.set(0, 0, -2); tilt.rotation.x = 0.12;   // un poco separada del cuerpo
+      tilt.position.set(0, 0, -2); tilt.rotation.x = q.pose === 'crouching' ? 0.35 : q.pose === 'swimming' || q.pose === 'fall_flying' ? 0.05 : 0.12;   // separada del cuerpo
       flip.rotation.y = Math.PI;                             // la cara de la textura mira hacia atrás
       flip.add(mesh); tilt.add(flip); parts.body.add(tilt);
     }
     this.badge.textContent = [(mqSlim(q, m) ? 'Alex' : 'Steve') + (m._skinAuto ? ' (detectado)' : ''),
       q.profile.trim() ? (m._skinSrc ? 'skin cargada' : 'skin NO cargó') : 'skin por defecto', q.hidden.includes('cape') ? 'capa oculta' : m._capeInfo].filter(Boolean).join(' · ');
-    if (q.pose === 'crouching') { parts.body.rotation.x = 0.5; parts.right_arm.rotation.x = parts.left_arm.rotation.x = 0.4; parts.head.position.y -= 1; body.position.y = -3 * k; }
-    if (q.pose === 'swimming' || q.pose === 'fall_flying') { body.rotation.x = Math.PI / 2; body.position.set(0, 4 * k, -14 * k); }
-    if (q.pose === 'sleeping') { body.rotation.x = -Math.PI / 2; body.position.set(0, 3 * k, 14 * k); }
+    // Poses con los valores del modelo de jugador de Minecraft (pivotes en coordenadas Java: y hacia abajo, atrás = +z)
+    const P = parts, at = (part, x, y, z) => part.position.set(x, 24 - y, -z);
+    if (q.pose === 'crouching') {
+      P.body.rotation.x = 0.5; at(P.body, 0, 3.2, 0);
+      at(P.head, 0, 4.2, 0);
+      P.right_arm.rotation.x = P.left_arm.rotation.x = 0.4; at(P.right_arm, -5, 5.2, 0); at(P.left_arm, 5, 5.2, 0);
+      at(P.right_leg, -1.9, 12.2, 4); at(P.left_leg, 1.9, 12.2, 4);
+      body.position.y = -2 * k;                      // el juego baja al jugador 2 px al agacharse
+    }
+    if (q.pose === 'swimming' || q.pose === 'fall_flying') {
+      body.rotation.x = Math.PI / 2; body.position.set(0, 4 * k, -14 * k);   // boca abajo, la cabeza hacia adelante
+      P.head.rotation.x = -Math.PI / 4;              // levanta la cara para mirar al frente
+      if (q.pose === 'swimming') {                   // brazada: brazos estirados por delante de la cabeza, piernas pataleando
+        P.right_arm.rotation.x = -Math.PI * 0.95; P.left_arm.rotation.x = -Math.PI * 0.75;
+        P.right_arm.rotation.z = 0.15; P.left_arm.rotation.z = -0.15;
+        P.right_leg.rotation.x = 0.25; P.left_leg.rotation.x = -0.25;
+      } else {                                       // planeando: brazos pegados un poco abiertos, piernas juntas
+        P.right_arm.rotation.z = 0.12; P.left_arm.rotation.z = -0.12;
+        P.right_leg.rotation.z = 0.05; P.left_leg.rotation.z = -0.05;
+      }
+    }
+    if (q.pose === 'sleeping') { body.rotation.x = -Math.PI / 2; body.position.set(0, 2.2 * k, 14 * k); }   // boca arriba, cuerpo recto
     if (!q.hideDesc) {
       const dp = textParts(q.desc), parts2 = dp.length ? dp.map(p => ({ ...p, color: p.color || 'gray' })) : [{ text: 'NPC', color: 'gray' }];
       const sp = this.nameSprite(parts2); sp.scale.multiplyScalar(0.8);
