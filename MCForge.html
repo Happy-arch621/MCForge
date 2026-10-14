@@ -695,9 +695,8 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
               </select></div>
           </div>
           <label class="chk"><input type="checkbox" data-k="immovable"> Inmóvil (no lo mueven golpes ni empujones)</label>
-          <div class="f" style="margin-top:8px"><span>Descripción (texto bajo el nombre; por defecto "NPC")</span></div>
+          <label class="chk" style="margin-top:8px"><input type="checkbox" data-k="hideDesc"> Ocultar descripción (desmárcalo para escribir una; si la dejas vacía dice "NPC")</label>
           <div id="mqDescEditor"></div>
-          <label class="chk"><input type="checkbox" data-k="hideDesc"> Ocultar descripción</label>
           <details class="sec inset" style="margin-top:10px">
             <summary>Opciones avanzadas</summary>
             <div class="sec-body">
@@ -4641,7 +4640,7 @@ const MQ_POSE_NAME = { standing: 'de pie', crouching: 'agachado', swimming: 'nad
 function newMannequin() {
   return {
     x: '~', y: '~', z: '~', profile: '', hidden: [], mainHand: 'right', pose: 'standing', immovable: false,
-    desc: newText(''), hideDesc: false, skinTexture: '', skinCape: '', skinElytra: '', skinModel: '',
+    desc: newText(''), hideDesc: true, skinTexture: '', skinCape: '', skinElytra: '', skinModel: '',
     name: newText(''), nameVisible: true, invulnerable: false, silent: false, noGravity: false, glowing: false,
     health: '', fire: '', yaw: '', pitch: '',
     effects: [], tags: [], attrs: [],
@@ -4664,7 +4663,7 @@ function mannequinNbt(q, ver) {
   if (q.immovable) o.immovable = true;
   const d = textComponent(q.desc, {});
   // Texto sin estilo → "texto"; con colores/formato → componente completo
-  if (d) o.description = new Raw(ver === 'v1214' ? jsonInSnbt(d) : (Object.keys(d).length === 1 && 'text' in d ? SNBT.str(d.text) : SNBT.val(d)));
+  if (d && !q.hideDesc) o.description = new Raw(ver === 'v1214' ? jsonInSnbt(d) : (Object.keys(d).length === 1 && 'text' in d ? SNBT.str(d.text) : SNBT.val(d)));
   if (q.hideDesc) o.hide_description = true;
   if (q.noGravity) o.NoGravity = true;
   if (q.fire !== '' && +q.fire > 0) o.Fire = new Typed(Math.round(+q.fire * 20), 's');
@@ -4792,6 +4791,7 @@ function renderMannequinForm() {
   updateMannequin();
 }
 function updateMannequin() {
+  const de = $('#mqDescEditor'); de.style.opacity = mannequin.hideDesc ? '.4' : ''; de.style.pointerEvents = mannequin.hideDesc ? 'none' : '';
   $('#mqWarns').replaceChildren(...mannequinWarnings(mannequin).map(([lvl, t]) => el('div', { class: 'warn' + (lvl === 'err' ? ' err' : '') }, t)));
   refreshCommand();
   if (currentTab === 'mannequins') Viewer.update(mannequinView(mannequin));
