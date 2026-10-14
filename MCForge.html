@@ -205,6 +205,14 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
 .doctab.add:hover{opacity:1}
 .doctab.clear{opacity:.7;border-style:dashed;border-color:#4a2a2a;padding:0 10px;color:var(--red);font-family:var(--pixel);font-size:8px}
 .doctab.clear:hover{opacity:1;border-color:var(--red)}
+/* Barras de desplazamiento al estilo de MCForge */
+*{scrollbar-width:thin;scrollbar-color:var(--grass-dk) #0d0d10}
+::-webkit-scrollbar{width:12px;height:12px}
+::-webkit-scrollbar-track{background:#0d0d10;border-left:1px solid #24242a}
+::-webkit-scrollbar-thumb{background:var(--grass-dk);border:2px solid;border-color:#7fdc5a #1d4a0d #1d4a0d #7fdc5a}
+::-webkit-scrollbar-thumb:hover{background:var(--grass)}
+::-webkit-scrollbar-corner{background:#0d0d10}
+.hd-loading{grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:8px}
 .hd-cats{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
 .hd-cat{background:#141418;border:2px solid #2a2a32;color:var(--muted);padding:5px 9px;cursor:pointer;font-size:12px;display:inline-flex;gap:6px;align-items:center}
 .hd-cat:hover{color:#fff}
@@ -5230,7 +5238,7 @@ $$('.hd-src').forEach(b => b.onclick = () => {
   if (hdSrc === 'db' && hdCat === 'fav') hdCat = 'all';
   hdLimit = 120; if (hdSrc === 'db') loadHeadDb(); renderHeads();
 });
-$('#hdMore').onclick = () => { hdLimit += 240; renderHeadGrid(); };
+$('#hdMore').onclick = () => appendHeadCards();
 
 // Categorías con contador
 function renderHeadCats() {
@@ -5304,17 +5312,34 @@ function renderHeadGrid() {
       : 'Tu colección está vacía. Agrégalas desde "Base de HeadDB" o pega a la derecha el comando /give o el "Value" de una cabeza.'));
     return;
   }
-  const sel = hdSrc === 'db' ? hdSelDb : hdSel;
-  grid.replaceChildren(...list.slice(0, hdLimit).map(h => {
+  hdList = list; hdShown = 0;
+  grid.replaceChildren(); grid.scrollTop = 0;
+  appendHeadCards();
+}
+let hdList = [], hdShown = 0;
+// Agrega la siguiente tanda de tarjetas sin volver a dibujar las anteriores
+function appendHeadCards() {
+  const grid = $('#hdGrid'), sel = hdSrc === 'db' ? hdSelDb : hdSel;
+  grid.querySelector('.hd-loading')?.remove();
+  const next = hdList.slice(hdShown, hdShown + 120); hdShown += next.length;
+  grid.append(...next.map(h => {
     const hash = h.hash || headHash(h.value), img = hash ? headCanvas(hash, hdValueOf(h)) : el('div', { class: 'hd-noimg' }, '🙂');
     return el('button', { type: 'button', class: 'head-card' + (sel === h.uid ? ' sel' : ''), title: h.name + (h.tags.length ? '\n' + h.tags.join(', ') : ''),
-      onclick: () => { if (hdSrc === 'db') hdSelDb = h.uid; else hdSel = h.uid; renderHeadGrid(); renderHeadDetail(); refreshCommand(); } },
+      onclick: ev => { if (hdSrc === 'db') hdSelDb = h.uid; else hdSel = h.uid;
+        $$('#hdGrid .head-card.sel').forEach(x => x.classList.remove('sel')); ev.currentTarget.classList.add('sel');
+        renderHeadDetail(); refreshCommand(); } },
       el('div', { class: 'hd-img' }, img, h.fav ? el('span', { class: 'hd-fav' }, '⭐') : null),
       el('div', { class: 'hd-name' }, h.name), el('div', { class: 'hd-cat-lbl' }, HEAD_CAT_NAME[h.cat] || ''));
   }));
-  more.style.display = list.length > hdLimit ? '' : 'none';
-  more.textContent = `Mostrar más (${(list.length - hdLimit).toLocaleString('es')} restantes)`;
+  const left = hdList.length - hdShown;
+  if (left > 0) grid.append(el('div', { class: 'hd-loading' }, `Baja para ver más · ${left.toLocaleString('es')} restantes`));
+  $('#hdMore').style.display = 'none';
 }
+// Al llegar cerca del final, se cargan más solas
+$('#hdGrid').addEventListener('scroll', e => {
+  const g = e.target;
+  if (hdShown < hdList.length && g.scrollTop + g.clientHeight >= g.scrollHeight - 300) appendHeadCards();
+});
 // Detalle de la seleccionada
 const hdCurrent = () => hdSrc === 'db' ? (headDb || []).find(x => x.uid === hdSelDb) : heads.find(x => x.uid === hdSel);
 function renderHeadDetail() {
