@@ -674,7 +674,6 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
       <div class="doctabs" id="docs-mannequins" role="tablist" aria-label="Abiertos"></div>
       <div class="row" style="justify-content:flex-end">
         <button class="btn sm" type="button" id="mqReset">Nuevo</button>
-        <button class="btn sm" type="button" id="mqExample">Cargar ejemplo</button>
       </div>
 
       <details class="sec bevel" open>
@@ -767,7 +766,7 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
         <summary>Objetos</summary>
         <div class="sec-body">
           <div id="mqEquipList"></div>
-          <p class="hint">Un maniquí no suelta lo que lleva. Puedes usar un item vanilla, uno de tu biblioteca o el que tengas abierto en la pestaña Items.</p>
+          <p class="hint">Cabeza: cualquier item del juego. Pecho, piernas y pies: solo su armadura. Puedes usar un item vanilla, uno de tu biblioteca o el que tengas abierto en la pestaña Items.</p>
         </div>
       </details>
 
@@ -4168,7 +4167,7 @@ const Viewer = {
   },
   zoom(f) { this.dist = Math.max(20, Math.min(260, this.dist * f)); },
   frame(t) {
-    if (!this.ready || (currentTab !== 'mobs' && currentTab !== 'villagers')) return;
+    if (!this.ready || !['mobs', 'villagers', 'mannequins'].includes(currentTab)) return;
     const s = t / 1000, dt = Math.min(0.1, (t - (this._lastT ?? t)) / 1000); this._lastT = t;
     if (this.auto && this.model) this.model.rotation.y += 0.006;
     this.stepFx(s, dt);
@@ -4681,6 +4680,8 @@ function buildMannequinCommand(q, ver = VERSION) {
   const pos = [q.x, q.y, q.z].map(c => String(c).trim() || '~').join(' ');
   return `/summon mannequin ${pos}${nbt === '{}' ? '' : ' ' + nbt}`;
 }
+// Maniquí: en la cabeza cualquier item (es un jugador); pecho, piernas y pies solo su armadura
+const mqEquipAllowed = (slot, id) => slot === 'head' || equipAllowed(slot, 'mannequin', id);
 function mannequinWarnings(q) {
   const w = [];
   if (VERSION === 'v1214') w.push(['err', 'El maniquí existe desde la 1.21.9: cambia la versión arriba a 1.21.5 – 26.x.']);
@@ -4693,7 +4694,7 @@ function mannequinWarnings(q) {
   for (const [s, label] of EQUIP_SLOTS) {
     const e = q.equip[s], id = e?.mode === 'vanilla' ? e.id : e?.mode === 'lib' ? e.data?.id : '';
     if (id && e.mode === 'vanilla' && !NAMES.items[stripNs(id)] && !id.includes(':')) w.push(['err', `${label}: "${id}" no es un item conocido.`]);
-    else if (id && !equipAllowed(s, 'mannequin', id)) w.push(['err', `${label}: aquí solo van ${ARMOR_SLOT_RULE[s].desc} o bloques.`]);
+    else if (id && !mqEquipAllowed(s, id)) w.push(['err', `${label}: aquí solo van ${ARMOR_SLOT_RULE[s].desc}.`]);
   }
   if (q.pitch !== '' && Math.abs(+q.pitch) > 90) w.push(['warn', 'El giro vertical va de -90 (arriba) a 90 (abajo).']);
   return w;
@@ -4753,7 +4754,7 @@ function renderMqEquip() {
   const allItems = libLoad().items || [];
   $('#mqEquipList').replaceChildren(...EQUIP_SLOTS.map(([slot, label]) => {
     const e = mannequin.equip[slot] ||= newEquip();
-    const ok = id => equipAllowed(slot, 'mannequin', id);
+    const ok = id => mqEquipAllowed(slot, id);
     const libItems = allItems.filter(it => ok(it.data?.id));
     const mode = el('select', { style: 'width:auto', onchange: ev => {
       const v = ev.target.value;
@@ -4770,7 +4771,7 @@ function renderMqEquip() {
     const row = el('div', { class: 'list-row', style: 'align-items:center' },
       el('div', { style: 'width:110px;font-size:12px;color:var(--muted)' }, label), mode);
     const ph = { head: 'iron_helmet', chest: 'iron_chestplate', legs: 'iron_leggings', feet: 'iron_boots', mainhand: 'iron_sword', offhand: 'shield' }[slot] || '';
-    if (e.mode === 'vanilla') row.append(autocomplete(equipChoices(slot, 'mannequin'), e.id, v => { e.id = v; updateMannequin(); }, ph, true));
+    if (e.mode === 'vanilla') row.append(autocomplete(ARMOR_SLOT_RULE[slot] && slot !== 'head' ? equipChoices(slot, 'mannequin') : DATA.items, e.id, v => { e.id = v; updateMannequin(); }, ph, true));
     if (e.mode !== 'none') row.append(el('div', { class: 'f' }, el('span', {}, 'Cantidad'), el('input', { type: 'number', min: 1, max: 99, value: e.count, style: 'width:70px', oninput: ev => { e.count = ev.target.value; updateMannequin(); } })));
     return row;
   }));
@@ -4800,43 +4801,7 @@ LIB_TYPES.mannequins = 'Maniquíes';
 // Pestañas de documento y ejemplos
 DOCS.mannequins = { get: () => mannequin, set: m => { mannequin = m; renderMannequinForm(); }, fresh: newMannequin,
   fallback: m => m.profile.trim() || 'Maniquí', color: () => '#FFFFFF', state: { list: [mannequin], active: 0 } };
-const Q = (name, o = {}) => {
-  const q = Object.assign(newMannequin(), o, { name: TX(name), desc: o.desc ? TX(o.desc) : newText('') });
-  for (const [slot, v] of Object.entries(o.eq || {})) q.equip[slot] = SLOT(v);
-  delete q.eq;
-  if (o.eff) q.effects = EFX(o.eff);
-  delete q.eff;
-  return q;
-};
-const RPG_MANNEQUINS = [
-  () => Q(S('Guardia de la Ciudadela', '#AAAAAA>#FFFFFF', 'b'), { desc: S('Centinela', 'gray'), immovable: true, invulnerable: true,
-    eq: { mainhand: 'iron_sword', offhand: 'shield', head: 'iron_helmet', chest: 'iron_chestplate', legs: 'iron_leggings', feet: 'iron_boots' }, tags: ['guardia'] }),
-  () => Q(S('Mercader Errante', '#FFAA00', 'b'), { desc: S('Tienda', 'yellow'), immovable: true, invulnerable: true, silent: true,
-    eq: { mainhand: 'emerald', head: I('leather_helmet', S('Sombrero de viaje', 'gold'), [], { dye: '#6A4A2A' }) }, tags: ['tienda'] }),
-  () => Q(S('Caballero Caído', '#555555>#AA0000', 'b'), { pose: 'sleeping', desc: S('Descansa en paz', 'dark_gray', 'i'), immovable: true,
-    eq: { chest: 'netherite_chestplate', legs: 'netherite_leggings', feet: 'netherite_boots' }, tags: ['tumba'] }),
-  () => Q(S('Maestra Herrera', '#FF5555>#FFAA00', 'b'), { desc: S('Forja', 'gold'), immovable: true, invulnerable: true,
-    eq: { mainhand: 'mace', chest: I('leather_chestplate', S('Mandil de cuero', 'gold'), [], { dye: '#5A3A1A' }) } }),
-  () => Q(S('Arquero del Bosque', '#55FF55', 'b'), { mainHand: 'left', desc: S('Cazador', 'green'),
-    eq: { mainhand: 'bow', head: I('leather_helmet', S('Capucha verde', 'green'), [], { dye: '#2E7D32' }), chest: I('leather_chestplate', S('Túnica verde', 'green'), [], { dye: '#2E7D32' }) } }),
-  () => Q(S('Explorador de Ruinas', '#FFFF55'), { pose: 'crouching', desc: S('Buscando algo…', 'gray', 'i'),
-    eq: { mainhand: 'brush', head: 'leather_helmet' } }),
-  () => Q(S('Nadador del Arrecife', '#55FFFF'), { pose: 'swimming', noGravity: true, hideDesc: true, eq: { head: 'turtle_helmet' }, eff: 'water_breathing 1 inf -p' }),
-  () => Q(S('Piloto del Cielo', '#5555FF>#FFFFFF', 'b'), { pose: 'fall_flying', noGravity: true, desc: S('Vuelo libre', 'aqua'), eq: { chest: 'elytra', head: 'golden_helmet' } }),
-  () => Q(S('Rey del Castillo', '#FFFF55>#FFAA00', 'b'), { desc: S('Su Majestad', 'gold', 'b'), immovable: true, invulnerable: true, glowing: true,
-    eq: { head: 'golden_helmet', chest: 'golden_chestplate', mainhand: I('golden_sword', S('Espada Real', 'gold', 'b'), [], { ench: 'sharpness:5', glint: 1 }) }, attrs: [{ type: 'scale', base: 1.2 }] }),
-  () => Q(S('Estatua Gigante', '#AAAAAA', 'b'), { hideDesc: true, immovable: true, invulnerable: true, silent: true,
-    eq: { mainhand: 'stone_sword', head: 'chiseled_stone_bricks' }, attrs: [{ type: 'scale', base: 4 }] }),
-  () => Q(S('Espantapájaros', '#FFAA00'), { desc: S('Granja', 'gray'), immovable: true, eq: { head: 'carved_pumpkin', mainhand: 'wheat' } }),
-  () => Q(S('Fantasma de la Torre', '#FFFFFF>#55FFFF', 'b'), { desc: S('Boo', 'aqua', 'i'), noGravity: true, eff: 'invisibility 1 inf -p', glowing: true, eq: { head: 'skeleton_skull' } }),
-  () => Q(S('Hechicera Ardiente', '#FF5500>#FFDD00', 'b'), { desc: S('Maga de fuego', 'red'), fire: 9999, invulnerable: true,
-    eq: { mainhand: 'blaze_rod', chest: I('leather_chestplate', S('Túnica ígnea', 'red'), [], { dye: '#B02020' }) }, eff: 'fire_resistance 1 inf -p' }),
-  () => Q(S('Guía del Spawn', '#55FF55>#55FFFF', 'b'), { desc: S('¡Clic derecho para empezar!', 'yellow'), immovable: true, invulnerable: true, silent: true, tags: ['npc', 'spawn'] }),
-  () => Q(S('Mini Duende', '#55FF55'), { desc: S('Travieso', 'green', 'i'), attrs: [{ type: 'scale', base: 0.5 }], eq: { mainhand: 'golden_carrot' } })
-];
-EXAMPLE_SETS.mannequin = RPG_MANNEQUINS;
 $('#mqReset').onclick = () => openDoc('mannequins', newMannequin(), true);
-$('#mqExample').onclick = () => openDoc('mannequins', nextExample('mannequin'));
 
 // Visor 3D: modelo de jugador (brazos finos o anchos, capas exteriores ocultables)
 ARMOR_RENDER_MOBS.add('mannequin'); HEAD_BLOCK_MOBS.add('mannequin');
@@ -4900,7 +4865,7 @@ $('#texBtn').onclick = openTex;
 $('#texClose').onclick = () => $('#texDlg').close();
 function refreshAfterTex() {
   texStatus(); renderItemPreview(); renderPotionPreview(); renderTradePreview(); Viewer.texCache.clear();
-  Viewer.update(currentTab === 'villagers' ? villagerView(villager) : mob);
+  Viewer.update(currentTab === 'villagers' ? villagerView(villager) : currentTab === 'mannequins' ? mannequinView(mannequin) : mob);
 }
 const NO_AUTO_TEX = 'mccmdforge.noAutoTex';
 let texDownloading = false;
