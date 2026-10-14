@@ -205,6 +205,22 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
 .doctab.add:hover{opacity:1}
 .doctab.clear{opacity:.7;border-style:dashed;border-color:#4a2a2a;padding:0 10px;color:var(--red);font-family:var(--pixel);font-size:8px}
 .doctab.clear:hover{opacity:1;border-color:var(--red)}
+.hd-cats{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.hd-cat{background:#141418;border:2px solid #2a2a32;color:var(--muted);padding:5px 9px;cursor:pointer;font-size:12px;display:inline-flex;gap:6px;align-items:center}
+.hd-cat:hover{color:#fff}
+.hd-cat.active{background:#100010;border-color:#5000ff #28007f #28007f #5000ff;color:#fff}
+.hd-cat .n{font-size:10px;color:var(--muted);background:#000;padding:1px 5px}
+.heads-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;max-height:68vh;overflow-y:auto;padding:2px}
+.head-card{background:#141418;border:2px solid #24242a;padding:8px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;color:#fff;text-align:center}
+.head-card:hover{border-color:#4a4a55}
+.head-card.sel{border-color:#5000ff #28007f #28007f #5000ff;background:#100010}
+.hd-img{position:relative;width:56px;height:56px;display:flex;align-items:center;justify-content:center}
+.hd-img img,.hd-img canvas{width:56px;height:56px;image-rendering:pixelated;object-fit:contain}
+.hd-noimg{font-size:30px}
+.hd-fav{position:absolute;top:-4px;right:-6px;font-size:12px}
+.hd-name{font-family:var(--mc);font-size:17px;line-height:1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hd-cat-lbl{font-size:10px;color:var(--muted)}
+.hd-empty{grid-column:1/-1;color:var(--muted);padding:30px 10px;text-align:center;border:2px dashed #2a2a32}
 #toast{position:fixed;left:50%;bottom:180px;transform:translateX(-50%);background:var(--grass-dk);border:2px solid #7fdc5a;padding:8px 14px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;font-size:13px}
 #toast.show{opacity:1}
 .list-row{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;padding:6px;background:#1e1e22;border:1px solid #333}
@@ -229,6 +245,7 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
   <button data-tab="potions" role="tab">Pociones</button>
   <button data-tab="villagers" role="tab">Aldeanos</button>
   <button data-tab="mannequins" role="tab">Maniquí</button>
+  <button data-tab="heads" role="tab">Cabezas</button>
 </nav>
 
 <main>
@@ -321,7 +338,13 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
               </select></div>
             <div class="f grow"><span id="headLbl">Valor</span><input type="text" data-k="headValue" placeholder="Notch"></div>
           </div>
-          <p class="hint">La cabeza solo se aplica si el item es <code>player_head</code>. Las texturas base64 las sacas de sitios como minecraft-heads.com (campo “Value”).</p>
+          <div class="f" style="margin-top:6px"><span>Importar cabeza (HeadDB / Minecraft-Heads)</span></div>
+          <div class="row" style="margin-top:0">
+            <input type="text" id="headImport" placeholder="Pega aquí el comando /give, el Value o el link de textures.minecraft.net" spellcheck="false" style="flex:1">
+            <button class="btn sm green" type="button" id="headImportBtn">Extraer textura</button>
+          </div>
+          <div class="hint" id="headImportMsg" style="margin-top:0"></div>
+          <p class="hint">La cabeza solo se aplica si el item es <code>player_head</code>. Al importar se cambia a <code>player_head</code> y se pone la textura sola; si el comando trae nombre, también se copia.</p>
         </div>
       </details>
 
@@ -807,6 +830,65 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
         </div>
       </div>
       <div class="warns" id="mqWarns"></div>
+    </aside>
+  </div>
+</section>
+
+<!-- =================== CABEZAS (colección estilo HeadDB) =================== -->
+<section class="tab" id="tab-heads">
+  <div class="layout">
+    <div>
+      <div class="bevel sec-body" style="padding:12px">
+        <div class="row" style="margin-top:0;gap:6px">
+          <button type="button" class="hd-cat hd-src active" data-src="db">🌐 Base de HeadDB</button>
+          <button type="button" class="hd-cat hd-src" data-src="mine">⭐ Mi colección</button>
+          <span class="hint" id="hdDbStatus" style="margin:0 0 0 auto"></span>
+        </div>
+        <div class="row">
+          <input type="text" id="hdSearch" placeholder="Buscar por nombre o etiqueta…" spellcheck="false" style="flex:1">
+          <select id="hdSort" style="width:auto"><option value="new">Más recientes</option><option value="az">A → Z</option></select>
+        </div>
+        <div class="hd-cats" id="hdCats"></div>
+        <div class="heads-grid" id="hdGrid"></div>
+        <div class="row" style="justify-content:center"><button class="btn sm" type="button" id="hdMore" style="display:none">Mostrar más</button></div>
+      </div>
+    </div>
+
+    <aside class="side">
+      <details class="sec bevel" open>
+        <summary>Agregar cabezas</summary>
+        <div class="sec-body">
+          <textarea id="hdPaste" rows="4" spellcheck="false" placeholder="Pega uno o varios (uno por línea): el comando /give de HeadDB o Minecraft-Heads, el Value (eyJ…) o el link de textures.minecraft.net"></textarea>
+          <div class="row">
+            <div class="f grow"><span>Nombre (si el comando no trae)</span><input type="text" id="hdNewName" placeholder="Cabeza"></div>
+            <div class="f"><span>Categoría</span><select id="hdNewCat" style="width:auto"></select></div>
+          </div>
+          <div class="row">
+            <div class="f grow"><span>Etiquetas (separadas por coma)</span><input type="text" id="hdNewTags" placeholder="halloween, decoración" spellcheck="false"></div>
+          </div>
+          <div class="row" style="justify-content:flex-end">
+            <button class="btn sm green" type="button" id="hdAdd">+ Agregar</button>
+          </div>
+          <div class="hint" id="hdAddMsg"></div>
+          <p class="hint">Consíguelas en <a href="https://minecraft-heads.com/custom-heads" target="_blank" rel="noopener" style="color:var(--aqua)">minecraft-heads.com</a> (la base que usa HeadDB): abre una cabeza y copia su comando <code>/give</code> o su "Value".</p>
+        </div>
+      </details>
+
+      <details class="sec bevel" open>
+        <summary>Cabeza seleccionada</summary>
+        <div class="sec-body" id="hdDetail"></div>
+      </details>
+
+      <details class="sec bevel">
+        <summary>Respaldo</summary>
+        <div class="sec-body">
+          <div class="row" style="margin-top:0">
+            <button class="btn sm" type="button" id="hdExport">⬇ Exportar colección</button>
+            <label class="btn sm" style="cursor:pointer">⬆ Importar colección<input type="file" id="hdImportFile" accept=".json" hidden></label>
+          </div>
+          <p class="hint">Tu colección se guarda en este navegador. Exporta un respaldo para pasarla a otra computadora.</p>
+        </div>
+      </details>
     </aside>
   </div>
 </section>
@@ -1583,6 +1665,41 @@ function fillSimpleFields(form, m) {
   });
 }
 bindSimpleFields(itemForm, () => item, k => { if (k === 'headMode') headLabel(); updateItem(); });
+// ---------- Importar cabezas: comando /give (cualquier versión), Value base64, link o hash de la textura ----------
+function parseHeadInput(raw) {
+  const txt = String(raw || '').trim();
+  if (!txt) return { err: 'Pega algo primero.' };
+  const ok = v => { try { const j = JSON.parse(atob(v)); return j?.textures?.SKIN?.url ? v : null; } catch { return null; } };
+  // 1) Un Value base64 (suelto o dentro de un comando: value:"…", Value:"…", "value":"…")
+  for (const m of txt.matchAll(/eyJ[A-Za-z0-9+/=_-]{20,}/g)) {
+    const v = ok(m[0].replace(/-/g, '+').replace(/_/g, '/'));
+    if (v) return { value: v, name: headCmdName(txt) };
+  }
+  // 2) Link o hash de textures.minecraft.net
+  const h = txt.match(/textures\.minecraft\.net\/texture\/([0-9a-f]{32,})/i) || txt.match(/^([0-9a-f]{56,})$/i);
+  if (h) return { value: btoa(JSON.stringify({ textures: { SKIN: { url: 'http://textures.minecraft.net/texture/' + h[1].toLowerCase() } } })), name: '' };
+  // 3) Link de la página (no se puede leer desde aquí)
+  if (/minecraft-heads\.com|headdb|heads\./i.test(txt)) return { err: 'Ese es el link de la página: ábrelo y copia el comando /give o el campo "Value", y pégalo aquí.' };
+  return { err: 'No encontré ninguna textura. Pega el comando /give, el Value (empieza con eyJ) o el link de textures.minecraft.net.' };
+}
+// Nombre que trae el comando (custom_name / item_name / display Name), solo el texto
+function headCmdName(txt) {
+  const m = txt.match(/(?:custom_name|item_name|Name)\s*[:=]\s*'?"?\s*(?:\{[^}]*?)?\\?"?text\\?"?\s*:\s*\\?"((?:[^"\\]|\\.)*?)\\?"/)
+    || txt.match(/(?:custom_name|item_name)\s*=\s*"((?:[^"\\]|\\.)*)"/);
+  return m ? m[1].replace(/\\(.)/g, '$1') : '';
+}
+$('#headImportBtn').onclick = () => {
+  const r = parseHeadInput($('#headImport').value), msg = $('#headImportMsg');
+  if (r.err) { msg.style.color = 'var(--red)'; msg.textContent = r.err; return; }
+  item.id = 'player_head'; item.headMode = 'texture'; item.headValue = r.value;
+  const hadName = textPlain(item.name).trim();
+  if (r.name && !hadName) item.name = newText(r.name);
+  renderItemForm();
+  msg.style.color = 'var(--grass)';
+  msg.textContent = '✔ Textura importada' + (r.name && !hadName ? ` con el nombre "${r.name}"` : '') + '.';
+  $('#headImport').value = '';
+};
+$('#headImport').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#headImportBtn').click(); } });
 function headLabel() { $('#headLbl').textContent = item.headMode === 'texture' ? 'Textura base64 (Value)' : 'Nombre del jugador'; }
 
 // Casillas de "ocultar partes"
@@ -1772,7 +1889,7 @@ function refreshCommand() {
   const t = TABS[currentTab];
   const cmd = t ? t.command() : '';
   if (typeof DOCS !== 'undefined' && DOCS[currentTab]) renderDocTabs(currentTab);
-  $('#cmdText').textContent = cmd || '— Esta pestaña llega en una próxima fase —';
+  $('#cmdText').textContent = cmd || t?.empty || '— Esta pestaña llega en una próxima fase —';
   const n = cmd.length, c = $('#cmdCount');
   c.className = n === 0 ? '' : n <= 256 ? 'chat' : n <= 32500 ? 'block' : 'over';
   c.textContent = n === 0 ? '0' : n <= 256 ? `${n} / 256 · cabe en el chat`
@@ -1803,9 +1920,10 @@ function loadDraft() { return null; }
 $('#saveBtn').onclick = () => {
   const t = TABS[currentTab]; if (!t) return;
   const m = t.model(), lib = libLoad();
+  if (!m) { toast('Nada que guardar'); return; }
   const name = prompt('Nombre para guardar en la biblioteca:', t.label(m));
   if (name === null) return;
-  (lib[currentTab] ||= []).unshift({ uid: uid(), name: name || 'Sin nombre', savedAt: Date.now(), data: clone(m) });
+  (lib[t.libType || currentTab] ||= []).unshift({ uid: uid(), name: name || 'Sin nombre', savedAt: Date.now(), data: clone(m) });
   libSave(lib); renderLib(); toast('Guardado en la biblioteca');
 };
 function renderLib() {
@@ -4636,6 +4754,7 @@ function switchTab(name) {
   $$('.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
   if (name === 'mobs') { renderEquip(); renderPassengers(); Viewer.attach('mobs'); Viewer.update(mob); }   // la biblioteca pudo cambiar
   if (name === 'villagers') { renderTrades(); Viewer.attach('villagers'); Viewer.update(villagerView(villager)); }
+  if (name === 'heads') { if (hdSrc === 'db') loadHeadDb(); renderHeadGrid(); }
   if (name === 'mannequins') { renderMqEquip(); Viewer.attach('mannequins'); Viewer.update(mannequinView(mannequin)); }
   refreshCommand();
 }
@@ -5019,6 +5138,250 @@ MOB_MODELS.mannequin = {
 };
 renderMannequinForm();
 renderDocTabs('mannequins');
+
+/* =====================================================================
+   CABEZAS: colección propia estilo HeadDB, con sus mismas categorías
+   ===================================================================== */
+const HEAD_CATS = [
+  ['alphabet', 'Alfabeto', '🔤'], ['animals', 'Animales', '🐾'], ['blocks', 'Bloques', '🧱'], ['decoration', 'Decoración', '🏺'],
+  ['food-drinks', 'Comida y bebidas', '🍎'], ['humans', 'Humanos', '🧑'], ['humanoid', 'Humanoides', '🧟'],
+  ['miscellaneous', 'Varios', '🎲'], ['monsters', 'Monstruos', '👾'], ['plants', 'Plantas', '🌿']
+];
+const HEAD_CAT_NAME = Object.fromEntries(HEAD_CATS.map(([k, n]) => [k, n]));
+const HEADS_KEY = 'mccmdforge.heads';
+const headsLoad = () => { try { return JSON.parse(localStorage.getItem(HEADS_KEY)) || []; } catch { return []; } };
+const headsSave = list => { try { localStorage.setItem(HEADS_KEY, JSON.stringify(list)); } catch { toast('No se pudo guardar (almacenamiento lleno o bloqueado)'); } };
+let heads = headsLoad(), hdCat = 'all', hdSel = null;
+// La cabeza como item (para el comando, Items y la Biblioteca)
+const headItem = h => ({ ...newItem(), id: 'player_head', name: h.name ? newText(h.name) : newText(''), headMode: 'texture', headValue: h.value });
+const headHash = v => { try { return JSON.parse(atob(v)).textures.SKIN.url.split('/').pop(); } catch { return ''; } };
+
+HEAD_CATS.forEach(([k, n, e]) => $('#hdNewCat').append(el('option', { value: k }, `${e} ${n}`)));
+$('#hdNewCat').value = 'decoration';
+
+// Agregar (una o varias líneas)
+$('#hdAdd').onclick = () => {
+  const lines = $('#hdPaste').value.split(/\n+/).map(x => x.trim()).filter(Boolean), msg = $('#hdAddMsg');
+  if (!lines.length) { msg.style.color = 'var(--red)'; msg.textContent = 'Pega algo primero.'; return; }
+  const cat = $('#hdNewCat').value, tags = $('#hdNewTags').value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+  const base = $('#hdNewName').value.trim();
+  let added = 0, dup = 0, bad = 0, last = null;
+  lines.forEach((line, i) => {
+    const r = parseHeadInput(line);
+    if (r.err) { bad++; return; }
+    if (heads.some(h => headHash(h.value) === headHash(r.value))) { dup++; return; }
+    const name = r.name || (base ? (lines.length > 1 ? `${base} ${i + 1}` : base) : `Cabeza ${heads.length + 1}`);
+    last = { uid: uid(), name, cat, tags: [...tags], value: r.value, fav: false, added: Date.now() };
+    heads.unshift(last); added++;
+  });
+  headsSave(heads);
+  if (last) { hdSel = last.uid; hdCat = cat; hdSrc = 'mine'; $$('.hd-src').forEach(x => x.classList.toggle('active', x.dataset.src === 'mine')); }
+  renderHeads();
+  msg.style.color = added ? 'var(--grass)' : 'var(--red)';
+  msg.textContent = [added && `✔ ${added} agregada${added > 1 ? 's' : ''} a ${HEAD_CAT_NAME[cat]}`, dup && `${dup} repetida${dup > 1 ? 's' : ''} (ya estaba${dup > 1 ? 'n' : ''})`,
+    bad && `${bad} sin textura válida`].filter(Boolean).join(' · ');
+  if (added) { $('#hdPaste').value = ''; $('#hdNewName').value = ''; }
+};
+
+// ---------- Base de HeadDB: copia semanal de Minecraft-Heads (github.com/TheLuca98/MinecraftHeads) ----------
+const HEAD_DB_URLS = ['https://cdn.jsdelivr.net/gh/TheLuca98/MinecraftHeads@master/heads.csv',
+  'https://raw.githubusercontent.com/TheLuca98/MinecraftHeads/master/heads.csv'];
+let hdSrc = 'db', headDb = null, headDbState = 'idle', hdSelDb = null, hdLimit = 120;
+const hashValue = h => btoa(JSON.stringify({ textures: { SKIN: { url: 'http://textures.minecraft.net/texture/' + h } } }));
+// CSV con comillas: name,category,hash,tags (tags separadas por |)
+function parseHeadCsv(txt) {
+  const rows = [], len = txt.length; let i = 0, row = [], f = '', q = false;
+  while (i < len) {
+    const c = txt[i];
+    if (q) { if (c === '"') { if (txt[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && txt[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += c;
+    i++;
+  }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  const head = rows.shift() || [], ix = k => head.indexOf(k);
+  const iN = ix('name'), iC = ix('category'), iH = ix('hash'), iT = ix('tags');
+  return rows.filter(r => r[iH] && /^[0-9a-f]{40,}$/i.test(r[iH])).map((r, n) => ({
+    uid: 'db' + n, name: r[iN] || 'Cabeza', cat: HEAD_CAT_NAME[r[iC]] ? r[iC] : 'miscellaneous', hash: r[iH].toLowerCase(),
+    tags: (r[iT] || '').split('|').map(t => t.trim()).filter(Boolean) }));
+}
+async function loadHeadDb() {
+  if (headDbState === 'loading' || headDbState === 'ok') return;
+  headDbState = 'loading'; $('#hdDbStatus').textContent = 'Descargando la base de cabezas…'; renderHeadGrid();
+  for (const url of HEAD_DB_URLS) {
+    try {
+      const r = await fetch(url); if (!r.ok) continue;
+      const list = parseHeadCsv(await r.text());
+      if (!list.length) continue;
+      headDb = list; headDbState = 'ok';
+      $('#hdDbStatus').textContent = `${list.length.toLocaleString('es')} cabezas · actualizada cada semana`;
+      console.info('[Cabezas] Base cargada desde', url, '→', list.length, 'cabezas');
+      renderHeads(); return;
+    } catch (e) { console.warn('[Cabezas] No se pudo leer', url, e.message); }
+  }
+  headDbState = 'error'; $('#hdDbStatus').textContent = 'No se pudo descargar (¿sin internet?)'; renderHeadGrid();
+}
+const hdSource = () => hdSrc === 'db' ? (headDb || []) : heads;
+const hdValueOf = h => h.value || hashValue(h.hash);
+$$('.hd-src').forEach(b => b.onclick = () => {
+  hdSrc = b.dataset.src; $$('.hd-src').forEach(x => x.classList.toggle('active', x === b));
+  if (hdSrc === 'db' && hdCat === 'fav') hdCat = 'all';
+  hdLimit = 120; if (hdSrc === 'db') loadHeadDb(); renderHeads();
+});
+$('#hdMore').onclick = () => { hdLimit += 240; renderHeadGrid(); };
+
+// Categorías con contador
+function renderHeadCats() {
+  const src = hdSource();
+  const count = k => k === 'all' ? src.length : k === 'fav' ? heads.filter(h => h.fav).length : src.filter(h => h.cat === k).length;
+  const chip = (k, label) => el('button', { type: 'button', class: 'hd-cat' + (hdCat === k ? ' active' : ''), onclick: () => { hdCat = k; hdLimit = 120; renderHeads(); } },
+    label, el('span', { class: 'n' }, count(k).toLocaleString('es')));
+  $('#hdCats').replaceChildren(chip('all', '📚 Todas'), ...(hdSrc === 'mine' ? [chip('fav', '⭐ Favoritas')] : []), ...HEAD_CATS.map(([k, n, e]) => chip(k, `${e} ${n}`)));
+}
+// Dibuja la cabeza en isométrico (como en el inventario) desde la textura de Mojang, igual que el juego.
+// Se pinta directo en un <canvas>: así no hace falta permiso CORS de textures.minecraft.net.
+function headCanvas(hash, fallbackValue) {
+  const S = 64, c = el('canvas', { width: S, height: S, class: 'hd-canvas' }), g = c.getContext('2d');
+  const img = new Image();
+  img.onload = () => {
+    const k = img.width / 64, T = [32, 4], R = [58, 17], B = [32, 30], L = [6, 17], BL = [6, 47], BB = [32, 60], BR = [58, 47];
+    g.imageSmoothingEnabled = false;
+    // Cara de la textura (u,v en px de una skin de 64) → paralelogramo O,U,V
+    const face = (u, v, O, U, V, shade, grow = 1) => {
+      const sc = p => [32 + (p[0] - 32) * grow, 32 + (p[1] - 32) * grow];
+      [O, U, V] = [sc(O), sc(U), sc(V)];
+      g.save();
+      g.setTransform((U[0] - O[0]) / 8, (U[1] - O[1]) / 8, (V[0] - O[0]) / 8, (V[1] - O[1]) / 8, O[0], O[1]);
+      g.drawImage(img, u * k, v * k, 8 * k, 8 * k, 0, 0, 8, 8);
+      if (shade) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = `rgba(0,0,0,${shade})`; g.fillRect(0, 0, 8, 8); }
+      g.restore();
+    };
+    // Cubo base: arriba, frente (cara) y lado izquierdo del jugador
+    face(8, 0, T, R, L, 0); face(8, 8, L, B, BL, 0.18); face(16, 8, B, R, BB, 0.32);
+    // Segunda capa (sombrero), un poco más grande, en un lienzo aparte para no pintar sus huecos
+    const hat = document.createElement('canvas'); hat.width = hat.height = S; const g0 = g;
+    const h2 = hat.getContext('2d'); h2.imageSmoothingEnabled = false;
+    [[40, 0, T, R, L, 0], [40, 8, L, B, BL, 0.18], [48, 8, B, R, BB, 0.32]].forEach(([u, v, O, U, V, sh]) => {
+      const grow = 1.12, sc = p => [32 + (p[0] - 32) * grow, 32 + (p[1] - 32) * grow];
+      const [o, uu, vv] = [sc(O), sc(U), sc(V)];
+      h2.save(); h2.setTransform((uu[0] - o[0]) / 8, (uu[1] - o[1]) / 8, (vv[0] - o[0]) / 8, (vv[1] - o[1]) / 8, o[0], o[1]);
+      h2.drawImage(img, u * k, v * k, 8 * k, 8 * k, 0, 0, 8, 8);
+      if (sh) { h2.globalCompositeOperation = 'source-atop'; h2.fillStyle = `rgba(0,0,0,${sh})`; h2.fillRect(0, 0, 8, 8); }
+      h2.restore();
+    });
+    g0.drawImage(hat, 0, 0);
+  };
+  img.onerror = () => {   // respaldo: el dibujo de mc-heads
+    TEX.icon({ id: 'player_head', headMode: 'texture', headValue: fallbackValue }).then(ic => {
+      if (!ic) return; const i = el('img', { alt: '', src: ic.src }); c.replaceWith(i);
+    });
+  };
+  img.referrerPolicy = 'no-referrer';
+  img.src = 'https://textures.minecraft.net/texture/' + hash;
+  return c;
+}
+// Cuadrícula (con "Mostrar más" para no cargar miles de imágenes de golpe)
+function renderHeadGrid() {
+  const grid = $('#hdGrid'), more = $('#hdMore');
+  if (hdSrc === 'db' && headDbState !== 'ok') {
+    more.style.display = 'none';
+    grid.replaceChildren(el('div', { class: 'hd-empty' }, headDbState === 'error'
+      ? 'No se pudo descargar la base de cabezas. Revisa tu conexión y vuelve a abrir esta vista, o usa "Mi colección" pegando comandos.'
+      : 'Descargando la base de cabezas de HeadDB / Minecraft-Heads… (la primera vez tarda unos segundos)'));
+    return;
+  }
+  const norm = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const q = norm($('#hdSearch').value.trim());
+  let list = hdSource().filter(h => (hdCat === 'all' || (hdCat === 'fav' ? h.fav : h.cat === hdCat)) &&
+    (!q || norm(h.name).includes(q) || h.tags.some(t => norm(t).includes(q))));
+  if ($('#hdSort').value === 'az') list = [...list].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  if (!list.length) {
+    more.style.display = 'none';
+    grid.replaceChildren(el('div', { class: 'hd-empty' }, hdSource().length
+      ? 'No hay cabezas aquí. Prueba otra categoría o búsqueda.'
+      : 'Tu colección está vacía. Agrégalas desde "Base de HeadDB" o pega a la derecha el comando /give o el "Value" de una cabeza.'));
+    return;
+  }
+  const sel = hdSrc === 'db' ? hdSelDb : hdSel;
+  grid.replaceChildren(...list.slice(0, hdLimit).map(h => {
+    const hash = h.hash || headHash(h.value), img = hash ? headCanvas(hash, hdValueOf(h)) : el('div', { class: 'hd-noimg' }, '🙂');
+    return el('button', { type: 'button', class: 'head-card' + (sel === h.uid ? ' sel' : ''), title: h.name + (h.tags.length ? '\n' + h.tags.join(', ') : ''),
+      onclick: () => { if (hdSrc === 'db') hdSelDb = h.uid; else hdSel = h.uid; renderHeadGrid(); renderHeadDetail(); refreshCommand(); } },
+      el('div', { class: 'hd-img' }, img, h.fav ? el('span', { class: 'hd-fav' }, '⭐') : null),
+      el('div', { class: 'hd-name' }, h.name), el('div', { class: 'hd-cat-lbl' }, HEAD_CAT_NAME[h.cat] || ''));
+  }));
+  more.style.display = list.length > hdLimit ? '' : 'none';
+  more.textContent = `Mostrar más (${(list.length - hdLimit).toLocaleString('es')} restantes)`;
+}
+// Detalle de la seleccionada
+const hdCurrent = () => hdSrc === 'db' ? (headDb || []).find(x => x.uid === hdSelDb) : heads.find(x => x.uid === hdSel);
+function renderHeadDetail() {
+  const h = hdCurrent(), box = $('#hdDetail');
+  if (!h) { box.replaceChildren(el('p', { class: 'hint', style: 'margin:0' }, 'Elige una cabeza de la cuadrícula para sacar su comando' + (hdSrc === 'mine' ? ' o editarla.' : ' o agregarla a tu colección.'))); return; }
+  const copyBtn = el('button', { class: 'btn sm green', type: 'button', onclick: () => { navigator.clipboard?.writeText(TABS.heads.command()).then(() => toast('Comando copiado'), () => toast('No se pudo copiar')); } }, '📋 Copiar /give');
+  const itemsBtn = el('button', { class: 'btn sm', type: 'button', onclick: () => { openDoc('items', headItem({ name: h.name, value: hdValueOf(h) })); switchTab('items'); toast(`"${h.name}" abierta en Items`); } }, '✏ Abrir en Items');
+  if (hdSrc === 'db') {
+    const inMine = heads.some(x => headHash(x.value) === h.hash);
+    box.replaceChildren(
+      el('div', { style: 'font-family:var(--mc);font-size:22px' }, h.name),
+      el('div', { class: 'hint', style: 'margin:2px 0 8px' }, `${HEAD_CAT_NAME[h.cat]}${h.tags.length ? ' · ' + h.tags.join(', ') : ''}`),
+      el('div', { class: 'row', style: 'flex-wrap:wrap;margin-top:0' }, copyBtn, itemsBtn,
+        el('button', { class: 'btn sm', type: 'button', disabled: inMine, onclick: () => {
+          heads.unshift({ uid: uid(), name: h.name, cat: h.cat, tags: h.tags.map(t => t.toLowerCase()), value: hdValueOf(h), fav: false, added: Date.now() });
+          headsSave(heads); renderHeadDetail(); toast(`"${h.name}" agregada a tu colección`);
+        } }, inMine ? '✔ Ya está en tu colección' : '⭐ Agregar a mi colección')),
+      el('p', { class: 'hint', style: 'margin-bottom:0' }, 'Los nombres vienen en inglés, como en la base original. Puedes cambiarlos al agregarla a tu colección o en Items.'));
+    return;
+  }
+  const save = () => { headsSave(heads); renderHeadCats(); renderHeadGrid(); refreshCommand(); };
+  const name = el('input', { type: 'text', value: h.name, oninput: e => { h.name = e.target.value; save(); } });
+  const cat = el('select', { style: 'width:auto', onchange: e => { h.cat = e.target.value; save(); } }, ...HEAD_CATS.map(([k, n, e]) => el('option', { value: k }, `${e} ${n}`)));
+  cat.value = h.cat;
+  const tags = el('input', { type: 'text', value: h.tags.join(', '), spellcheck: 'false', oninput: e => { h.tags = e.target.value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean); save(); } });
+  box.replaceChildren(
+    el('div', { class: 'row', style: 'margin-top:0' }, el('div', { class: 'f grow' }, el('span', {}, 'Nombre'), name), el('div', { class: 'f' }, el('span', {}, 'Categoría'), cat)),
+    el('div', { class: 'row' }, el('div', { class: 'f grow' }, el('span', {}, 'Etiquetas'), tags)),
+    el('div', { class: 'row', style: 'flex-wrap:wrap' }, copyBtn, itemsBtn,
+      el('button', { class: 'btn sm', type: 'button', onclick: () => { h.fav = !h.fav; save(); renderHeadDetail(); } }, h.fav ? '★ Quitar de favoritas' : '☆ Favorita'),
+      el('button', { class: 'btn sm danger', type: 'button', onclick: () => {
+        heads = heads.filter(x => x.uid !== h.uid); hdSel = null; headsSave(heads); renderHeads();
+        toast(`"${h.name}" eliminada`);
+      } }, '🗑 Eliminar')),
+    el('p', { class: 'hint', style: 'margin-bottom:0' }, 'Desde Items puedes darle colores, lore o encantamientos. Para ponérsela a un mob, maniquí o venderla con un aldeano, guárdala en la Biblioteca con 💾 Guardar.'));
+}
+function renderHeads() { renderHeadCats(); renderHeadGrid(); renderHeadDetail(); refreshCommand(); }
+$('#hdSearch').addEventListener('input', renderHeadGrid);
+$('#hdSort').onchange = renderHeadGrid;
+
+// Respaldo
+$('#hdExport').onclick = () => {
+  const blob = new Blob([JSON.stringify({ app: 'mc-cmd-forge', kind: 'heads', version: 1, exportedAt: new Date().toISOString(), heads }, null, 2)], { type: 'application/json' });
+  const a = el('a', { href: URL.createObjectURL(blob), download: 'mcforge-cabezas.json' }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('#hdImportFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text()), list = Array.isArray(data) ? data : data.heads || [];
+    let n = 0;
+    for (const h of list) {
+      if (!h?.value || heads.some(x => headHash(x.value) === headHash(h.value))) continue;
+      heads.push({ uid: uid(), name: String(h.name || 'Cabeza'), cat: HEAD_CAT_NAME[h.cat] ? h.cat : 'miscellaneous', tags: Array.isArray(h.tags) ? h.tags : [], value: h.value, fav: !!h.fav, added: h.added || Date.now() });
+      n++;
+    }
+    headsSave(heads); renderHeads(); toast(`${n} cabezas importadas`);
+  } catch { toast('Ese archivo no es una colección válida'); }
+};
+
+// Barra de comando y botón Guardar (guarda la cabeza como Item en la Biblioteca)
+TABS.heads = {
+  command: () => { const h = hdCurrent(); return h ? buildItemCommand(headItem({ name: h.name, value: hdValueOf(h) })) : ''; },
+  model: () => { const h = hdCurrent(); return h ? headItem({ name: h.name, value: hdValueOf(h) }) : null; },
+  label: m => textPlain(m?.name) || 'Cabeza', libType: 'items',
+  empty: '— Elige una cabeza para ver su comando —'
+};
+renderHeads();
 
 // ---------- Diálogo de texturas ----------
 function texStatus() {
