@@ -382,11 +382,27 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
             <div class="f grow"><span>Entidad</span><div class="ac" id="acMob"></div></div>
           </div>
           <div class="row">
-            <div class="f"><span>X</span><input type="text" data-k="x" style="width:90px"></div>
-            <div class="f"><span>Y</span><input type="text" data-k="y" style="width:90px"></div>
-            <div class="f"><span>Z</span><input type="text" data-k="z" style="width:90px"></div>
+            <div class="f"><span>Generar con</span>
+              <select data-k="spawnMode" style="width:auto">
+                <option value="summon">Comando /summon (aparece al instante)</option>
+                <option value="egg">Huevo de generación (lo colocas tú)</option>
+              </select></div>
           </div>
-          <p class="hint" style="margin:0">Usa <code>~</code> para coordenadas relativas (ej. <code>~ ~1 ~</code>) o <code>^</code> para locales.</p>
+          <div id="mobPosRow">
+            <div class="row">
+              <div class="f"><span>X</span><input type="text" data-k="x" style="width:90px"></div>
+              <div class="f"><span>Y</span><input type="text" data-k="y" style="width:90px"></div>
+              <div class="f"><span>Z</span><input type="text" data-k="z" style="width:90px"></div>
+            </div>
+            <p class="hint" style="margin:0">Usa <code>~</code> para coordenadas relativas (ej. <code>~ ~1 ~</code>) o <code>^</code> para locales.</p>
+          </div>
+          <div id="mobEggRow" style="display:none">
+            <div class="row">
+              <div class="f"><span>Para</span><input type="text" data-k="eggTarget" placeholder="@p" style="width:120px"></div>
+              <div class="f"><span>Cantidad de huevos</span><input type="number" data-k="eggCount" min="1" max="64" style="width:90px"></div>
+            </div>
+            <p class="hint" style="margin:0">Te da un huevo con este mob guardado dentro: al usarlo aparece con su nombre, vida, equipo y efectos. Cada huevo genera un mob.</p>
+          </div>
         </div>
       </details>
 
@@ -2006,7 +2022,7 @@ function equipAllowed(slot, mobId, itemId) {
 const equipChoices = (slot, mobId) => ARMOR_SLOT_RULE[slot] ? DATA.items.filter(([id]) => equipAllowed(slot, mobId, id)) : DATA.items;
 function newMob() {
   return {
-    id: 'zombie', x: '~', y: '~', z: '~',
+    id: 'zombie', x: '~', y: '~', z: '~', spawnMode: 'summon', eggTarget: '@p', eggCount: 1,
     name: newText(''), nameVisible: true, noItalic: false,
     maxHealth: '', health: '', attrs: [],
     equip: Object.fromEntries(EQUIP_SLOTS.map(([s]) => [s, newEquip()])),
@@ -2090,7 +2106,21 @@ function mobNbt(m, ver, isPassenger = false, depth = 0) {
   if (extra) s = s === '{}' ? `{${extra}}` : s.slice(0, -1) + ',' + extra + '}';
   return isPassenger ? new Raw(s) : s;
 }
+// Huevo de cada mob (los que no tienen uno propio usan uno parecido: el mob que sale es el correcto igual)
+const EGG_FALLBACK = { giant: 'zombie', illusioner: 'evoker' };
+const mobEggId = id => { id = stripNs(id); return NAMES.items[id + '_spawn_egg'] ? id + '_spawn_egg' : (EGG_FALLBACK[id] || 'pig') + '_spawn_egg'; };
+// /give de un huevo que guarda el mob completo en entity_data
+function buildMobEggCommand(m, ver = VERSION) {
+  const id = stripNs(m.id) || 'zombie';
+  const egg = { ...newItem(), id: mobEggId(id), name: m.name, noItalic: true };
+  const comps = VERSIONS[ver].itemComponents(egg);
+  const nbt = mobNbt(m, ver);
+  comps.push(['entity_data', `{id:${SNBT.str(nsId(id))}${nbt === '{}' ? '' : ',' + nbt.slice(1, -1)}}`]);
+  const count = Math.max(1, Math.min(64, parseInt(m.eggCount) || 1));
+  return `/give ${String(m.eggTarget || '').trim() || '@p'} ${egg.id}[${comps.map(([k, v]) => k + '=' + v).join(',')}]${count > 1 ? ' ' + count : ''}`;
+}
 function buildMobCommand(m, ver = VERSION) {
+  if (m.spawnMode === 'egg') return buildMobEggCommand(m, ver);
   const nbt = mobNbt(m, ver);
   const pos = [m.x, m.y, m.z].map(c => String(c).trim() || '~').join(' ');
   return `/summon ${stripNs(m.id) || 'zombie'} ${pos}${nbt === '{}' ? '' : ' ' + nbt}`;
@@ -2099,6 +2129,10 @@ function mobWarnings(m) {
   const w = [], id = stripNs(m.id);
   if (!NAMES.entities[id] && !id.includes(':')) w.push(['err', `"${id}" no es una entidad vanilla conocida.`]);
   if (id === 'player') w.push(['err', 'No se pueden invocar jugadores con /summon.']);
+  if (m.spawnMode === 'egg') {
+    if (NAMES.entities[id] && !NAMES.items[id + '_spawn_egg']) w.push(['warn', `Este mob no tiene huevo propio: se usa el de ${NAMES.entities[EGG_FALLBACK[id] || 'pig']}, pero al usarlo sale ${NAMES.entities[id]}.`]);
+    if (m.eggCount !== '' && (+m.eggCount < 1 || +m.eggCount > 64)) w.push(['warn', 'La cantidad de huevos va de 1 a 64.']);
+  }
   if (NOT_MOB.test(id) || (NAMES.entities[id] && !MOB_IDS.has(id))) w.push(['warn', 'Esta entidad no es un mob: la vida, el equipo, los efectos y la IA no le afectan.']);
   if (m.baby && !IS_BABY.has(id) && !AGEABLE.has(id)) w.push(['warn', 'Este mob no tiene versión bebé (o no la conozco): se ignora.']);
   if (m.maxHealth !== '' && +m.maxHealth > 1024) w.push(['warn', 'La vida máxima está limitada a 1024 por el juego.']);
@@ -2235,6 +2269,8 @@ function renderMobForm() {
   updateMob();
 }
 function updateMob() {
+  const egg = mob.spawnMode === 'egg';
+  $('#mobPosRow').style.display = egg ? 'none' : ''; $('#mobEggRow').style.display = egg ? '' : 'none';
   $('#mobWarns').replaceChildren(...mobWarnings(mob).map(([lvl, t]) => el('div', { class: 'warn' + (lvl === 'err' ? ' err' : '') }, t)));
   saveDraft('mob', mob);
   refreshCommand();
