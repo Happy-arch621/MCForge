@@ -4656,20 +4656,22 @@ function mannequinNbt(q, ver) {
   const prof = {};
   if (name) prof.name = name;
   for (const [k, v] of Object.entries(adv)) if (v) prof[k] = v;
-  if (Object.keys(prof).length) o.profile = prof;
+  // Solo el nombre → texto simple (profile:"Nombre"); con texturas avanzadas → compuesto
+  if (Object.keys(prof).length) o.profile = Object.keys(prof).length === 1 && prof.name ? prof.name : prof;
   if (q.hidden.length) o.hidden_layers = [...q.hidden];
   if (q.mainHand === 'left') o.main_hand = 'left';
   if (q.pose && q.pose !== 'standing') o.pose = q.pose;
   if (q.immovable) o.immovable = true;
   const d = textComponent(q.desc, {});
-  if (d) o.description = new Raw(ver === 'v1214' ? jsonInSnbt(d) : SNBT.val(d));
+  // Texto sin estilo → "texto"; con colores/formato → componente completo
+  if (d) o.description = new Raw(ver === 'v1214' ? jsonInSnbt(d) : (Object.keys(d).length === 1 && 'text' in d ? SNBT.str(d.text) : SNBT.val(d)));
   if (q.hideDesc) o.hide_description = true;
   if (q.noGravity) o.NoGravity = true;
   if (q.fire !== '' && +q.fire > 0) o.Fire = new Typed(Math.round(+q.fire * 20), 's');
   if ((q.yaw !== '' && +q.yaw) || (q.pitch !== '' && +q.pitch)) o.Rotation = [new Typed(+q.yaw || 0, 'f'), new Typed(Math.max(-90, Math.min(90, +q.pitch || 0)), 'f')];
   const tags = q.tags.map(t => t.trim()).filter(Boolean);
   if (tags.length) o.Tags = tags;
-  const extra = SNBT.val(o).slice(1, -1);
+  const extra = SNBT.val(o);   // con sus llaves: mobNbt quita solo las de afuera
   const equip = Object.fromEntries(Object.entries(q.equip).map(([s, e]) => [s, { ...e, drop: '' }]));
   return mobNbt({ ...newMob(), id: 'mannequin', name: q.name, nameVisible: q.nameVisible, maxHealth: '', health: q.health,
     attrs: q.attrs, effects: q.effects, equip, invulnerable: q.invulnerable, silent: q.silent, glowing: q.glowing,
