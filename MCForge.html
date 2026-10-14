@@ -680,6 +680,21 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
         <summary>Invocar</summary>
         <div class="sec-body">
           <div class="row">
+            <div class="f"><span>Generar con</span>
+              <select data-k="spawnMode" style="width:auto">
+                <option value="summon">Comando /summon (aparece al instante)</option>
+                <option value="egg">Huevo de generación (lo colocas tú)</option>
+              </select></div>
+          </div>
+          <div id="mqEggRow" style="display:none">
+            <div class="row">
+              <div class="f grow"><span>Aspecto del huevo</span><div class="ac" id="acMqEgg"></div></div>
+              <div class="f"><span>Para</span><input type="text" data-k="eggTarget" placeholder="@p" style="width:120px"></div>
+              <div class="f"><span>Cantidad</span><input type="number" data-k="eggCount" min="1" max="64" style="width:80px"></div>
+            </div>
+            <p class="hint" style="margin-top:0">No existe huevo de maniquí: se usa el que elijas solo como dibujo, pero al usarlo sale el maniquí con todo lo que configures. Cada huevo genera uno.</p>
+          </div>
+          <div class="row">
             <div class="f grow"><span>Perfil (nombre de jugador)</span><input type="text" data-k="profile" placeholder="happychon" maxlength="16" spellcheck="false"></div>
           </div>
           <p class="hint" style="margin-top:0">Usa la skin de ese jugador. Déjalo vacío para una skin por defecto, o si vas a usar las opciones avanzadas.</p>
@@ -712,7 +727,7 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
               </div>
             </div>
           </details>
-          <div class="row">
+          <div class="row" id="mqPosRow">
             <div class="f"><span>X</span><input type="text" data-k="x" style="width:90px"></div>
             <div class="f"><span>Y</span><input type="text" data-k="y" style="width:90px"></div>
             <div class="f"><span>Z</span><input type="text" data-k="z" style="width:90px"></div>
@@ -4639,7 +4654,7 @@ const MQ_LAYERS = [['cape', 'Capa'], ['jacket', 'Chaqueta'], ['left_sleeve', 'Ma
 const MQ_POSE_NAME = { standing: 'de pie', crouching: 'agachado', swimming: 'nadando', fall_flying: 'planeando', sleeping: 'durmiendo' };
 function newMannequin() {
   return {
-    x: '~', y: '~', z: '~', profile: '', hidden: [], mainHand: 'right', pose: 'standing', immovable: false,
+    x: '~', y: '~', z: '~', spawnMode: 'summon', eggItem: 'villager_spawn_egg', eggTarget: '@p', eggCount: 1, profile: '', hidden: [], mainHand: 'right', pose: 'standing', immovable: false,
     desc: newText(''), hideDesc: true, skinTexture: '', skinCape: '', skinElytra: '', skinModel: '',
     name: newText(''), nameVisible: true, invulnerable: false, silent: false, noGravity: false, glowing: false,
     health: '', fire: '', yaw: '', pitch: '',
@@ -4678,6 +4693,16 @@ function mannequinNbt(q, ver) {
 }
 function buildMannequinCommand(q, ver = VERSION) {
   const nbt = mannequinNbt(q, ver);
+  if (q.spawnMode === 'egg') {   // huevo con el maniquí guardado en entity_data
+    const eggId = stripNs(q.eggItem || '') || 'villager_spawn_egg';
+    // Con nombre: custom_name (el maniquí sale con ese nombre). Sin nombre: item_name (solo nombra el huevo)
+    const named = textParts(q.name).length > 0;
+    const comps = VERSIONS[ver].itemComponents({ ...newItem(), id: eggId, name: named ? q.name : newText(''), noItalic: true });
+    if (!named) { const t = { text: q.profile.trim() ? 'Maniquí de ' + q.profile.trim() : 'Maniquí' }; comps.unshift(['item_name', ver === 'v1214' ? jsonInSnbt(t) : SNBT.val(t)]); }
+    comps.push(['entity_data', `{id:"minecraft:mannequin"${nbt === '{}' ? '' : ',' + nbt.slice(1, -1)}}`]);
+    const count = Math.max(1, Math.min(64, parseInt(q.eggCount) || 1));
+    return `/give ${String(q.eggTarget || '').trim() || '@p'} ${eggId}[${comps.map(([k, v]) => k + '=' + v).join(',')}]${count > 1 ? ' ' + count : ''}`;
+  }
   const pos = [q.x, q.y, q.z].map(c => String(c).trim() || '~').join(' ');
   return `/summon mannequin ${pos}${nbt === '{}' ? '' : ' ' + nbt}`;
 }
@@ -4686,6 +4711,11 @@ const mqEquipAllowed = (slot, id) => slot === 'head' || equipAllowed(slot, 'mann
 function mannequinWarnings(q) {
   const w = [];
   if (VERSION === 'v1214') w.push(['err', 'El maniquí existe desde la 1.21.9: cambia la versión arriba a 1.21.5 – 26.x.']);
+  if (q.spawnMode === 'egg') {
+    const e = stripNs(q.eggItem || '');
+    if (!e.endsWith('_spawn_egg') || !NAMES.items[e]) w.push(['err', 'Elige un huevo de generación (algo que termine en _spawn_egg).']);
+    if (q.eggCount !== '' && (+q.eggCount < 1 || +q.eggCount > 64)) w.push(['warn', 'La cantidad de huevos va de 1 a 64.']);
+  }
   const p = q.profile.trim();
   if (p && !/^[A-Za-z0-9_]{3,16}$/.test(p)) w.push(['warn', 'Un nombre de jugador tiene de 3 a 16 caracteres: letras, números y _.']);
   if (p && (q.skinTexture.trim() || q.skinCape.trim() || q.skinElytra.trim())) w.push(['warn', 'Usas perfil y texturas avanzadas a la vez: las texturas avanzadas reemplazan a las del jugador.']);
@@ -4704,6 +4734,8 @@ function mannequinWarnings(q) {
 // ---------- Interfaz ----------
 let mannequin = newMannequin();
 const mqForm = $('#mqForm');
+const acMqEgg = autocomplete(DATA.items.filter(([id]) => id.endsWith('_spawn_egg')), mannequin.eggItem, v => { mannequin.eggItem = v; updateMannequin(); }, 'villager_spawn_egg', true);
+$('#acMqEgg').append(acMqEgg);
 bindSimpleFields(mqForm, () => mannequin, () => updateMannequin());
 function renderMqLayers() {
   $('#mqLayers').replaceChildren(...MQ_LAYERS.map(([id, label]) => el('label', { class: 'chk' },
@@ -4786,11 +4818,13 @@ const mannequinView = q => {
 function renderMannequinForm() {
   mannequin = { ...newMannequin(), ...mannequin };
   mannequin.equip = { ...Object.fromEntries(EQUIP_SLOTS.map(([s]) => [s, newEquip()])), ...(mannequin.equip || {}) };
-  fillSimpleFields(mqForm, mannequin);
+  fillSimpleFields(mqForm, mannequin); acMqEgg.setValue(mannequin.eggItem);
   renderMqLayers(); renderMqTexts(); renderMqEffects(); renderMqTags(); renderMqAttrs(); renderMqEquip();
   updateMannequin();
 }
 function updateMannequin() {
+  const egg = mannequin.spawnMode === 'egg';
+  $('#mqEggRow').style.display = egg ? '' : 'none'; $('#mqPosRow').style.display = egg ? 'none' : '';
   const de = $('#mqDescEditor'); de.style.opacity = mannequin.hideDesc ? '.4' : ''; de.style.pointerEvents = mannequin.hideDesc ? 'none' : '';
   $('#mqWarns').replaceChildren(...mannequinWarnings(mannequin).map(([lvl, t]) => el('div', { class: 'warn' + (lvl === 'err' ? ' err' : '') }, t)));
   refreshCommand();
