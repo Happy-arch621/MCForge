@@ -261,7 +261,7 @@ details.sec.dp-sec>summary::before{color:#fff}
 .dp-sec label.chk input{accent-color:#ab1b42}
 .dp-key{flex-basis:100%;display:flex;flex-direction:column;gap:4px;font-size:12px}
 .dp-key code{display:block;overflow-wrap:anywhere;padding:4px 6px}
-#dpFilePre{font-family:ui-monospace,Consolas,monospace;font-size:12px;max-height:340px;overflow:auto;white-space:pre;padding:8px;margin:6px 0 0;color:#f0c8d2}
+#dpFilePre,.dp-pre{font-family:ui-monospace,Consolas,monospace;font-size:12px;max-height:340px;overflow:auto;white-space:pre;padding:8px;margin:6px 0 0;color:#f0c8d2}
 .dp-sec *{scrollbar-color:#ab1b42 #1c050c}
 .dp-sec ::-webkit-scrollbar-thumb{background:#ab1b42;border-color:#e0607f #47091a #47091a #e0607f}
 </style>
@@ -411,6 +411,160 @@ details.sec.dp-sec>summary::before{color:#fff}
           <label class="chk"><input type="checkbox" data-k="hideAll"> Ocultar el tooltip completo</label>
           <div class="hint" style="margin-top:8px">Ocultar solo estas partes del tooltip:</div>
           <div class="row" id="hideList"></div>
+        </div>
+      </details>
+
+      <details class="sec bevel dp-sec" id="itemPackSec">
+        <summary>Opciones de datapack <span class="badge" id="itemPackBadge">0</span></summary>
+        <div class="sec-body">
+          <p class="hint" style="margin-top:0">Poderes que funcionan con un datapack que genera MCForge. El item lleva una marca oculta para que el datapack lo reconozca, así que funciona aunque le cambien el nombre en un yunque. Descarga el .zip, ponlo en <code>.minecraft/saves/&lt;mundo&gt;/datapacks/</code>, usa <code>/reload</code> y date el item con el comando.</p>
+          <div class="row">
+            <div class="f"><span>Namespace</span><input type="text" data-k="packNs" style="width:130px" spellcheck="false" placeholder="mcforge"></div>
+            <div class="f grow"><span>ID del item (nombre de los archivos)</span><input type="text" data-k="packId" placeholder="(se saca del nombre del item)" spellcheck="false"></div>
+            <div class="f"><span>Funciona cuando está en</span><select data-k="packSlot" id="ipSlot" style="width:auto"></select></div>
+          </div>
+          <div class="row">
+            <div class="f"><span>Funciona con</span><select data-k="packMatch" style="width:auto">
+              <option value="mark">Solo el item que te das con el comando de MCForge</option>
+              <option value="any">Cualquier item de este tipo (aunque sea normal)</option>
+            </select></div>
+          </div>
+          <p class="hint" id="ipPath" style="margin-top:0"></p>
+          <div class="row"><button class="btn sm green" type="button" id="ipZip">Descargar datapack (.zip)</button></div>
+          <p class="hint">El .zip incluye <b>todas</b> las pestañas de items abiertas que usen el datapack. Funciona junto con el datapack de los jefes.</p>
+
+          <details class="sec inset dp-sub" id="ipPassSec">
+            <summary>Efectos pasivos <span class="badge" id="ipPassBadge">0</span></summary>
+            <div class="sec-body">
+              <div id="ipPassList"></div>
+              <button class="btn sm" type="button" id="ipPassAdd">+ Efecto pasivo</button>
+              <p class="hint">Mientras lleves el item te da el efecto, solo si se cumple la condición. Ejemplos: Colgante Solar = Fuerza y Velocidad "bajo la luz del sol"; Anillo de la Noche = Invisibilidad y Fuerza "en la oscuridad (luz ≤ 3)".</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="ipRcSec">
+            <summary>Habilidad al clic derecho</summary>
+            <div class="sec-body">
+              <label class="chk"><input type="checkbox" data-k="rcOn"> Usar una habilidad al hacer clic derecho con el item en la mano</label>
+              <div class="row">
+                <div class="f"><span>Recarga (s)</span><input type="number" data-k="rcCd" min="0.5" step="any" style="width:90px"></div>
+                <label class="chk"><input type="checkbox" data-k="rcSneak"> Solo agachado</label>
+              </div>
+              <div id="ipRcAbil"></div>
+              <p class="hint">Necesita 1.21.2 o más nuevo. No lo uses en arcos, ballestas, escudos, tridentes ni comida: su clic derecho normal dejaría de funcionar.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="ipHitSec">
+            <summary>Al golpear</summary>
+            <div class="sec-body">
+              <label class="chk"><input type="checkbox" data-k="hitOn"> Hacer algo al golpear a un mob</label>
+              <div id="ipHitList"></div>
+              <button class="btn sm" type="button" id="ipHitAdd">+ Efecto al golpeado</button>
+              <div class="row" style="margin-top:6px">
+                <div class="f"><span>Prenderle fuego (s)</span><input type="number" data-k="hitFire" min="0" style="width:90px"></div>
+                <div class="f"><span>Robo de vida (corazones)</span><input type="number" data-k="hitHeal" min="0" step="any" style="width:90px"></div>
+              </div>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="ipHurtSec">
+            <summary>Al recibir daño</summary>
+            <div class="sec-body">
+              <label class="chk"><input type="checkbox" data-k="hurtOn"> Usar una habilidad cuando te golpean</label>
+              <div class="row"><div class="f"><span>Recarga (s)</span><input type="number" data-k="hurtCd" min="0.5" step="any" style="width:90px"></div></div>
+              <div id="ipHurtAbil"></div>
+              <p class="hint">Pechera de Repulsión = esta opción con "Onda de empuje": cada golpe que recibes aleja a los mobs cercanos.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="ipChSec">
+            <summary>Cargas al matar</summary>
+            <div class="sec-body">
+              <label class="chk"><input type="checkbox" data-k="chargesOn"> Guardar una carga por cada mob que mates con el item</label>
+              <div class="row">
+                <div class="f"><span>Máximo</span><input type="number" data-k="chargesMax" min="1" max="10" style="width:80px"></div>
+                <div class="f grow"><span>Nombre de las cargas</span><input type="text" data-k="chargesName" placeholder="Almas"></div>
+              </div>
+              <p class="hint">El clic derecho gasta todas las cargas y multiplica la curación o el daño por la cantidad guardada (Espada de Cosecha de Almas). Sin cargas, la habilidad no se usa.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="ipMoveSec">
+            <summary>Movimiento y utilidad</summary>
+            <div class="sec-body">
+              <label class="chk" style="display:flex"><input type="checkbox" data-k="climb"> Escalar paredes: camina contra un bloque para subir; agáchate para bajar despacio (gasta hambre)</label>
+              <label class="chk" style="display:flex"><input type="checkbox" data-k="bounce"> Rebote: si caes agachado, justo antes de tocar el suelo sales impulsado hacia donde miras, sin daño de caída</label>
+              <div class="row" id="ipBounceRow"><div class="f"><span>Fuerza del rebote (1-3)</span><input type="number" data-k="bouncePower" min="1" max="3" style="width:80px"></div></div>
+              <label class="chk" style="display:flex"><input type="checkbox" data-k="magnet"> Imán: atrae a tu inventario los items tirados cerca</label>
+              <div class="row" id="ipMagnetRow">
+                <div class="f"><span>Radio</span><input type="number" data-k="magnetR" min="1" max="32" style="width:80px"></div>
+                <label class="chk"><input type="checkbox" data-k="magnetXp"> También la experiencia</label>
+              </div>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="ipVeinSec">
+            <summary>Minería en cadena</summary>
+            <div class="sec-body">
+              <label class="chk"><input type="checkbox" data-k="vein"> Al romper un mineral se rompen también los del mismo tipo que estén pegados</label>
+              <div class="row">
+                <div class="f"><span>Máximo de bloques</span><input type="number" data-k="veinMax" min="1" max="64" style="width:90px"></div>
+                <label class="chk"><input type="checkbox" data-k="veinSneak"> Solo agachado</label>
+              </div>
+              <div class="f"><span>Qué bloques</span></div>
+              <div class="row" id="ipVeinFams" style="gap:4px 16px"></div>
+              <p class="hint">Los bloques extra sueltan lo mismo que si los rompieras a mano, pero sin Fortuna ni Toque de seda y sin gastar durabilidad.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="ipGrowSec">
+            <summary>Crecimiento de cultivos</summary>
+            <div class="sec-body">
+              <label class="chk"><input type="checkbox" data-k="grow"> Los cultivos cercanos crecen más rápido</label>
+              <div class="row">
+                <div class="f"><span>Radio</span><input type="number" data-k="growR" min="1" max="8" style="width:80px"></div>
+                <div class="f"><span>Intentos por segundo</span><input type="number" data-k="growRate" min="1" max="20" style="width:90px"></div>
+                <label class="chk"><input type="checkbox" data-k="growGrass"> También brota pasto</label>
+              </div>
+              <p class="hint">Trigo, zanahorias, papas, betabel, verrugas del Nether, bayas dulces y tallos de sandía y calabaza. Con 4 intentos por segundo y radio 4 crecen mucho más rápido que lo normal.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="ipCompSec">
+            <summary>Brújula de destino</summary>
+            <div class="sec-body">
+              <label class="chk"><input type="checkbox" data-k="compass"> Indica la distancia a un punto y brilla al acercarte, en cualquier dimensión</label>
+              <div class="row">
+                <div class="f grow"><span>Nombre del lugar</span><input type="text" data-k="compLabel" placeholder="Base"></div>
+                <div class="f"><span>Dimensión</span><select data-k="compDim" style="width:auto">
+                  <option value="overworld">Mundo normal</option><option value="the_nether">Nether</option><option value="the_end">End</option></select></div>
+              </div>
+              <div class="row">
+                <div class="f"><span>X</span><input type="number" data-k="compX" style="width:100px"></div>
+                <div class="f"><span>Y</span><input type="number" data-k="compY" style="width:100px"></div>
+                <div class="f"><span>Z</span><input type="number" data-k="compZ" style="width:100px"></div>
+              </div>
+              <p class="hint">Muestra la distancia arriba de la barra de items y una partícula que apunta hacia el lugar. A menos de 64 bloques el item brilla. Entre el mundo normal y el Nether convierte las coordenadas (÷8) solo.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="ipPartSec">
+            <summary>Partículas <span class="badge" id="ipPartBadge">0</span></summary>
+            <div class="sec-body">
+              <div id="ipPartList"></div>
+              <button class="btn sm" type="button" id="ipPartAdd">+ Partícula</button>
+              <p class="hint">Salen alrededor de quien lleve el item.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="ipFilesSec">
+            <summary>Ver archivos generados</summary>
+            <div class="sec-body">
+              <select id="ipFileSel" style="width:100%"></select>
+              <pre id="ipFilePre" class="inset dp-pre"></pre>
+            </div>
+          </details>
         </div>
       </details>
     </div>
@@ -1297,7 +1451,12 @@ function commonItemComps(m, out, v) {
     const food = { nutrition: +m.nutrition || 0, saturation: +m.saturation || 0 };
     if (m.alwaysEat) food.can_always_eat = true;
     out.push(['food', SNBT.val(food)]);
-    out.push(['consumable', SNBT.val({ consume_seconds: m.eatSeconds === '' ? 1.6 : +m.eatSeconds })]);
+    if (!(m.rcOn && itemPackOn(m))) out.push(['consumable', SNBT.val({ consume_seconds: m.eatSeconds === '' ? 1.6 : +m.eatSeconds })]);
+  }
+  if (itemPackOn(m)) {
+    out.push(['custom_data', `{mcf_item:"${itemPackKey(m)}"}`]);
+    // Clic derecho: el item se "usa" sin animación ni sonido; el datapack lo detecta con un logro oculto
+    if (m.rcOn) out.push(['consumable', '{consume_seconds:1000000,animation:"none",sound:"minecraft:intentionally_empty",has_consume_particles:false}']);
   }
 }
 const attrList = m => m.attrs.filter(a => a.type.trim()).map((a, i) => ({
@@ -1308,7 +1467,7 @@ const enchMap = m => Object.fromEntries(m.enchants.filter(e => e.id.trim()).map(
 const VERSIONS = {
   /* ---------- 1.21.5 en adelante (incluye 26.x) ---------- */
   modern: {
-    label: '1.21.5 – 26.x',
+    label: '1.21.5 – 26.2',
     itemComponents(m) {
       const out = [], root = m.noItalic ? { italic: false } : {};
       const name = textComponent(m.name, root);
@@ -1351,7 +1510,7 @@ const VERSIONS = {
     }
   }
 };
-let VERSION = 'modern';
+let VERSION = 'v263';
 
 /* =====================================================================
    6. MODELO DEL ITEM (neutro, no depende de la versión)
@@ -1364,9 +1523,20 @@ function newItem() {
     unbreakable: false, maxStack: '', hideAll: false, hidden: [],
     itemModel: '', cmd: '', dyeOn: false, dye: '#A06540', glint: '', rarity: '',
     headMode: '', headValue: '',
-    foodOn: false, nutrition: 4, saturation: 2.4, eatSeconds: 1.6, alwaysEat: false
+    foodOn: false, nutrition: 4, saturation: 2.4, eatSeconds: 1.6, alwaysEat: false,
+    // Opciones de datapack
+    packNs: 'mcforge', packId: '', packSlot: 'auto', packMatch: 'mark', passives: [],
+    rcOn: false, rcCd: 3, rcSneak: false, rcAbil: newPAbility('push'),
+    hitOn: false, hitEffects: [], hitFire: 0, hitHeal: 0,
+    hurtOn: false, hurtCd: 2, hurtAbil: newPAbility('push'),
+    chargesOn: false, chargesMax: 3, chargesName: 'Almas',
+    climb: false, bounce: false, bouncePower: 1, magnet: false, magnetR: 7, magnetXp: true,
+    vein: false, veinMax: 24, veinSneak: true, veinFams: ['coal', 'iron', 'copper', 'gold', 'redstone', 'lapis', 'diamond', 'emerald', 'quartz'],
+    grow: false, growR: 4, growRate: 4, growGrass: true,
+    compass: false, compLabel: 'Base', compDim: 'overworld', compX: 0, compY: 64, compZ: 0, iparts: []
   };
 }
+const newPAbility = (type = 'push') => ({ type, radius: 5, power: 1.5, amount: 2, effect: 'speed', lvl: 2, dur: 5, proj: 'small_fireball', count: 1, speed: 1.5, cmds: '' });
 function buildItemCommand(m, ver = VERSION) {
   const comps = VERSIONS[ver].itemComponents(m);
   const id = stripNs(m.id) || 'stone';
@@ -1374,6 +1544,315 @@ function buildItemCommand(m, ver = VERSION) {
   const count = Math.max(1, parseInt(m.count) || 1);
   return `/give ${m.target.trim() || '@p'} ${id}${compStr}${count > 1 ? ' ' + count : ''}`;
 }
+
+/* =====================================================================
+   OPCIONES DE DATAPACK DE ITEMS: generador
+   Cada tick se marca a los jugadores que llevan el item (tag <ns>.i.<id>.has)
+   y cada poder corre solo para ellos.
+   ===================================================================== */
+const IP_SLOTS = [['auto', 'Automático (según el item)'], ['mainhand', 'Mano principal'], ['offhand', 'Mano secundaria'], ['hands', 'Cualquier mano'],
+  ['head', 'Cabeza'], ['chest', 'Pecho'], ['legs', 'Piernas'], ['feet', 'Pies'], ['inv', 'En cualquier parte del inventario']];
+const IP_SLOT_ARG = { mainhand: 'weapon.mainhand', offhand: 'weapon.offhand', hands: 'weapon.*', head: 'armor.head', chest: 'armor.chest', legs: 'armor.legs', feet: 'armor.feet', inv: 'container.*' };
+const IP_CONDS = [['always', 'Siempre'], ['sun', 'Bajo la luz del sol (de día, a cielo abierto)'], ['night', 'De noche'], ['dark', 'En la oscuridad (luz ≤ …)'],
+  ['water', 'Bajo el agua'], ['rain', 'Con lluvia'], ['lowhp', 'Con poca vida (≤ … corazones)'], ['sneak', 'Agachado'], ['nether', 'En el Nether'], ['end', 'En el End']];
+const IP_ABIL = [['push', 'Onda de empuje (aleja a los mobs)'], ['heal', 'Curarte'], ['effect_self', 'Efecto para ti'], ['effect_area', 'Efecto a los mobs cercanos'],
+  ['damage_near', 'Dañar al mob más cercano'], ['projectile', 'Disparar hacia donde miras'], ['dash', 'Impulso hacia donde miras (en el suelo)'],
+  ['lightning', 'Rayo sobre el mob más cercano'], ['command', 'Comandos propios']];
+const VEIN_FAMS = [['coal', 'Carbón', ['coal_ore', 'deepslate_coal_ore']], ['iron', 'Hierro', ['iron_ore', 'deepslate_iron_ore']],
+  ['copper', 'Cobre', ['copper_ore', 'deepslate_copper_ore']], ['gold', 'Oro', ['gold_ore', 'deepslate_gold_ore', 'nether_gold_ore']],
+  ['redstone', 'Redstone', ['redstone_ore', 'deepslate_redstone_ore']], ['lapis', 'Lapislázuli', ['lapis_ore', 'deepslate_lapis_ore']],
+  ['diamond', 'Diamante', ['diamond_ore', 'deepslate_diamond_ore']], ['emerald', 'Esmeralda', ['emerald_ore', 'deepslate_emerald_ore']],
+  ['quartz', 'Cuarzo del Nether', ['nether_quartz_ore']], ['debris', 'Escombros ancestrales', ['ancient_debris']], ['logs', 'Troncos (tala árboles)', ['#minecraft:logs']]];
+const GROW_CROPS = [['wheat', 7], ['carrots', 7], ['potatoes', 7], ['beetroots', 3], ['nether_wart', 3], ['sweet_berry_bush', 3], ['melon_stem', 7], ['pumpkin_stem', 7]];
+// Entidades que no cuentan como "mob" para las habilidades
+const NOT_TARGET = ['player', 'item', 'experience_orb', 'marker', 'armor_stand', 'item_display', 'block_display', 'text_display', 'interaction',
+  'item_frame', 'glow_item_frame', 'painting', 'arrow', 'spectral_arrow', 'trident', 'area_effect_cloud', 'falling_block', 'tnt',
+  'leash_knot', 'lightning_bolt', 'small_fireball', 'fireball', 'wind_charge', 'breeze_wind_charge', 'snowball', 'egg', 'ender_pearl'];
+const itemPackNs = m => lootSlug(m.packNs).replace(/\//g, '_') || 'mcforge';
+const itemPackId = m => (lootSlug(m.packId) || lootSlug(textPlain(m.name)) || stripNs(m.id) || 'item').replace(/\//g, '_');
+const itemPackKey = m => `${itemPackNs(m)}.${itemPackId(m)}`;
+function itemSlotOf(m) {
+  if (m.packSlot && m.packSlot !== 'auto') return m.packSlot;
+  const id = stripNs(m.id);
+  if (/helmet|_head$|skull|carved_pumpkin/.test(id)) return 'head';
+  if (/chestplate|elytra/.test(id)) return 'chest';
+  if (/leggings/.test(id)) return 'legs';
+  if (/boots/.test(id)) return 'feet';
+  return 'mainhand';
+}
+function itemPackOn(m) {
+  return !!((m.passives || []).length || m.rcOn || m.hitOn || m.hurtOn || m.chargesOn || m.climb || m.bounce || m.magnet ||
+    m.vein || m.grow || m.compass || (m.iparts || []).length);
+}
+function itemFiles(m, ver = VERSION) {
+  const ns = itemPackNs(m), x = itemPackId(m), KEY = itemPackKey(m), F = `${ns}:item/${x}`, P = `${ns}.i.${x}`, S = `mci.${x}`;
+  const files = {}, N = fmtNum, J = o => JSON.stringify(o);
+  const fn = (name, lines) => { files[`data/${ns}/function/item/${x}/${name}.mcfunction`] = lines.flat(3).filter(Boolean).join('\n') + '\n'; };
+  // "mark": solo el item con la marca oculta; "any": cualquier item de ese tipo
+  const ITEM = m.packMatch === 'any' ? nsId(m.id) : `*[custom_data~{mcf_item:"${KEY}"}]`, NOMOB = `#${ns}:no_objetivo`;
+  const mobs = r => `@e[type=!${NOMOB},distance=..${N(r)}]`, nearestMob = r => `@e[type=!${NOMOB},distance=..${N(r)},sort=nearest,limit=1]`;
+  const amp = l => Math.max(0, Math.min(255, (parseInt(l) || 1) - 1));
+  const secs = v => Math.max(1, Math.round(clampNum(v, 1, 1000000, 5)));
+  const C = (type, extra) => J(lootCond(ver, type, extra));
+  const SNEAK = C('entity_properties', { entity: 'this', predicate: { flags: { is_sneaking: true } } });
+  const chMax = Math.round(clampNum(m.chargesMax, 1, 10, 3));
+  const tick = [`scoreboard players add #t ${S} 1`, `tag @a remove ${P}.has`,
+    `execute as @a if items entity @s ${IP_SLOT_ARG[itemSlotOf(m)]} ${ITEM} run tag @s add ${P}.has`];
+  const every = (n, sel, fnName) => tick.push(`scoreboard players operation #m ${S} = #t ${S}`, `scoreboard players operation #m ${S} %= #${n} ${S}`,
+    `execute if score #m ${S} matches 0 as ${sel} at @s run function ${F}/${fnName}`);
+  const objectives = [S, S + '.cd', S + '.dcd', S + '.ch', S + '.bn', S + '.vx', S + '.vy', S + '.vz', S + '.vt'];
+
+  // Habilidad (clic derecho o al recibir daño). Se ejecuta como el jugador, en su posición; tag mcf.src = el jugador.
+  function ability(a, key, useCharges) {
+    const r = clampNum(a.radius, 1, 32, 5), L = [];
+    const per = f => useCharges ? Array.from({ length: chMax }, (_, k) => `execute if score @s ${S}.ch matches ${k + 1} run ${f(k + 1)}`) : [f(1)];
+    if (a.type === 'push') {
+      L.push(`execute as ${mobs(r)} at @s facing entity @a[tag=mcf.src,limit=1] feet rotated ~ 20 run function ${F}/${key}_push`,
+        `particle minecraft:gust ~ ~1 ~ ${N(r / 3)} 0.3 ${N(r / 3)} 0 6`, `playsound minecraft:entity.wind_charge.wind_burst player @a[distance=..24] ~ ~ ~ 1 1`);
+      const k = clampNum(a.power, 0.2, 5, 1.5);
+      // Empuje: diferencia entre dos marcadores (aquí y un bloque hacia atrás, lejos del jugador) → Motion del mob
+      fn(key + '_push', [`summon minecraft:marker ^ ^ ^ {Tags:["mcf.d0"]}`, `summon minecraft:marker ^ ^ ^-1 {Tags:["mcf.d1"]}`,
+        [0, 1, 2].map(c => [`execute store result score #a ${S} run data get entity @e[type=minecraft:marker,tag=mcf.d1,limit=1] Pos[${c}] 1000`,
+          `execute store result score #b ${S} run data get entity @e[type=minecraft:marker,tag=mcf.d0,limit=1] Pos[${c}] 1000`,
+          `scoreboard players operation #a ${S} -= #b ${S}`,
+          `execute store result entity @s Motion[${c}] double ${N(0.001 * k)} run scoreboard players get #a ${S}`]),
+        `kill @e[type=minecraft:marker,tag=mcf.d0]`, `kill @e[type=minecraft:marker,tag=mcf.d1]`]);
+    }
+    if (a.type === 'heal') L.push(per(n => `effect give @s minecraft:instant_health 1 ${Math.max(0, Math.ceil(clampNum(a.amount, 0.5, 100, 2) * 2 * n / 4) - 1)}`),
+      `particle minecraft:heart ~ ~1.2 ~ 0.4 0.4 0.4 0 8`);
+    if (a.type === 'effect_self' && a.effect?.trim()) L.push(`effect give @s ${nsId(a.effect)} ${secs(a.dur)} ${amp(a.lvl)}`);
+    if (a.type === 'effect_area' && a.effect?.trim()) L.push(`effect give ${mobs(r)} ${nsId(a.effect)} ${secs(a.dur)} ${amp(a.lvl)}`,
+      `particle minecraft:witch ~ ~1 ~ ${N(r / 2)} 0.5 ${N(r / 2)} 0 40`, `playsound minecraft:entity.evoker.cast_spell player @a[distance=..24] ~ ~ ~ 1 1`);
+    if (a.type === 'damage_near') L.push(`execute at ${nearestMob(r)} run particle minecraft:sculk_soul ~ ~1 ~ 0.3 0.5 0.3 0.02 15`,
+      per(n => `damage ${nearestMob(r)} ${N(clampNum(a.amount, 0.5, 1000, 4) * n)} minecraft:player_attack by @s`),
+      `playsound minecraft:particle.soul_escape player @a[distance=..24] ~ ~ ~ 1 1`);
+    if (a.type === 'projectile') {
+      const c = Math.round(clampNum(a.count, 1, 8, 1)), spd = clampNum(a.speed, 0.1, 5, 1.5), proj = a.proj || 'small_fireball';
+      for (let k = 0; k < c; k++) L.push(`execute anchored eyes positioned ^ ^ ^ rotated ~${N((k - (c - 1) / 2) * 6)} ~ run function ${F}/${key}_shoot`);
+      L.push(`playsound ${proj === 'arrow' ? 'minecraft:entity.arrow.shoot' : 'minecraft:entity.blaze.shoot'} player @a[distance=..24] ~ ~ ~ 1 1`);
+      fn(key + '_shoot', [`summon minecraft:marker ^ ^ ^ {Tags:["mcf.d0"]}`, `summon minecraft:marker ^ ^ ^1 {Tags:["mcf.d1"]}`,
+        `summon minecraft:${proj} ^ ^ ^1.2 {Tags:["mcf.fb"]${proj === 'arrow' ? ',pickup:0b' : ''}}`,
+        [0, 1, 2].map(c2 => [`execute store result score #a ${S} run data get entity @e[type=minecraft:marker,tag=mcf.d1,limit=1] Pos[${c2}] 1000`,
+          `execute store result score #b ${S} run data get entity @e[type=minecraft:marker,tag=mcf.d0,limit=1] Pos[${c2}] 1000`,
+          `scoreboard players operation #a ${S} -= #b ${S}`,
+          `execute store result entity @e[tag=mcf.fb,limit=1] Motion[${c2}] double ${N(0.001 * spd)} run scoreboard players get #a ${S}`]),
+        `data modify entity @e[tag=mcf.fb,limit=1] Owner set from entity @s UUID`, `tag @e[tag=mcf.fb] remove mcf.fb`,
+        `kill @e[type=minecraft:marker,tag=mcf.d0]`, `kill @e[type=minecraft:marker,tag=mcf.d1]`]);
+    }
+    if (a.type === 'dash') for (let k = 0; k < Math.round(clampNum(a.power, 1, 3, 1)); k++)
+      L.push(`execute rotated ~ 0 positioned ^ ^ ^-0.6 run summon minecraft:wind_charge ~ ~0.1 ~ {Motion:[0.0,-1.0,0.0]}`);
+    if (a.type === 'lightning') L.push(`execute at ${nearestMob(r)} run summon minecraft:lightning_bolt ~ ~ ~`);
+    if (a.type === 'command') L.push(dpLines(a.cmds));
+    return L;
+  }
+
+  // ---------- Efectos pasivos (cada segundo) ----------
+  const pass = [];
+  const conds = {
+    always: () => '', sneak: () => `if predicate ${SNEAK} `,
+    sun: () => `if dimension minecraft:overworld if predicate ${C('all_of', { terms: [lootCond(ver, 'location_check', { predicate: { can_see_sky: true } }),
+      lootCond(ver, 'time_check', { clock: 'minecraft:overworld', value: { min: 0, max: 12000 }, period: 24000 }), lootCond(ver, 'weather_check', { raining: false })] })} `,
+    night: () => `if dimension minecraft:overworld if predicate ${C('time_check', { clock: 'minecraft:overworld', value: { min: 13000, max: 23000 }, period: 24000 })} `,
+    dark: v => `if predicate ${C('location_check', { offsetY: 1, predicate: { light: { light: { max: Math.round(clampNum(v, 0, 15, 3)) } } } })} `,
+    water: () => `if predicate ${C('location_check', { offsetY: 1, predicate: { fluid: { fluids: '#minecraft:water' } } })} `,
+    rain: () => `if predicate ${C('weather_check', { raining: true })} `,
+    lowhp: v => `if score #hp ${S} matches ..${Math.round(clampNum(v, 0.5, 100, 4) * 2)} `,
+    nether: () => 'if dimension minecraft:the_nether ', end: () => 'if dimension minecraft:the_end '
+  };
+  if ((m.passives || []).some(ps => ps.cond === 'lowhp')) pass.push(`execute store result score #hp ${S} run data get entity @s Health`);
+  (m.passives || []).forEach(ps => {
+    if (!ps.id?.trim()) return;
+    const id = nsId(ps.id), dur = stripNs(ps.id) === 'night_vision' ? 15 : 3;
+    pass.push(`execute ${(conds[ps.cond] || conds.always)(ps.param)}run effect give @s ${id} ${dur} ${amp(ps.lvl)} true`);
+  });
+  if (pass.length) { every(20, `@a[tag=${P}.has]`, 'passive'); fn('passive', pass); }
+
+  // ---------- Partículas ----------
+  if ((m.iparts || []).length) {
+    every(4, `@a[tag=${P}.has]`, 'fx');
+    fn('fx', m.iparts.map(pt => {
+      const hex = /^#[0-9a-f]{6}$/i.test(pt.color || '') ? pt.color : '#AB1B42';
+      const rgb = [1, 3, 5].map(j => (parseInt(hex.substr(j, 2), 16) / 255).toFixed(3));
+      const id = pt.type === 'dust' ? `minecraft:dust{color:[${rgb.join(',')}],scale:1.2}` : pt.type, sp = clampNum(pt.spread, 0.1, 5, 1);
+      return `particle ${id} ~ ~1 ~ ${N(0.3 * sp)} ${N(0.5 * sp)} ${N(0.3 * sp)} ${pt.type === 'dust' ? 0 : 0.01} ${Math.round(clampNum(pt.count, 1, 100, 3))} normal`;
+    }));
+  }
+
+  // ---------- Cargas al matar ----------
+  const chName = (m.chargesName || '').trim() || 'Cargas';
+  const showCharges = `title @s actionbar [{"text":"${chName.replace(/"/g, '')}: ","color":"gray"},{"score":{"name":"@s","objective":"${S}.ch"},"color":"aqua"},{"text":"/${chMax}","color":"gray"}]`;
+  if (m.chargesOn) {
+    objectives.push([S + '.k', 'minecraft.custom:minecraft.mob_kills']);
+    tick.push(`execute as @a[tag=${P}.has,scores={${S}.k=1..}] at @s run function ${F}/kill`, `scoreboard players reset @a ${S}.k`);
+    fn('kill', [`scoreboard players operation @s ${S}.ch += @s ${S}.k`, `execute if score @s ${S}.ch matches ${chMax}.. run scoreboard players set @s ${S}.ch ${chMax}`,
+      showCharges, `particle minecraft:soul ~ ~1 ~ 0.3 0.5 0.3 0.02 8`, `playsound minecraft:particle.soul_escape player @s ~ ~ ~ 1 1.2`]);
+  }
+
+  // ---------- Clic derecho ----------
+  if (m.rcOn) {
+    tick.push(`scoreboard players remove @a[scores={${S}.cd=1..}] ${S}.cd 1`);
+    files[`data/${ns}/advancement/item/${x}/use.json`] = JSON.stringify({ criteria: { usar: { trigger: 'minecraft:using_item',
+      conditions: { item: m.packMatch === 'any' ? { items: nsId(m.id) } : { predicates: { 'minecraft:custom_data': `{mcf_item:"${KEY}"}` } } } } }, rewards: { function: `${F}/use` } }, null, 2);
+    fn('use', [`advancement revoke @s only ${ns}:item/${x}/use`,
+      m.rcSneak ? `execute unless predicate ${SNEAK} run return 0` : '',
+      `execute if score @s ${S}.cd matches 1.. run return 0`,
+      m.chargesOn ? `execute unless score @s ${S}.ch matches 1.. run return run title @s actionbar {"text":"No tienes ${chName.replace(/"/g, '').toLowerCase()}","color":"red"}` : '',
+      `scoreboard players set @s ${S}.cd ${Math.max(10, Math.round(clampNum(m.rcCd, 0.5, 3600, 3) * 20))}`,
+      `tag @s add mcf.src`, ability(m.rcAbil || newPAbility(), 'rc', m.chargesOn), `tag @s remove mcf.src`,
+      m.chargesOn ? [`scoreboard players set @s ${S}.ch 0`, showCharges] : '']);
+  }
+
+  // ---------- Al recibir daño ----------
+  if (m.hurtOn) {
+    objectives.push([S + '.dt', 'minecraft.custom:minecraft.damage_taken']);
+    tick.push(`scoreboard players remove @a[scores={${S}.dcd=1..}] ${S}.dcd 1`,
+      `execute as @a[tag=${P}.has,scores={${S}.dt=1..}] at @s unless score @s ${S}.dcd matches 1.. run function ${F}/hurt`, `scoreboard players reset @a ${S}.dt`);
+    fn('hurt', [`scoreboard players set @s ${S}.dcd ${Math.max(5, Math.round(clampNum(m.hurtCd, 0.25, 3600, 2) * 20))}`,
+      `tag @s add mcf.src`, ability(m.hurtAbil || newPAbility(), 'hurt', false), `tag @s remove mcf.src`]);
+  }
+
+  // ---------- Al golpear ----------
+  const hitFx = (m.hitEffects || []).filter(h => h.id?.trim());
+  if (m.hitOn && (hitFx.length || +m.hitFire > 0 || +m.hitHeal > 0)) {
+    objectives.push([S + '.dd', 'minecraft.custom:minecraft.damage_dealt']);
+    tick.push(`execute as @a[tag=${P}.has,scores={${S}.dd=1..}] at @s run function ${F}/hit`, `scoreboard players reset @a ${S}.dd`);
+    fn('hit', [`tag @s add mcf.src`,
+      (hitFx.length || +m.hitFire > 0) ? `execute as @e[type=!${NOMOB},distance=..8] if function ${F}/hit_check run function ${F}/hit_target` : '',
+      `tag @s remove mcf.src`,
+      +m.hitHeal > 0 ? `effect give @s minecraft:instant_health 1 ${Math.max(0, Math.ceil(clampNum(m.hitHeal, 0.5, 100, 1) * 2 / 4) - 1)}` : '']);
+    // ¿Lo acaba de golpear este jugador?
+    fn('hit_check', [`execute store result score #ht ${S} run data get entity @s HurtTime`, `execute unless score #ht ${S} matches 7.. run return fail`,
+      `return run execute on attacker if entity @s[tag=mcf.src]`]);
+    fn('hit_target', [hitFx.map(h => `effect give @s ${nsId(h.id)} ${secs(h.dur)} ${amp(h.lvl)}`),
+      +m.hitFire > 0 ? `data modify entity @s Fire set value ${Math.round(clampNum(m.hitFire, 1, 3000, 4) * 20)}s` : '']);
+  }
+
+  // ---------- Escalar paredes ----------
+  if (m.climb) {
+    tick.push(`execute as @a[tag=${P}.has] at @s run function ${F}/climb`, `execute as @a[tag=${P}.climb,tag=!${P}.has] run function ${F}/climb_stop`);
+    fn('climb', [`execute rotated ~ 0 unless predicate ${SNEAK} unless block ^ ^0.5 ^0.6 #minecraft:replaceable run return run function ${F}/climb_up`,
+      `execute if entity @s[tag=${P}.climb] run function ${F}/climb_stop`]);
+    fn('climb_up', [`tag @s add ${P}.climb`, `effect give @s minecraft:levitation 1 3 true`, `effect give @s minecraft:hunger 1 9 true`, `return 1`]);
+    fn('climb_stop', [`tag @s remove ${P}.climb`, `effect clear @s minecraft:levitation`, `effect give @s minecraft:slow_falling 1 0 true`]);
+  }
+  // ---------- Rebote ----------
+  if (m.bounce) {
+    tick.push(`scoreboard players remove @a[scores={${S}.bn=1..}] ${S}.bn 1`, `execute as @a[tag=${P}.has] at @s if predicate ${SNEAK} run function ${F}/bounce`);
+    fn('bounce', [`execute if score @s ${S}.bn matches 1.. run return 0`,
+      `execute store result score #fd ${S} run data get entity @s ${ver === 'v1214' ? 'FallDistance' : 'fall_distance'}`,
+      `execute unless score #fd ${S} matches 3.. run return 0`,
+      `execute if block ~ ~-0.5 ~ #minecraft:replaceable if block ~ ~-1.5 ~ #minecraft:replaceable run return 0`,
+      `scoreboard players set @s ${S}.bn 10`,
+      Array.from({ length: Math.round(clampNum(m.bouncePower, 1, 3, 1)) }, () => `execute rotated ~ 0 positioned ^ ^ ^-0.4 run summon minecraft:wind_charge ~ ~0.3 ~ {Motion:[0.0,-2.0,0.0]}`),
+      `particle minecraft:gust ~ ~ ~ 0.3 0 0.3 0 3`]);
+  }
+  // ---------- Imán ----------
+  if (m.magnet) {
+    const R = clampNum(m.magnetR, 1, 32, 7);
+    every(2, `@a[tag=${P}.has]`, 'magnet');
+    fn('magnet', [`tag @s add mcf.src`,
+      `execute as @e[type=minecraft:item,distance=..${N(R)}] if data entity @s {PickupDelay:0s} run tp @s @a[tag=mcf.src,limit=1]`,
+      m.magnetXp ? `tp @e[type=minecraft:experience_orb,distance=..${N(R)}] @s` : '', `tag @s remove mcf.src`]);
+  }
+  // ---------- Minería en cadena ----------
+  const fams = VEIN_FAMS.filter(f => (m.veinFams || []).includes(f[0]));
+  if (m.vein && fams.length) {
+    const tagOf = f => `#${ns}:item/${x}/vena_${f}`, MAX = Math.round(clampNum(m.veinMax, 1, 64, 24));
+    fams.forEach(([f, , blocks]) => { files[`data/${ns}/tags/block/item/${x}/vena_${f}.json`] = JSON.stringify({ values: blocks.map(b => b.startsWith('#') ? b : 'minecraft:' + b) }, null, 2); });
+    files[`data/${ns}/tags/block/item/${x}/vena_todos.json`] = JSON.stringify({ values: fams.map(f => tagOf(f[0])) }, null, 2);
+    tick.push(`execute as @a[tag=${P}.has] at @s ${m.veinSneak ? `if predicate ${SNEAK} ` : ''}run function ${F}/vein`);
+    fn('vein', [`# Primero revisa si el bloque que miraba ya se rompió; luego busca el que mira ahora`,
+      `execute if score @s ${S}.vt matches 1.. run function ${F}/vein_prep`,
+      `scoreboard players set #r ${S} 0`, `execute anchored eyes positioned ^ ^ ^ run function ${F}/vein_ray`]);
+    fn('vein_prep', [['x', 'y', 'z'].map(c => `execute store result storage ${F} v.${c} int 1 run scoreboard players get @s ${S}.v${c}`),
+      `function ${F}/vein_check with storage ${F} v`]);
+    fn('vein_check', [`$execute positioned $(x) $(y) $(z) if block ~ ~ ~ #minecraft:air run function ${F}/vein_start`]);
+    fn('vein_start', [`scoreboard players set #n ${S} ${MAX}`,
+      fams.map((f, k) => `execute if score @s ${S}.vt matches ${k + 1} run function ${F}/vena_${f[0]}`), `scoreboard players set @s ${S}.vt 0`]);
+    fn('vein_ray', [`scoreboard players add #r ${S} 1`,
+      `execute if block ~ ~ ~ #${ns}:item/${x}/vena_todos run return run function ${F}/vein_mark`,
+      `execute unless block ~ ~ ~ #minecraft:replaceable run return 0`,
+      `execute if score #r ${S} matches ..32 positioned ^ ^ ^0.15 run function ${F}/vein_ray`]);
+    fn('vein_mark', [`execute align xyz run summon minecraft:marker ~ ~ ~ {Tags:["mcf.vm"]}`,
+      ['x', 'y', 'z'].map((c, i) => `execute store result score @s ${S}.v${c} run data get entity @e[type=minecraft:marker,tag=mcf.vm,limit=1] Pos[${i}]`),
+      `kill @e[type=minecraft:marker,tag=mcf.vm]`,
+      fams.map((f, k) => `execute if block ~ ~ ~ ${tagOf(f[0])} run scoreboard players set @s ${S}.vt ${k + 1}`), `return 1`]);
+    const dirs = [];
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) if (dx || dy || dz) dirs.push([dx, dy, dz]);
+    fams.forEach(([f]) => {
+      fn('vena_' + f, dirs.map(([a, b, c]) => `execute if score #n ${S} matches 1.. positioned ~${a} ~${b} ~${c} if block ~ ~ ~ ${tagOf(f)} run function ${F}/vena_${f}_romper`));
+      fn('vena_' + f + '_romper', [`scoreboard players remove #n ${S} 1`, `setblock ~ ~ ~ minecraft:air destroy`, `function ${F}/vena_${f}`]);
+    });
+  }
+  // ---------- Crecimiento de cultivos ----------
+  if (m.grow) {
+    const R = Math.round(clampNum(m.growR, 1, 8, 4)), n = Math.round(clampNum(m.growRate, 1, 20, 4));
+    every(20, `@a[tag=${P}.has]`, 'grow');
+    fn('grow', Array.from({ length: n }, () => `function ${F}/grow_try`));
+    fn('grow_try', [`execute store result storage ${F} g.dx int 1 run random value -${R}..${R}`, `execute store result storage ${F} g.dy int 1 run random value -2..1`,
+      `execute store result storage ${F} g.dz int 1 run random value -${R}..${R}`, `function ${F}/grow_at with storage ${F} g`]);
+    fn('grow_at', [`$execute positioned ~$(dx) ~$(dy) ~$(dz) run function ${F}/grow_block`]);
+    // De la edad más alta a la más baja, para que cada intento suba solo una etapa
+    fn('grow_block', [GROW_CROPS.map(([c, max]) => Array.from({ length: max }, (_, k) => max - 1 - k).map(a => [
+      `execute if block ~ ~ ~ minecraft:${c}[age=${a}] run particle minecraft:happy_villager ~ ~0.5 ~ 0.3 0.3 0.3 0 4`,
+      `execute if block ~ ~ ~ minecraft:${c}[age=${a}] run return run setblock ~ ~ ~ minecraft:${c}[age=${a + 1}]`])),
+      m.growGrass ? `execute if block ~ ~ ~ minecraft:grass_block if block ~ ~1 ~ minecraft:air if predicate ${C('random_chance', { chance: 0.2 })} run setblock ~ ~1 ~ minecraft:short_grass` : '']);
+  }
+  // ---------- Brújula de destino ----------
+  if (m.compass) {
+    const X = +m.compX || 0, Y = +m.compY || 64, Z = +m.compZ || 0, D = m.compDim || 'overworld', lbl = (m.compLabel || '').trim().replace(/"/g, '') || 'Destino';
+    every(10, `@a[tag=${P}.has]`, 'compass');
+    const target = d => d === D ? [X, Y, Z] : (d === 'the_nether' && D === 'overworld') ? [X / 8, Y, Z / 8] : (d === 'overworld' && D === 'the_nether') ? [X * 8, Y, Z * 8] : null;
+    const tiers = [[16, '¡Llegaste!', 'green'], [64, 'Muy cerca', 'aqua'], [256, 'Cerca', 'yellow'], [1024, 'Lejos', 'gold']];
+    const hand = (v) => ['weapon.mainhand', 'weapon.offhand'].map(sl => `execute if items entity @s ${sl} ${ITEM} run item modify entity @s ${sl} ${J(lootFunc(ver, 'set_components', { components: v ? { 'minecraft:enchantment_glint_override': true } : { '!minecraft:enchantment_glint_override': {} } }))}`);
+    fn('glint_on', hand(true)); fn('glint_off', hand(false));
+    fn('compass', ['overworld', 'the_nether', 'the_end'].map(d => {
+      const t = target(d);
+      if (!t) return `execute if dimension minecraft:${d} run title @s actionbar ${J([{ text: lbl + ': ', color: 'gray' }, { text: 'no funciona en esta dimensión', color: 'red' }])}`;
+      fn('compass_' + d, [
+        `execute anchored eyes positioned ^ ^ ^ facing ${t.map(N).join(' ')} positioned ^ ^-0.3 ^1.4 run particle minecraft:end_rod ~ ~ ~ 0 0 0 0 1`,
+        `execute positioned ${t.map(N).join(' ')} if entity @s[distance=..64] run function ${F}/glint_on`,
+        `execute positioned ${t.map(N).join(' ')} unless entity @s[distance=..64] run function ${F}/glint_off`,
+        tiers.map(([dd, txt, col]) => `execute positioned ${t.map(N).join(' ')} if entity @s[distance=..${dd}] run return run title @s actionbar ${J([{ text: lbl + ': ', color: 'gray' }, { text: txt, color: col }])}`),
+        `title @s actionbar ${J([{ text: lbl + ': ', color: 'gray' }, { text: 'Muy lejos', color: 'red' }])}`]);
+      return `execute if dimension minecraft:${d} run function ${F}/compass_${d}`;
+    }));
+  }
+
+  fn('tick', tick);
+  fn('load', [objectives.map(o => Array.isArray(o) ? `scoreboard objectives add ${o[0]} ${o[1]}` : `scoreboard objectives add ${o} dummy`),
+    [2, 4, 10, 20].map(c => `scoreboard players set #${c} ${S} ${c}`)]);
+  files[`data/${ns}/tags/entity_type/no_objetivo.json`] = JSON.stringify({ values: [...NOT_TARGET.map(t => 'minecraft:' + t), { id: 'minecraft:mannequin', required: false }] }, null, 2);
+  return { files, load: `${F}/load`, tick: `${F}/tick` };
+}
+async function downloadItemPack() {
+  if (typeof JSZip === 'undefined') { toast('No se pudo cargar JSZip (¿sin internet?)'); return; }
+  docSync('items');
+  const items = DOCS.items.state.list.filter(itemPackOn);
+  if (!items.length) { toast('Ningún item abierto usa el datapack: activa algún poder'); return; }
+  const zip = new JSZip(), seen = new Set(), loads = [], ticks = [];
+  const readme = ['DATAPACK DE ITEMS · MC CMD Forge', '', 'Instalación:', '1. Pon este .zip en .minecraft/saves/<tu mundo>/datapacks/',
+    '2. En el juego escribe /reload (o vuelve a entrar al mundo).', '3. Date los items con estos comandos:', ''];
+  zip.file('pack.mcmeta', JSON.stringify({ pack: { description: 'Items con poderes · MC CMD Forge',
+    pack_format: VERSION === 'v1214' ? 61 : 71, supported_formats: { min_inclusive: 48, max_inclusive: 999 }, min_format: 48, max_format: 999 } }, null, 2));
+  for (const m of items) {
+    const key = itemPackKey(m);
+    if (seen.has(key)) toast(`Dos items usan el mismo ID (${key}): queda el último. Cambia el "ID del item".`);
+    seen.add(key);
+    const r = itemFiles(m);
+    for (const [path, txt] of Object.entries(r.files)) zip.file(path, txt);
+    loads.push(r.load); ticks.push(r.tick);
+    readme.push(`- ${textPlain(m.name).trim() || NAMES.items[stripNs(m.id)] || m.id}  (${key})`, '  ' + buildItemCommand(m), '');
+  }
+  zip.file('data/minecraft/tags/function/load.json', JSON.stringify({ values: loads }, null, 2));
+  zip.file('data/minecraft/tags/function/tick.json', JSON.stringify({ values: ticks }, null, 2));
+  zip.file('LEEME.txt', readme.join('\n'));
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = el('a', { href: URL.createObjectURL(blob), download: items.length === 1 ? `item-${itemPackId(items[0])}.zip` : 'mcforge-items.zip' });
+  document.body.append(a); a.click(); a.remove();
+  toast(`Datapack con ${items.length} item${items.length > 1 ? 's' : ''} descargado`);
+}
+
 // Avisos de validación
 function itemWarnings(m) {
   const w = [], id = stripNs(m.id);
@@ -1387,6 +1866,19 @@ function itemWarnings(m) {
   if (m.dyeOn && !DYEABLE.has(id)) w.push(['warn', 'Este item no es teñible: el color no se verá (salvo con un modelo de resource pack que lo use).']);
   if (m.cmd && m.cmd.split(',').some(s => s.trim() && isNaN(+s))) w.push(['err', 'custom_model_data debe ser numérico (separa varios con comas).']);
   if (m.itemModel && !/^[a-z0-9_.\-]+:[a-z0-9_.\-\/]+$|^[a-z0-9_.\-\/]+$/.test(m.itemModel.trim())) w.push(['warn', 'item_model solo admite minúsculas, números, _ - . / y un ":" (ej. mipack:espada).']);
+  if (itemPackOn(m)) {
+    w.push(['warn', 'Este item usa el datapack. Descárgalo en "Opciones de datapack", ponlo en la carpeta datapacks del mundo y usa /reload. Sin él el item no tiene poderes.']);
+    if (m.rcOn && /^(bow|crossbow|shield|trident|spyglass|goat_horn|fishing_rod|ender_pearl|snowball|egg|potion|splash_potion|lingering_potion|.*_bucket|firework_rocket|carrot_on_a_stick|warped_fungus_on_a_stick|brush|wind_charge|ender_eye|experience_bottle)$/.test(id))
+      w.push(['err', 'Este item ya tiene su propio clic derecho: la habilidad lo reemplaza y el item deja de funcionar normal. Usa otro item (espada, vara, palo…).']);
+    if (m.rcOn && m.foodOn) w.push(['warn', 'Con habilidad al clic derecho el item ya no se puede comer.']);
+    if (m.rcOn && m.packMatch === 'any') w.push(['warn', 'La habilidad al clic derecho solo funciona con el item del comando de MCForge (necesita un componente especial). Los demás poderes sí funcionan con cualquier item de este tipo.']);
+    if (m.packMatch !== 'any') w.push(['warn', `Los poderes solo funcionan con el item que te des con este comando, no con cualquier ${NAMES.items[id] ? NAMES.items[id].toLowerCase() : id}. Si quieres que funcione con cualquiera, cambia "Funciona con" en Opciones de datapack.`]);
+    if (m.rcOn && VERSION === 'v1214') w.push(['warn', 'La habilidad al clic derecho necesita 1.21.2 o más nuevo.']);
+    if (m.vein && !(m.veinFams || []).length) w.push(['warn', 'Minería en cadena: elige al menos un tipo de bloque.']);
+    if (m.chargesOn && !m.rcOn) w.push(['warn', 'Las cargas se gastan con la habilidad al clic derecho: actívala para usarlas.']);
+    if (m.compass && itemSlotOf(m) !== 'mainhand' && itemSlotOf(m) !== 'offhand' && itemSlotOf(m) !== 'hands') w.push(['warn', 'La brújula solo brilla si la llevas en la mano.']);
+    (m.passives || []).forEach((ps, i) => { if (ps.id && !NAMES.effects[stripNs(ps.id)] && !ps.id.includes(':')) w.push(['err', `Efecto pasivo ${i + 1}: efecto desconocido "${ps.id}".`]); });
+  }
   return w;
 }
 
@@ -1851,7 +2343,7 @@ function fillSimpleFields(form, m) {
     if (inp.type === 'checkbox') inp.checked = !!v; else inp.value = v ?? '';
   });
 }
-bindSimpleFields(itemForm, () => item, k => { if (k === 'headMode') headLabel(); updateItem(); });
+bindSimpleFields(itemForm, () => item, k => { if (k === 'headMode') headLabel(); if (k === 'chargesOn') pAbilEditor($('#ipRcAbil'), item.rcAbil, item.chargesOn); updateItem(); });
 // ---------- Importar cabezas: comando /give (cualquier versión), Value base64, link o hash de la textura ----------
 function parseHeadInput(raw) {
   const txt = String(raw || '').trim();
@@ -1957,7 +2449,105 @@ function renderAttrs() {
 $('#attrAdd').onclick = () => { item.attrs.push({ type: '', amount: 1, op: 'add_value', slot: defaultSlot() }); renderAttrs(); updateItem(); };
 
 // Vuelve a pintar todo el formulario desde el modelo (al cargar ejemplo/biblioteca)
+
+/* ---------- OPCIONES DE DATAPACK DE ITEMS: interfaz ---------- */
+IP_SLOTS.forEach(([v, n]) => $('#ipSlot').append(el('option', { value: v }, n)));
+const ipNum = (o, k, label, attrs = {}) => el('div', { class: 'f' }, el('span', {}, label),
+  el('input', { type: 'number', value: o[k], style: 'width:78px', ...attrs, oninput: e => { o[k] = e.target.value; updateItem(); } }));
+const ipSel = (opts, o, k, after) => selectOf(opts, o[k], v => { o[k] = v; if (after) after(); updateItem(); });
+const ipDel = (arr, i, rerender) => el('button', { class: 'btn icon danger', type: 'button', title: 'Quitar', onclick: () => { arr.splice(i, 1); rerender(); updateItem(); } }, '✕');
+function renderIpPass() {
+  $('#ipPassList').replaceChildren(...item.passives.map((ps, i) => {
+    const needs = () => ps.cond === 'dark' || ps.cond === 'lowhp';
+    const param = ipNum(ps, 'param', ps.cond === 'lowhp' ? 'Corazones' : 'Luz ≤', { min: 0, max: 100, step: 'any' });
+    param.style.display = needs() ? '' : 'none';
+    return el('div', { class: 'list-row' },
+      autocomplete(DATA.effects, ps.id, v => { ps.id = v; updateItem(); }, 'strength'),
+      ipNum(ps, 'lvl', 'Nivel', { min: 1, max: 256 }),
+      el('div', { class: 'f' }, el('span', {}, 'Condición'), ipSel(IP_CONDS, ps, 'cond', () => {
+        if (ps.cond === 'dark' && (ps.param === '' || +ps.param > 15)) ps.param = 3;
+        if (ps.cond === 'lowhp' && (ps.param === '' || ps.param == null)) ps.param = 4;
+        renderIpPass();
+      })), param, ipDel(item.passives, i, renderIpPass));
+  }));
+  $('#ipPassBadge').textContent = item.passives.length;
+}
+$('#ipPassAdd').onclick = () => { item.passives.push({ id: 'strength', lvl: 1, cond: 'always', param: 3 }); renderIpPass(); updateItem(); };
+function renderIpHit() {
+  $('#ipHitList').replaceChildren(...item.hitEffects.map((h, i) => el('div', { class: 'list-row' },
+    autocomplete(DATA.effects, h.id, v => { h.id = v; updateItem(); }, 'poison'),
+    ipNum(h, 'lvl', 'Nivel', { min: 1, max: 256 }), ipNum(h, 'dur', 'Dura (s)', { min: 1 }), ipDel(item.hitEffects, i, renderIpHit))));
+}
+$('#ipHitAdd').onclick = () => { item.hitEffects.push({ id: 'slowness', lvl: 2, dur: 3 }); renderIpHit(); updateItem(); };
+// Editor de una habilidad (clic derecho o al recibir daño)
+function pAbilEditor(box, a, withCharges) {
+  const render = () => {
+    const t = a.type, f = [];
+    if (t === 'push') f.push(ipNum(a, 'radius', 'Radio', { min: 1, max: 32 }), ipNum(a, 'power', 'Fuerza', { min: 0.2, max: 5, step: 0.1 }));
+    if (t === 'heal') f.push(ipNum(a, 'amount', withCharges ? 'Corazones por carga' : 'Corazones', { min: 0.5, step: 'any' }));
+    if (t === 'effect_self' || t === 'effect_area') f.push(el('div', { class: 'f grow' }, el('span', {}, 'Efecto'), autocomplete(DATA.effects, a.effect, v => { a.effect = v; updateItem(); }, 'speed')),
+      ipNum(a, 'lvl', 'Nivel', { min: 1, max: 256 }), ipNum(a, 'dur', 'Dura (s)', { min: 1 }));
+    if (t === 'effect_area' || t === 'damage_near' || t === 'lightning') f.push(ipNum(a, 'radius', 'Radio', { min: 1, max: 32 }));
+    if (t === 'damage_near') f.push(ipNum(a, 'amount', withCharges ? 'Daño por carga' : 'Daño', { min: 0.5, step: 'any' }));
+    if (t === 'projectile') f.push(el('div', { class: 'f' }, el('span', {}, 'Proyectil'), ipSel(DP_PROJ, a, 'proj')),
+      ipNum(a, 'count', 'Cuántos', { min: 1, max: 8 }), ipNum(a, 'speed', 'Velocidad', { min: 0.1, max: 5, step: 0.1 }));
+    if (t === 'dash') f.push(ipNum(a, 'power', 'Fuerza (1-3)', { min: 1, max: 3 }));
+    if (t === 'command') {
+      const ta = el('textarea', { rows: 3, spellcheck: 'false', placeholder: 'effect give @s minecraft:speed 5 2', oninput: e => { a.cmds = e.target.value; updateItem(); } });
+      ta.value = a.cmds || '';
+      f.push(el('div', { class: 'f', style: 'flex:1 1 100%' }, el('span', {}, 'Comandos (uno por línea, se ejecutan como el jugador)'), ta));
+    }
+    box.replaceChildren(el('div', { class: 'dp-row' },
+      el('div', { class: 'f' }, el('span', {}, 'Habilidad'), ipSel(IP_ABIL, a, 'type', render)), el('div', { class: 'row' }, ...f)));
+  };
+  render();
+}
+function renderIpVein() {
+  $('#ipVeinFams').replaceChildren(...VEIN_FAMS.map(([k, n]) => el('label', { class: 'chk' },
+    el('input', { type: 'checkbox', checked: item.veinFams.includes(k), onchange: e => {
+      item.veinFams = e.target.checked ? [...new Set([...item.veinFams, k])] : item.veinFams.filter(v => v !== k); updateItem();
+    } }), n)));
+}
+function renderIpParts() {
+  $('#ipPartList').replaceChildren(...item.iparts.map((pt, i) => {
+    const color = el('input', { type: 'color', value: /^#[0-9a-f]{6}$/i.test(pt.color) ? pt.color : '#AB1B42', oninput: e => { pt.color = e.target.value; updateItem(); } });
+    color.style.display = pt.type === 'dust' ? '' : 'none';
+    return el('div', { class: 'list-row' },
+      el('div', { class: 'f grow' }, el('span', {}, 'Partícula'), ipSel(DP_PARTICLES, pt, 'type', () => { color.style.display = pt.type === 'dust' ? '' : 'none'; })),
+      color, ipNum(pt, 'count', 'Cantidad', { min: 1, max: 100 }), ipNum(pt, 'spread', 'Dispersión', { min: 0.1, max: 5, step: 0.1 }), ipDel(item.iparts, i, renderIpParts));
+  }));
+  $('#ipPartBadge').textContent = item.iparts.length;
+}
+$('#ipPartAdd').onclick = () => { item.iparts.push(newPart()); renderIpParts(); updateItem(); };
+$('#ipZip').onclick = () => downloadItemPack();
+function renderIpFiles() {
+  if (!$('#ipFilesSec').open) return;
+  const files = itemPackOn(item) ? itemFiles(item).files : {}, sel = $('#ipFileSel'), keys = Object.keys(files), prev = sel.value;
+  sel.replaceChildren(...(keys.length ? keys.map(k => el('option', { value: k }, k.replace(/^data\//, ''))) : [el('option', { value: '' }, 'Aún no hay archivos: activa algún poder')]));
+  sel.value = keys.includes(prev) ? prev : (keys.find(k => k.endsWith('/tick.mcfunction')) || keys[0] || '');
+  $('#ipFilePre').textContent = files[sel.value] || '';
+}
+$('#ipFileSel').onchange = () => { $('#ipFilePre').textContent = (itemPackOn(item) ? itemFiles(item).files : {})[$('#ipFileSel').value] || ''; };
+$('#ipFilesSec').addEventListener('toggle', renderIpFiles);
+function renderIp() {
+  for (const [k, v] of Object.entries(newItem())) if (item[k] === undefined) item[k] = clone(v);   // items guardados antes de estas opciones
+  renderIpPass(); renderIpHit(); renderIpVein(); renderIpParts();
+  pAbilEditor($('#ipRcAbil'), item.rcAbil, item.chargesOn);
+  pAbilEditor($('#ipHurtAbil'), item.hurtAbil, false);
+}
+function updateIp() {
+  $('#ipPath').innerHTML = itemPackOn(item)
+    ? `Archivos en <code>data/${itemPackNs(item)}/function/item/${itemPackId(item)}/</code> · marca <code>${itemPackKey(item)}</code> · funciona en: ${(IP_SLOTS.find(s2 => s2[0] === itemSlotOf(item)) || [, ''])[1].toLowerCase()}`
+    : 'Activa algún poder de abajo para generar el datapack.';
+  $('#ipBounceRow').style.display = item.bounce ? '' : 'none';
+  $('#ipMagnetRow').style.display = item.magnet ? '' : 'none';
+  $('#itemPackBadge').textContent = [item.passives.length, item.rcOn, item.hitOn, item.hurtOn, item.chargesOn, item.climb || item.bounce || item.magnet,
+    item.vein, item.grow, item.compass, item.iparts.length].filter(Boolean).length;
+  renderIpFiles();
+}
+
 function renderItemForm() {
+  renderIp();
   acItem.setValue(item.id);
   fillSimpleFields(itemForm, item);
   $$('[data-hide]', hideBox).forEach(c => c.checked = item.hidden.includes(c.dataset.hide));
@@ -2038,6 +2628,7 @@ function renderSlot(slot, m, glow) {
 }
 
 function updateItem() {
+  if ($('#itemPackSec')) updateIp();
   renderItemPreview();
   $('#itemWarns').replaceChildren(...itemWarnings(item).map(([lvl, t]) => el('div', { class: 'warn' + (lvl === 'err' ? ' err' : '') }, t)));
   saveDraft('item', item);
@@ -2243,6 +2834,14 @@ VERSIONS.modern.potionComponents = function (m) {
   if (m.hideEffects) out.push(['tooltip_display', SNBT.val({ hidden_components: ['potion_contents'] })]);
   return out;
 };
+/* 26.3 o más nuevo: los comandos e items son iguales a 1.21.5+, pero en los datapacks
+   las condiciones y funciones de loot usan "type" en vez de "condition"/"function"
+   y las loot tables usan "condition"/"modifier" en vez de "conditions"/"functions". */
+const isNewLoot = ver => ver === 'v263';
+const condKey = ver => isNewLoot(ver) ? 'type' : 'condition';
+const funcKey = ver => isNewLoot(ver) ? 'type' : 'function';
+const lootCond = (ver, type, extra = {}) => ({ [condKey(ver)]: 'minecraft:' + type, ...extra });
+const lootFunc = (ver, type, extra = {}) => ({ [funcKey(ver)]: 'minecraft:' + type, ...extra });
 VERSIONS.v1214.potionComponents = function (m) {
   const out = [], root = m.noItalic ? { italic: false } : {};
   const name = textComponent(m.name, root);
@@ -2253,6 +2852,7 @@ VERSIONS.v1214.potionComponents = function (m) {
   if (m.hideEffects) out.push(['hide_additional_tooltip', '{}']);
   return out;
 };
+VERSIONS.v263 = { ...VERSIONS.modern, label: '26.3 o más nuevo' };
 function buildPotionCommand(m, ver = VERSION) {
   const comps = VERSIONS[ver].potionComponents(m);
   const count = Math.max(1, parseInt(m.count) || 1);
@@ -2350,7 +2950,7 @@ function renderPotionPreview() {
   line(nameParts.length ? nameParts : [{ text: m.base ? (NAMES.potions[stripNs(m.base)] || baseName) : baseName }],
     { color: 'white', italic: nameParts.length ? !m.noItalic : false }).classList.add('first');
   if (!m.hideEffects) {
-    const scale = (m.exactDuration && VERSION === 'modern') ? 1 : potScale(m);
+    const scale = (m.exactDuration && VERSION !== 'v1214') ? 1 : potScale(m);
     const effs = m.effects.filter(e => e.id.trim());
     if (!effs.length && !m.base) line([{ text: 'Sin efectos' }], { color: 'gray' });
     effs.forEach(e => {
@@ -2614,14 +3214,15 @@ function lootEntry(d, ver) {
   const it = equipItem(d.item); if (!it) return null;
   const e = { type: 'minecraft:item', name: nsId(it.id) }, fns = [];
   const comps = VERSIONS[ver].itemComponents(it);
-  const compObj = Object.fromEntries(comps.map(([k, v]) => ['minecraft:' + k, unJsonText(snbtParse(v))]));
+  // En 1.21.4 el nombre y el lore van como texto JSON en un string; desde 1.21.5 como objeto
+  const compObj = Object.fromEntries(comps.map(([k, v]) => ['minecraft:' + k, ver === 'v1214' ? snbtParse(v) : unJsonText(snbtParse(v))]));
   if (d.keyTag) compObj['minecraft:custom_data'] = { mcf_llave: d.keyTag };   // la llave se reconoce por este dato oculto
-  if (Object.keys(compObj).length) fns.push({ function: 'minecraft:set_components', components: compObj });
+  if (Object.keys(compObj).length) fns.push(lootFunc(ver, 'set_components', { components: compObj }));
   const mn = Math.max(0, parseInt(d.min) || 0), mx = Math.max(mn, parseInt(d.max) || 0);
-  if (!(mn === 1 && mx === 1)) fns.push({ function: 'minecraft:set_count', count: mn === mx ? mn : { type: 'minecraft:uniform', min: mn, max: mx } });
+  if (!(mn === 1 && mx === 1)) fns.push(lootFunc(ver, 'set_count', { count: mn === mx ? mn : { type: 'minecraft:uniform', min: mn, max: mx } }));
   const lt = Math.max(0, parseInt(d.looting) || 0);
-  if (lt) fns.push({ function: 'minecraft:enchanted_count_increase', enchantment: 'minecraft:looting', count: { type: 'minecraft:uniform', min: 0, max: lt } });
-  if (fns.length) e.functions = fns;
+  if (lt) fns.push(lootFunc(ver, 'enchanted_count_increase', { enchantment: 'minecraft:looting', count: { type: 'minecraft:uniform', min: 0, max: lt } }));
+  if (fns.length) e[isNewLoot(ver) ? 'modifier' : 'functions'] = fns;
   return e;
 }
 function buildLootTable(m, ver = VERSION) {
@@ -2631,9 +3232,10 @@ function buildLootTable(m, ver = VERSION) {
     const e = lootEntry(d, ver); if (!e) continue;
     const pool = { rolls: 1, entries: [e] }, cond = [];
     const ch = d.chance === '' || d.chance == null ? 100 : +d.chance;
-    if (m.dropPlayerOnly) cond.push({ condition: 'minecraft:killed_by_player' });
-    if (ch < 100) cond.push({ condition: 'minecraft:random_chance', chance: Math.max(0, ch) / 100 });
-    if (cond.length) pool.conditions = cond;
+    if (m.dropPlayerOnly) cond.push(lootCond(ver, 'killed_by_player'));
+    if (ch < 100) cond.push(lootCond(ver, 'random_chance', { chance: Math.max(0, ch) / 100 }));
+    // 26.3: "condition" acepta una sola; varias van dentro de all_of
+    if (cond.length) { if (isNewLoot(ver)) pool.condition = cond.length === 1 ? cond[0] : lootCond(ver, 'all_of', { terms: cond }); else pool.conditions = cond; }
     pools.push(pool);
   }
   return { type: 'minecraft:entity', pools };
@@ -3574,6 +4176,7 @@ function I(id, name, lore, o = {}) {
   if (o.food) Object.assign(m, { foodOn: true, nutrition: o.food[0], saturation: o.food[1], eatSeconds: o.food[2] ?? 1.6, alwaysEat: !!o.food[3] });
   if (o.count) m.count = o.count;
   if (o.stack) m.maxStack = o.stack;
+  if (o.pack) Object.assign(m, typeof o.pack === 'function' ? o.pack() : o.pack);
   return m;
 }
 // Ranura de equipo / item de tradeo: 'diamond_sword' | 'emerald*12' | item de I()
@@ -3615,6 +4218,28 @@ function V(profession, vtype, level, name, trades, o = {}) {
 
 /* ------------------------------- ITEMS ------------------------------- */
 const RPG_ITEMS = [
+  // ---- Items con poderes de datapack ----
+  () => I('diamond_boots', S('Botas de Impulso Dinámico', '#55FFFF>#FFFFFF', 'b'), ['Agáchate justo antes de tocar el suelo.'],
+    { ench: 'feather_falling:4', rar: 'epic', pack: { bounce: true, bouncePower: 2, iparts: [{ ...newPart(), type: 'minecraft:cloud', count: 1, spread: 0.6 }] } }),
+  () => I('compass', S('Brújula de Portales', '#AA00FF>#55FFFF', 'b'), ['Brilla más fuerte al acercarte a casa,', 'sin importar la dimensión.'],
+    { rar: 'rare', pack: { compass: true, compLabel: 'Base', compX: 0, compY: 64, compZ: 0, packSlot: 'hands' } }),
+  () => I('leather_horse_armor', S('Guantes de Escalada', '#AA5500>#FFAA00', 'b'), ['Llévalos en la mano izquierda.', 'Trepan cualquier pared, pero dan hambre.'],
+    { rar: 'uncommon', stack: 1, pack: { climb: true, packSlot: 'offhand' } }),
+  () => I('iron_chestplate', S('Pechera de Repulsión', '#FFFFFF>#55FF55', 'b'), ['Cada golpe que recibes aleja a los monstruos.'],
+    { ench: 'protection:4', rar: 'epic', pack: () => ({ hurtOn: true, hurtCd: 2, hurtAbil: { ...newPAbility('push'), radius: 5, power: 1.8 } }) }),
+  () => I('netherite_sword', S('Espada de Cosecha de Almas', '#55FFFF>#000000', 'b'), ['Guarda el alma de cada mob que matas.', [S('Clic derecho: ', 'gray'), S('libera las almas', 'aqua')]],
+    { ench: 'sharpness:5', rar: 'epic', pack: () => ({ chargesOn: true, chargesMax: 3, chargesName: 'Almas', rcOn: true, rcCd: 1,
+      rcAbil: { ...newPAbility('damage_near'), amount: 6, radius: 10 }, iparts: [{ ...newPart(), type: 'minecraft:soul', count: 1, spread: 0.5 }] }) }),
+  () => I('diamond_leggings', S('Pantalones de Minero Automático', '#FFAA00>#55FFFF', 'b'), ['Rompe agachado un mineral', 'y se va toda la veta.'],
+    { rar: 'rare', pack: { vein: true, veinMax: 32, veinSneak: true } }),
+  () => I('heart_of_the_sea', S('Imán de Vacío', '#5555FF>#AA00FF', 'b'), ['En la mano izquierda atrae todo lo que hay en el suelo.'],
+    { rar: 'rare', glint: 1, pack: { magnet: true, magnetR: 7, magnetXp: true, packSlot: 'offhand', iparts: [{ ...newPart(), type: 'minecraft:portal', count: 2 }] } }),
+  () => I('leather_helmet', S('Casco de Ecologización', '#55FF55>#FFFF55', 'b'), ['Los cultivos crecen más rápido a tu alrededor.'],
+    { dye: '#4A9A3A', rar: 'uncommon', pack: { grow: true, growR: 4, growRate: 6, growGrass: true } }),
+  () => I('sunflower', S('Colgante Solar', '#FFFF55>#FFAA00', 'b'), ['Su poder despierta bajo el sol.'],
+    { rar: 'rare', glint: 1, stack: 1, pack: { packSlot: 'offhand', passives: [{ id: 'strength', lvl: 1, cond: 'sun', param: 3 }, { id: 'speed', lvl: 1, cond: 'sun', param: 3 }] } }),
+  () => I('ender_eye', S('Anillo de la Noche', '#555555>#AA00AA', 'b'), ['En la oscuridad nadie te ve.'],
+    { rar: 'epic', glint: 1, stack: 1, pack: { packSlot: 'offhand', passives: [{ id: 'invisibility', lvl: 1, cond: 'dark', param: 3 }, { id: 'strength', lvl: 1, cond: 'dark', param: 3 }] } }),
   () => I('netherite_sword', S('Filo del Dragón', '#FF5500>#FFDD00', 'b'),
     ['Forjada en el fuego del End', '', [S('Habilidad: ', 'gold'), S('Ira ardiente', 'red', 'b')]],
     { ench: 'sharpness:10 fire_aspect:3 looting:5', attrs: [['attack_damage', 20], ['attack_speed', -2], ['movement_speed', '10%']], unb: 1, rar: 'epic', glint: 1, hide: 'enchantments' }),
@@ -5581,9 +6206,14 @@ function switchTab(name) {
   refreshCommand();
 }
 $$('nav.tabs button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
-for (const [k, v] of Object.entries(VERSIONS)) $('#verSel').append(el('option', { value: k }, v.label));
-try { VERSION = localStorage.getItem('mccmdforge.version') || 'modern'; } catch {}
-if (!VERSIONS[VERSION]) VERSION = 'modern';
+for (const k of ['v263', 'modern', 'v1214']) $('#verSel').append(el('option', { value: k }, VERSIONS[k].label));
+try {
+  VERSION = localStorage.getItem('mccmdforge.version') || 'v263';
+  // Antes "1.21.5 – 26.x" era una sola opción; ahora 26.3 tiene la suya y es la predeterminada
+  if (!localStorage.getItem('mccmdforge.v263') && VERSION === 'modern') VERSION = 'v263';
+  localStorage.setItem('mccmdforge.v263', '1');
+} catch { VERSION = 'v263'; }
+if (!VERSIONS[VERSION]) VERSION = 'v263';
 $('#verSel').value = VERSION;
 $('#verSel').onchange = e => { VERSION = e.target.value; try { localStorage.setItem('mccmdforge.version', VERSION); } catch {} updateItem(); updatePotion(); updateMob(); updateVillager(); updateMannequin(); };
 
