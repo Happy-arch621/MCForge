@@ -233,6 +233,21 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
 #toast.show{opacity:1}
 .list-row{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;padding:6px;background:#1e1e22;border:1px solid #333}
 .list-row .ac{flex:1 1 180px}
+/* ---------- Opciones de datapack (pestaña Mobs) ---------- */
+.dp-sec{background:#241418;border-color:#d8406a #4a0a1c #4a0a1c #d8406a}
+.dp-sec>summary{background:#ab1b42;color:#fff;text-shadow:2px 2px 0 #4a0a1c}
+.dp-sec>summary::before{color:#fff}
+.dp-sec>summary .badge{background:#7a1230;border-color:#e0607f;color:#fff}
+.dp-sec .sec-body{padding-top:10px}
+details.dp-sub{margin:8px 0;background:#1a1114}
+details.dp-sub>summary{font-size:9px;color:#f0c8d2}
+details.dp-sub>summary::before{color:#e0607f}
+.dp-row{padding:8px;margin-bottom:8px;background:#1e1e22;border:1px solid #3a2a30;display:flex;flex-direction:column;gap:6px}
+.dp-row .row{margin:0}
+.dp-row textarea{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.dp-key{flex-basis:100%;display:flex;flex-direction:column;gap:4px;font-size:12px}
+.dp-key code{display:block;overflow-wrap:anywhere;padding:4px 6px}
+#dpFilePre{font-family:ui-monospace,Consolas,monospace;font-size:12px;max-height:340px;overflow:auto;white-space:pre;padding:8px;margin:6px 0 0;color:#d6f5c8}
 </style>
 </head>
 <body>
@@ -470,6 +485,7 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
         </div>
       </details>
 
+
       <details class="sec bevel">
         <summary>Efectos <span class="badge" id="mobEffBadge">0</span></summary>
         <div class="sec-body">
@@ -512,6 +528,153 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
         <div class="sec-body">
           <textarea data-k="extra" rows="2" placeholder='Tags:["jefe"],LeftHanded:true' spellcheck="false"></textarea>
           <p class="hint">Se añade tal cual dentro de las llaves del NBT, separado por comas.</p>
+        </div>
+      </details>
+
+      <details class="sec bevel dp-sec" id="mobPackSec">
+        <summary>Opciones de datapack <span class="badge" id="mobPackBadge">0</span></summary>
+        <div class="sec-body">
+          <p class="hint" style="margin-top:0">Todo lo de este panel funciona con un datapack que genera MCForge. El comando marca al mob para que el datapack lo reconozca. Descarga el .zip, ponlo en <code>.minecraft/saves/&lt;mundo&gt;/datapacks/</code>, usa <code>/reload</code> y luego invoca al mob.</p>
+          <div class="row">
+            <div class="f"><span>Namespace</span><input type="text" data-k="lootNs" style="width:130px" spellcheck="false" placeholder="mcforge"></div>
+            <div class="f grow"><span>ID del jefe (nombre de los archivos)</span><input type="text" data-k="lootName" placeholder="(se saca del nombre del mob)" spellcheck="false"></div>
+            <div class="f"><span>Radio de combate</span><input type="number" data-k="range" min="4" max="128" style="width:90px"></div>
+          </div>
+          <p class="hint" id="mobLootPath" style="margin-top:0"></p>
+          <div class="row">
+            <button class="btn sm green" type="button" id="mobLootZip">⬇ Descargar datapack (.zip)</button>
+            <button class="btn sm" type="button" id="mobLootCopy">📋 Copiar JSON de drops</button>
+          </div>
+          <p class="hint">El radio de combate es la distancia a la que el jefe "te ve": ahí aparece la barra, se activan el aura y las habilidades y llegan los mensajes. El .zip incluye <b>todas</b> las pestañas de mobs abiertas que usen el datapack.</p>
+
+          <details class="sec inset dp-sub" id="mobDropsSec">
+            <summary>🎒 Drops al morir <span class="badge" id="mobDropBadge">0</span></summary>
+            <div class="sec-body">
+              <div id="mobDropList"></div>
+              <div class="row">
+                <button class="btn sm" type="button" id="mobDropAdd">+ Drop</button>
+                <button class="btn sm" type="button" id="mobKeyAdd">🗝 Llave de mazmorra</button>
+              </div>
+              <div class="row" style="margin-top:6px">
+                <div class="f"><span>Drops normales del mob</span>
+                  <select data-k="dropVanilla" style="width:auto">
+                    <option value="replace">Quitarlos (solo suelta los míos)</option>
+                    <option value="add">Conservarlos (los normales + los míos)</option>
+                  </select></div>
+                <label class="chk"><input type="checkbox" data-k="dropPlayerOnly"> Solo si lo mata un jugador</label>
+              </div>
+              <p class="hint">Para soltar armas con lore, colores o encantamientos por encima del límite (Filo VI, X…) o atributos ocultos, créalas en la pestaña Items, guárdalas en la Biblioteca y elígelas aquí. "+ Saqueo" = cuántos extra puede soltar por cada nivel del encantamiento. La llave trae los comandos del cofre cerrado que solo ella abre.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="dpBarSec">
+            <summary>👑 Barra de jefe</summary>
+            <div class="sec-body">
+              <label class="chk"><input type="checkbox" data-k="bossbar"> Mostrar barra de jefe (como el Wither o el Ender Dragon)</label>
+              <div class="row">
+                <div class="f"><span>Color de la barra</span><select data-k="barColor" id="dpBarColor" style="width:auto"></select></div>
+                <div class="f"><span>Estilo</span><select data-k="barStyle" id="dpBarStyle" style="width:auto"></select></div>
+              </div>
+              <div id="dpBarPreview" class="inset" style="padding:10px 12px"></div>
+              <p class="hint">Minecraft solo deja estos 7 colores en la barra, pero el título de la barra es el nombre del mob, y ese sí acepta cualquier color HEX y degradados. Si hay varios jefes iguales a la vez, comparten la barra.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="dpSizeSec">
+            <summary>📏 Tamaño dinámico</summary>
+            <div class="sec-body">
+              <div class="f"><span>Modo</span>
+                <select data-k="scaleMode" style="width:auto">
+                  <option value="none">Fijo (el de "Escala" en atributos)</option>
+                  <option value="health">Cambia con la vida</option>
+                  <option value="split">Se divide al morir (estilo slime)</option>
+                </select></div>
+              <div id="dpScaleHealth" class="row">
+                <div class="f"><span>Tamaño con la vida llena</span><input type="text" id="dpScaleFrom" disabled style="width:110px"></div>
+                <div class="f"><span>Tamaño casi muerto</span><input type="number" data-k="scaleTo" min="0.0625" max="16" step="any" style="width:110px"></div>
+              </div>
+              <div id="dpScaleSplit">
+                <div class="row">
+                  <div class="f"><span>Copias al morir</span><input type="number" data-k="splitCount" min="2" max="8" style="width:80px"></div>
+                  <div class="f"><span>Veces que se divide</span><input type="number" data-k="splitGens" min="1" max="4" style="width:80px"></div>
+                  <div class="f"><span>Tamaño de cada copia (×)</span><input type="number" data-k="splitSize" min="0.1" max="1" step="0.05" style="width:90px"></div>
+                  <div class="f"><span>Vida de cada copia (×)</span><input type="number" data-k="splitHp" min="0.05" max="1" step="0.05" style="width:90px"></div>
+                </div>
+                <p class="hint" id="dpSplitInfo" style="margin:0"></p>
+              </div>
+              <p class="hint">El tamaño con la vida llena es el atributo "Escala" de arriba (1 si no lo pones); cambia en 10 pasos. Al dividirse, los drops los suelta el original y las copias no sueltan nada; el combate termina cuando muere la última copia.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="dpImmSec">
+            <summary>🛡 Inmunidades</summary>
+            <div class="sec-body">
+              <label class="chk" style="display:flex"><input type="checkbox" data-k="immArrows"> Inmune a flechas: las desvía (obliga a pelear cuerpo a cuerpo)</label>
+              <label class="chk" style="display:flex"><input type="checkbox" data-k="immPotions"> Las pociones arrojadizas y persistentes lo curan en vez de dañarlo</label>
+              <div class="row" id="dpPotHealRow"><div class="f"><span>Vida que recupera por poción</span><input type="number" data-k="potionHeal" min="1" max="1024" style="width:90px"></div></div>
+              <div class="hint" style="margin:8px 0 2px">Estas no necesitan datapack (van en el comando):</div>
+              <label class="chk" style="display:flex"><input type="checkbox" data-k="immFire"> Inmune al fuego y la lava</label>
+              <label class="chk" style="display:flex"><input type="checkbox" data-k="immFall"> Sin daño por caída</label>
+              <label class="chk" style="display:flex"><input type="checkbox" data-k="immKnock"> No lo empujan los golpes</label>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="dpAuraSec">
+            <summary>🌫 Aura pasiva <span class="badge" id="dpAuraBadge">0</span></summary>
+            <div class="sec-body">
+              <div id="dpAuraList"></div>
+              <button class="btn sm" type="button" id="dpAuraAdd">+ Efecto de aura</button>
+              <p class="hint">Mientras haya jugadores en el radio de combate, el jefe les aplica el efecto a los que estén dentro del radio del aura (Oscuridad, Fatiga minera, Levitación corta…).</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="dpAbilSec">
+            <summary>⚔ Habilidades de combate <span class="badge" id="dpAbilBadge">0</span></summary>
+            <div class="sec-body">
+              <div id="dpAbilList"></div>
+              <div class="row"><select id="dpAbilType" style="width:auto"></select><button class="btn sm" type="button" id="dpAbilAdd">+ Habilidad</button></div>
+              <p class="hint">"Cada" = cada cuántos segundos la usa. "Con vida ≤" = solo cuando le quede ese % de vida o menos (100 = siempre). "Una vez" = solo la primera vez (ideal para una oleada de esbirros al 50%).</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="dpPhaseSec">
+            <summary>🔥 Fases de combate <span class="badge" id="dpPhaseBadge">0</span></summary>
+            <div class="sec-body">
+              <div id="dpPhaseList"></div>
+              <button class="btn sm" type="button" id="dpPhaseAdd">+ Fase</button>
+              <p class="hint">Cuando su vida baja del %, entra en la fase una sola vez: lanza el mensaje y le cambia los atributos. Para "50% más rápido" usa Velocidad · 0.5 · % de la base. Para que reciba más daño, ponle Armadura negativa.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="dpPartSec">
+            <summary>✨ Partículas <span class="badge" id="dpPartBadge">0</span></summary>
+            <div class="sec-body">
+              <div id="dpPartList"></div>
+              <button class="btn sm" type="button" id="dpPartAdd">+ Partícula</button>
+              <p class="hint">Rodean al jefe siempre que haya un jugador a menos de 48 bloques. "Polvo de color" acepta cualquier HEX.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="dpMsgSec">
+            <summary>💬 Mensajes y eventos</summary>
+            <div class="sec-body">
+              <div id="dpMsgStart"></div>
+              <div class="f" style="margin-bottom:10px"><span>Comandos al empezar el combate (uno por línea, se ejecutan desde el jefe)</span>
+                <textarea data-k="startCmds" rows="2" spellcheck="false" placeholder="setblock ~ ~-1 ~ minecraft:iron_bars"></textarea></div>
+              <div id="dpMsgVictory"></div>
+              <div class="f"><span>Comandos al vencerlo (uno por línea, desde donde murió)</span>
+                <textarea data-k="victoryCmds" rows="2" spellcheck="false" placeholder="setblock 100 64 -20 minecraft:air"></textarea></div>
+              <p class="hint">Los comandos al vencerlo sirven para abrir la puerta de la guarida, dar recompensas o poner un cofre. Usa coordenadas absolutas si el bloque no está donde murió.</p>
+            </div>
+          </details>
+
+          <details class="sec inset dp-sub" id="dpFilesSec">
+            <summary>📂 Ver archivos generados</summary>
+            <div class="sec-body">
+              <select id="dpFileSel" style="width:100%"></select>
+              <pre id="dpFilePre" class="inset"></pre>
+            </div>
+          </details>
         </div>
       </details>
     </div>
@@ -2299,7 +2462,13 @@ function newMob() {
     maxHealth: '', health: '', attrs: [],
     equip: Object.fromEntries(EQUIP_SLOTS.map(([s]) => [s, newEquip()])),
     effects: [], noAI: false, invulnerable: false, silent: false, glowing: false, persistent: false, baby: false,
-    opts: {}, passengers: [], extra: ''
+    opts: {}, passengers: [], extra: '',
+    drops: [], dropVanilla: 'replace', dropPlayerOnly: false, lootNs: 'mcforge', lootName: '', range: 32,
+    bossbar: false, barColor: 'purple', barStyle: 'progress',
+    scaleMode: 'none', scaleTo: 2, splitCount: 2, splitGens: 1, splitSize: 0.5, splitHp: 0.5,
+    immArrows: false, immPotions: false, potionHeal: 6, immFire: false, immFall: false, immKnock: false,
+    auras: [], abilities: [], phases: [], particles: [],
+    msgStart: newMsg(), msgVictory: newMsg(), startCmds: '', victoryCmds: ''
   };
 }
 const nsId = id => { id = String(id || '').trim().toLowerCase(); return id.includes(':') ? id : 'minecraft:' + id; };
@@ -2329,6 +2498,8 @@ function mobNbt(m, ver, isPassenger = false, depth = 0) {
   const attrs = [];
   if (m.maxHealth !== '' && m.maxHealth != null) attrs.push({ id: 'max_health', base: +m.maxHealth || 1 });
   (m.attrs || []).filter(a => a.type.trim()).forEach(a => attrs.push({ id: stripNs(a.type), base: +a.base || 0 }));
+  if (m.immFall && !attrs.some(a => a.id === 'fall_damage_multiplier')) attrs.push({ id: 'fall_damage_multiplier', base: 0 });
+  if (m.immKnock && !attrs.some(a => a.id === 'knockback_resistance')) attrs.push({ id: 'knockback_resistance', base: 1 });
   if (attrs.length) o.attributes = attrs;
   if (m.health !== '' && m.health != null) o.Health = new Typed(+m.health, 'f');
   else if (m.maxHealth !== '' && m.maxHealth != null) o.Health = new Typed(+m.maxHealth, 'f');  // aparece con la vida llena
@@ -2337,6 +2508,7 @@ function mobNbt(m, ver, isPassenger = false, depth = 0) {
     if (e.ambient) x.ambient = true; if (!e.particles) x.show_particles = false; if (!e.icon) x.show_icon = false;
     return x;
   });
+  if (m.immFire && !eff.some(e => e.id === 'minecraft:fire_resistance')) eff.push({ id: 'minecraft:fire_resistance', amplifier: 0, duration: -1, show_particles: false, show_icon: false });
   if (eff.length) o.active_effects = eff;
   if (m.noAI) o.NoAI = true;
   if (m.invulnerable) o.Invulnerable = true;
@@ -2373,11 +2545,380 @@ function mobNbt(m, ver, isPassenger = false, depth = 0) {
   const pass = (m.passengers || []).map(p => p.mode === 'lib' && p.data ? (depth < 8 ? mobNbt({ ...newMob(), ...p.data }, ver, true, depth + 1) : null)
     : (p.id && p.id.trim() ? { id: nsId(p.id) } : null)).filter(Boolean);
   if (pass.length) o.Passengers = pass;
+  if (!isPassenger) {
+    if (m._loot) o.DeathLootTable = m._loot;
+    else if (hasDrops(m)) o.DeathLootTable = lootId(m);
+    if (bossPackOn(m)) { o.Tags = bossTags(m, m._gen || 0); o.PersistenceRequired = true; }   // sin persistencia, desaparecer contaría como "vencido"
+  }
   let s = SNBT.val(o);
   const extra = (m.extra || '').trim().replace(/^\{|\}$/g, '').trim().replace(/,$/, '');
   if (extra) s = s === '{}' ? `{${extra}}` : s.slice(0, -1) + ',' + extra + '}';
   return isPassenger ? new Raw(s) : s;
 }
+/* ---------- DROPS AL MORIR (loot table + datapack) ---------- */
+const newDrop = (id = 'emerald') => ({ item: newTradeItem(id, 1), min: 1, max: 1, chance: 100, looting: 0 });
+const hasDrops = m => (m.drops || []).some(d => equipItem(d.item));
+// Nombres válidos para rutas de Minecraft: minúsculas, números, _ - . /
+const lootSlug = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^a-z0-9_\-./]+/g, '_').replace(/^[_./-]+|[_./-]+$/g, '').replace(/_+/g, '_');
+const lootNsOf = m => lootSlug(m.lootNs).replace(/\//g, '_') || 'mcforge';
+const lootNameOf = m => (lootSlug(m.lootName) || lootSlug(textPlain(m.name)) || (stripNs(m.id) || 'mob') + '_jefe').replace(/\//g, '_');
+const lootId = m => `${lootNsOf(m)}:entities/${lootNameOf(m)}`;
+// Lee el SNBT que generan los perfiles de versión y lo pasa a objeto JSON (para set_components)
+function snbtParse(src) {
+  let i = 0;
+  const ws = () => { while (i < src.length && /\s/.test(src[i])) i++; };
+  const str = () => { const q = src[i++]; let r = ''; while (i < src.length && src[i] !== q) { if (src[i] === '\\') i++; r += src[i++]; } i++; return r; };
+  const bare = () => { let r = ''; while (i < src.length && /[A-Za-z0-9_\-.+]/.test(src[i])) r += src[i++]; return r; };
+  function val() {
+    ws(); const c = src[i];
+    if (c === '{') {
+      i++; const o = {}; ws(); if (src[i] === '}') { i++; return o; }
+      for (;;) { ws(); const k = (src[i] === '"' || src[i] === "'") ? str() : bare(); ws(); i++; o[k] = val(); ws(); if (src[i++] === '}') return o; }
+    }
+    if (c === '[') {
+      i++; const a = []; ws(); if (src[i] === ']') { i++; return a; }
+      for (;;) { a.push(val()); ws(); if (src[i++] === ']') return a; }
+    }
+    if (c === '"' || c === "'") return str();
+    const b = bare();
+    if (b === 'true') return true; if (b === 'false') return false;
+    const n = b.match(/^(-?\d*\.?\d+(?:[eE]-?\d+)?)[bBsSlLfFdD]?$/);
+    return n ? +n[1] : b;
+  }
+  return val();
+}
+// En 1.21.4 el nombre y el lore vienen como texto JSON dentro de un string: se vuelven objeto
+const unJsonText = v => {
+  if (Array.isArray(v)) return v.map(unJsonText);
+  if (typeof v === 'string' && /^[{\[]/.test(v)) { try { return JSON.parse(v); } catch {} }
+  return v;
+};
+function lootEntry(d, ver) {
+  const it = equipItem(d.item); if (!it) return null;
+  const e = { type: 'minecraft:item', name: nsId(it.id) }, fns = [];
+  const comps = VERSIONS[ver].itemComponents(it);
+  const compObj = Object.fromEntries(comps.map(([k, v]) => ['minecraft:' + k, unJsonText(snbtParse(v))]));
+  if (d.keyTag) compObj['minecraft:custom_data'] = { mcf_llave: d.keyTag };   // la llave se reconoce por este dato oculto
+  if (Object.keys(compObj).length) fns.push({ function: 'minecraft:set_components', components: compObj });
+  const mn = Math.max(0, parseInt(d.min) || 0), mx = Math.max(mn, parseInt(d.max) || 0);
+  if (!(mn === 1 && mx === 1)) fns.push({ function: 'minecraft:set_count', count: mn === mx ? mn : { type: 'minecraft:uniform', min: mn, max: mx } });
+  const lt = Math.max(0, parseInt(d.looting) || 0);
+  if (lt) fns.push({ function: 'minecraft:enchanted_count_increase', enchantment: 'minecraft:looting', count: { type: 'minecraft:uniform', min: 0, max: lt } });
+  if (fns.length) e.functions = fns;
+  return e;
+}
+function buildLootTable(m, ver = VERSION) {
+  const pools = [];
+  if (m.dropVanilla === 'add') pools.push({ rolls: 1, entries: [{ type: 'minecraft:loot_table', value: 'minecraft:entities/' + (stripNs(m.id) || 'zombie') }] });
+  for (const d of m.drops || []) {
+    const e = lootEntry(d, ver); if (!e) continue;
+    const pool = { rolls: 1, entries: [e] }, cond = [];
+    const ch = d.chance === '' || d.chance == null ? 100 : +d.chance;
+    if (m.dropPlayerOnly) cond.push({ condition: 'minecraft:killed_by_player' });
+    if (ch < 100) cond.push({ condition: 'minecraft:random_chance', chance: Math.max(0, ch) / 100 });
+    if (cond.length) pool.conditions = cond;
+    pools.push(pool);
+  }
+  return { type: 'minecraft:entity', pools };
+}
+/* ---------- OPCIONES DE DATAPACK: modelo y generador ---------- */
+const newMsg = (t = '', mode = 'chat', sound = '') => ({ text: newText(t), mode, sound });
+const newAura = () => ({ id: 'darkness', lvl: 1, radius: 8, every: 3, dur: 4 });
+const newPart = () => ({ type: 'minecraft:soul_fire_flame', color: '#AB1B42', count: 3, spread: 1 });
+const newPhase = (pct = 50) => ({ pct, msg: newMsg('', 'title', 'minecraft:entity.ender_dragon.growl'), mods: [], effect: '', effLvl: 1, cmds: '' });
+const newAbility = (type = 'aoe_effect') => ({ type, every: 8, pct: 100, once: false, msg: '',
+  effect: 'slowness', lvl: 2, dur: 3, radius: 5, amount: 6, proj: 'small_fireball', count: 1, speed: type === 'projectile' ? 1 : 1,
+  src: 'vanilla', mobId: 'vex', mobData: null, mobName: '', cmds: '' });
+const DP_MSG_MODES = [['chat', 'Habla en el chat (<Nombre> …)'], ['raw', 'Chat sin nombre'], ['title', 'Título grande'], ['subtitle', 'Subtítulo'], ['actionbar', 'Sobre la barra de items']];
+const DP_SOUNDS = [['', '— Sin sonido —'], ['minecraft:entity.wither.spawn', 'Aparición del Wither'], ['minecraft:entity.ender_dragon.growl', 'Rugido del dragón'],
+  ['minecraft:event.raid.horn', 'Cuerno de invasión'], ['minecraft:entity.warden.emerge', 'Warden emerge'], ['minecraft:entity.ravager.roar', 'Rugido del devastador'],
+  ['minecraft:entity.elder_guardian.curse', 'Maldición del guardián'], ['minecraft:entity.evoker.prepare_summon', 'Evocador invoca'],
+  ['minecraft:entity.lightning_bolt.thunder', 'Trueno'], ['minecraft:block.bell.use', 'Campana'],
+  ['minecraft:ui.toast.challenge_complete', 'Desafío completado'], ['minecraft:entity.player.levelup', 'Subir de nivel']];
+const BAR_COLORS = [['purple', 'Morado', '#7B00EC'], ['red', 'Rojo', '#EC3500'], ['pink', 'Rosa', '#EC00B8'], ['blue', 'Azul', '#00B7EC'],
+  ['green', 'Verde', '#1DEC00'], ['yellow', 'Amarillo', '#E9EC00'], ['white', 'Blanco', '#ECECEC']];
+const BAR_STYLES = [['progress', 'Barra lisa'], ['notched_6', '6 segmentos'], ['notched_10', '10 segmentos'], ['notched_12', '12 segmentos'], ['notched_20', '20 segmentos']];
+const DP_PARTICLES = [['minecraft:flame', 'Fuego'], ['minecraft:soul_fire_flame', 'Fuego de almas'], ['minecraft:soul', 'Almas (Soul Sand)'],
+  ['minecraft:end_rod', 'Fuego del End (vara)'], ['minecraft:portal', 'Portal'], ['minecraft:reverse_portal', 'Portal inverso'],
+  ['minecraft:dripping_lava', 'Goteo de lava'], ['minecraft:falling_lava', 'Lava cayendo'], ['minecraft:lava', 'Chispas de lava'],
+  ['minecraft:witch', 'Magia (bruja)'], ['minecraft:smoke', 'Humo'], ['minecraft:large_smoke', 'Humo grande'], ['minecraft:enchant', 'Runas de encantamiento'],
+  ['minecraft:electric_spark', 'Chispa eléctrica'], ['minecraft:crimson_spore', 'Esporas carmesí'], ['minecraft:warped_spore', 'Esporas distorsionadas'],
+  ['minecraft:ash', 'Ceniza'], ['minecraft:white_ash', 'Ceniza blanca'], ['minecraft:sculk_soul', 'Alma de sculk'], ['minecraft:glow', 'Brillo'],
+  ['minecraft:totem_of_undying', 'Tótem'], ['minecraft:heart', 'Corazones'], ['minecraft:angry_villager', 'Enojo'], ['minecraft:crit', 'Crítico'],
+  ['minecraft:enchanted_hit', 'Golpe mágico'], ['minecraft:snowflake', 'Copos de nieve'], ['minecraft:falling_obsidian_tear', 'Lágrimas de obsidiana'],
+  ['minecraft:cherry_leaves', 'Pétalos de cerezo'], ['minecraft:squid_ink', 'Tinta'], ['minecraft:trial_spawner_detection_ominous', 'Llamas siniestras'],
+  ['dust', 'Polvo de color (HEX)']];
+const DP_PROJ = [['small_fireball', 'Bola de fuego (blaze)'], ['fireball', 'Bola de fuego explosiva (ghast)'], ['wither_skull', 'Cráneo del Wither'],
+  ['dragon_fireball', 'Bola del dragón'], ['breeze_wind_charge', 'Carga de viento'], ['arrow', 'Flecha'], ['snowball', 'Bola de nieve']];
+const DP_ABIL = [['aoe_effect', 'Efecto en área'], ['aoe_damage', 'Daño en área'], ['projectile', 'Disparar proyectiles'], ['summon', 'Invocar esbirros'],
+  ['lightning', 'Rayos sobre los jugadores'], ['teleport', 'Teletransporte al jugador'], ['heal', 'Curarse'], ['command', 'Comandos propios']];
+const clampNum = (v, lo, hi, d) => { const n = +v; return v === '' || v == null || isNaN(n) ? d : Math.max(lo, Math.min(hi, n)); };
+const dpLines = t => String(t || '').split('\n').map(l => l.trim().replace(/^\//, '')).filter(l => l && !l.startsWith('#'));
+// Medidas aproximadas del mob en bloques (para centrar partículas y proyectiles)
+function mobDims(m) {
+  const def = MOB_MODELS[stripNs(m.id)] || {};
+  const s0 = clampNum((m.attrs || []).find(a => stripNs(a.type) === 'scale')?.base, 0.0625, 16, 1);
+  const k = (def.scale || 1) * s0;
+  return { s0, h: (def.h || 32) / 16 * k, w: Math.max(0.4, ((def.h || 32) > 40 ? 0.9 : 0.5) * k) };
+}
+const msgOn = g => !!(g && (textPlain(g.text).trim() || g.sound));
+// ¿Usa las funciones del datapack? (los drops solos solo necesitan la loot table)
+const bossPackOn = m => !!(m.bossbar || (m.scaleMode && m.scaleMode !== 'none') || m.immArrows || m.immPotions ||
+  (m.auras || []).length || (m.abilities || []).length || (m.phases || []).length || (m.particles || []).length ||
+  msgOn(m.msgStart) || msgOn(m.msgVictory) || (m.startCmds || '').trim() || (m.victoryCmds || '').trim());
+const usesPack = m => hasDrops(m) || bossPackOn(m);
+const bossPrefix = m => `${lootNsOf(m)}.${lootNameOf(m)}`;
+function bossTags(m, g) {
+  const P = bossPrefix(m), t = [P + '.boss', P + '.g' + g];
+  if (g > 0) {   // las copias ya "conocen" al jugador y no repiten fases ni habilidades de una sola vez
+    t.push(P + '.met');
+    (m.phases || []).forEach((_, i) => t.push(P + '.p' + i));
+    (m.abilities || []).forEach((a, i) => { if (a.once) t.push(P + '.a' + i); });
+  }
+  return t;
+}
+// Copia más pequeña para el modo "se divide al morir"
+function splitChild(m, g) {
+  const { s0 } = mobDims(m), sz = clampNum(m.splitSize, 0.1, 1, 0.5), hf = clampNum(m.splitHp, 0.05, 1, 0.5);
+  const hp0 = clampNum(m.maxHealth, 1, 1024, 20);
+  return { ...m, attrs: [...(m.attrs || []).filter(a => stripNs(a.type) !== 'scale'), { type: 'scale', base: +Math.max(0.0625, s0 * sz ** g).toFixed(4) }],
+    maxHealth: Math.max(1, +(hp0 * hf ** g).toFixed(1)), health: '', passengers: [], _gen: g, _loot: 'minecraft:empty' };
+}
+// Comandos para la llave de mazmorra: el /give de prueba y el cofre que solo ella abre
+function keyCommands(d) {
+  const it = equipItem(d.item); if (!it || !d.keyTag) return null;
+  const comps = VERSIONS[VERSION].itemComponents(it);
+  comps.push(['custom_data', `{mcf_llave:"${d.keyTag}"}`]);
+  return {
+    give: `/give @p ${stripNs(it.id)}[${comps.map(([k, v]) => k + '=' + v).join(',')}]`,
+    chest: `/setblock ~ ~ ~ minecraft:chest[facing=north]{lock:{items:"${nsId(it.id)}",predicates:{"minecraft:custom_data":{mcf_llave:"${d.keyTag}"}}}}`
+  };
+}
+
+/* Genera los .mcfunction de un jefe. Cómo funciona:
+   - tick: cada jefe (tag <ns>.<id>.boss) corre su función "boss".
+   - Cada jefe tiene un marcador invisible que lo sigue; si el jefe desaparece y el marcador
+     queda solo, el jefe murió: ahí se divide (modo slime) o se declara la victoria. */
+function bossFiles(m, ver = VERSION) {
+  const ns = lootNsOf(m), x = lootNameOf(m), P = bossPrefix(m), F = `${ns}:${x}`, files = {}, consts = new Set([4, 10, 100]);
+  const N = fmtNum, J = o => JSON.stringify(o), R = clampNum(m.range, 4, 128, 32);
+  const near = r => `@a[distance=..${N(r)},gamemode=!spectator]`, nearest = r => `@p[distance=..${N(r)},gamemode=!spectator]`;
+  const { s0, h, w } = mobDims(m), cy = N(+(h / 2).toFixed(2));
+  const nameComp = textComponent(m.name, {}) || { translate: 'entity.minecraft.' + (stripNs(m.id) || 'zombie') };
+  const fn = (name, lines) => { files[`data/${ns}/function/${x}/${name}.mcfunction`] = lines.flat(3).filter(Boolean).join('\n') + '\n'; };
+  const ticks = sec => { const t = Math.max(1, Math.round(clampNum(sec, 0.05, 3600, 1) * 20)); consts.add(t); return t; };
+  const amp = l => Math.max(0, Math.min(255, (parseInt(l) || 1) - 1));
+  const secs = v => Math.max(1, Math.round(clampNum(v, 1, 1000000, 3)));
+  const say = (g, sel) => {
+    if (!g) return [];
+    const out = [], c = textComponent(g.text, {});
+    if (c) {
+      if (g.mode === 'title') out.push(`title ${sel} times 10 60 20`, `title ${sel} title ${J(c)}`);
+      else if (g.mode === 'subtitle') out.push(`title ${sel} times 10 60 20`, `title ${sel} subtitle ${J(c)}`, `title ${sel} title ""`);
+      else if (g.mode === 'actionbar') out.push(`title ${sel} actionbar ${J(c)}`);
+      else if (g.mode === 'raw') out.push(`tellraw ${sel} ${J(c)}`);
+      else out.push(`tellraw ${sel} ${J(['', { text: '<' }, nameComp, { text: '> ' }, c])}`);
+    }
+    if (g.sound) out.push(`playsound ${g.sound} hostile ${sel} ~ ~ ~ 2 1`);
+    return out;
+  };
+  const heal = amt => [`execute store result score #h mcf.v run data get entity @s Health`, `scoreboard players add #h mcf.v ${Math.max(1, Math.round(+amt || 1))}`,
+    `execute store result entity @s Health float 1 run scoreboard players get #h mcf.v`, `particle minecraft:heart ~ ~${cy} ~ ${N(w)} ${N(h / 3)} ${N(w)} 0 6`];
+  const G = m.scaleMode === 'split' ? Math.round(clampNum(m.splitGens, 1, 4, 1)) : 0;
+  const phases = (m.phases || []).map((ph, i) => ({ ...ph, i })).filter(ph => +ph.pct > 0).sort((a, b) => b.pct - a.pct);
+
+  // ---------- boss: cada tick, como el jefe ----------
+  const boss = [
+    `execute unless entity @s[tag=mcf.init] run function ${F}/init`,
+    `scoreboard players operation #cur mcf.id = @s mcf.id`,
+    `execute as @e[type=minecraft:marker,tag=${P}.trk] if score @s mcf.id = #cur mcf.id run function ${F}/follow`,
+    `execute store result score @s mcf.hp run data get entity @s Health 100`,
+    `execute store result score @s mcf.max run attribute @s minecraft:max_health get 100`
+  ];
+  if (m.bossbar) boss.push(`execute store result bossbar ${F} max run attribute @s minecraft:max_health get`,
+    `execute store result bossbar ${F} value run data get entity @s Health`, `bossbar set ${F} players ${near(R)}`);
+  boss.push(`# Mientras hace la animación de morir no hace nada más`, `execute if score @s mcf.hp matches ..0 run return 0`,
+    `scoreboard players operation @s mcf.pct = @s mcf.hp`, `scoreboard players operation @s mcf.pct *= #100 mcf.c`,
+    `scoreboard players operation @s mcf.pct /= @s mcf.max`, `scoreboard players add @s mcf.t 1`,
+    `execute unless entity @s[tag=${P}.met] if entity ${near(R)} run function ${F}/start`);
+  // Fases
+  phases.forEach(ph => {
+    boss.push(`execute if score @s mcf.pct matches ..${Math.round(+ph.pct)} unless entity @s[tag=${P}.p${ph.i}] run function ${F}/phase_${ph.i}`);
+    fn('phase_' + ph.i, [`tag @s add ${P}.p${ph.i}`, say(ph.msg, near(R)),
+      (ph.mods || []).filter(md => md.type.trim()).map((md, k) =>
+        `attribute @s ${nsId(md.type)} modifier add ${ns}:${x}_p${ph.i}_${k} ${N(+md.amount || 0)} ${md.op || 'add_value'}`),
+      ph.effect?.trim() ? `effect give @s ${nsId(ph.effect)} infinite ${amp(ph.effLvl)} true` : '',
+      `particle minecraft:angry_villager ~ ~${cy} ~ ${N(w)} ${N(h / 3)} ${N(w)} 0 12`, dpLines(ph.cmds)]);
+  });
+  // Tamaño según la vida (10 pasos)
+  if (m.scaleMode === 'health') {
+    const to = clampNum(m.scaleTo, 0.0625, 16, 2);
+    boss.push(`scoreboard players operation #s mcf.v = @s mcf.pct`, `scoreboard players operation #s mcf.v /= #10 mcf.c`,
+      `execute unless score @s mcf.ss = #s mcf.v run function ${F}/scale`);
+    fn('scale', [`scoreboard players operation @s mcf.ss = #s mcf.v`,
+      Array.from({ length: 11 }, (_, k) => `execute if score #s mcf.v matches ${k} run attribute @s minecraft:scale base set ${N(+(to + (s0 - to) * k / 10).toFixed(4))}`)]);
+  }
+  // Inmunidades
+  if (m.immArrows) {
+    boss.push(`execute as @e[type=#minecraft:arrows,distance=..${N(+(3 + w * 2).toFixed(1))}] run function ${F}/deflect`);
+    fn('deflect', [`tag @s add mcf.arw`,
+      `# No desvía las flechas que dispara el propio jefe`,
+      `execute on origin if entity @s[tag=${P}.boss] run tag @e[type=#minecraft:arrows,tag=mcf.arw] remove mcf.arw`,
+      `execute if entity @s[tag=mcf.arw] at @s run particle minecraft:crit ~ ~ ~ 0.2 0.2 0.2 0.3 8`,
+      `execute if entity @s[tag=mcf.arw] at @s run playsound minecraft:item.shield.block hostile @a[distance=..16] ~ ~ ~ 1 1.2`,
+      `execute if entity @s[tag=mcf.arw] run kill @s`, `tag @s remove mcf.arw`]);
+  }
+  if (m.immPotions) {
+    const types = ver === 'v1214' ? ['potion'] : ['splash_potion', 'lingering_potion'];
+    types.forEach(t => boss.push(`execute as @e[type=minecraft:${t},distance=..${N(+(2.5 + w * 2).toFixed(1))}] run function ${F}/potion`));
+    fn('potion', [`tag @s add mcf.pot`,
+      `execute on origin if entity @s[tag=${P}.boss] run tag @e[tag=mcf.pot] remove mcf.pot`,
+      `execute if entity @s[tag=mcf.pot] as @e[tag=${P}.boss,sort=nearest,limit=1] run function ${F}/potion_heal`,
+      `execute if entity @s[tag=mcf.pot] run kill @s`, `tag @s remove mcf.pot`]);
+    fn('potion_heal', [heal(clampNum(m.potionHeal, 1, 1024, 6)), `playsound minecraft:entity.witch.drink hostile @a[distance=..16] ~ ~ ~ 1 1`]);
+  }
+  // Aura y habilidades: solo con jugadores en el radio de combate
+  const combat = [];
+  (m.auras || []).forEach((a, k) => {
+    if (!a.id?.trim()) return;
+    const T = ticks(a.every);
+    combat.push(`scoreboard players operation #m mcf.v = @s mcf.t`, `scoreboard players add #m mcf.v ${k * 3}`, `scoreboard players operation #m mcf.v %= #${T} mcf.c`,
+      `execute if score #m mcf.v matches 0 run effect give ${near(clampNum(a.radius, 1, 64, 8))} ${nsId(a.id)} ${secs(a.dur)} ${amp(a.lvl)} true`);
+  });
+  (m.abilities || []).forEach((a, i) => {
+    const T = ticks(a.every), r = clampNum(a.radius, 1, 64, 5), pct = Math.round(clampNum(a.pct, 1, 100, 100));
+    combat.push(`scoreboard players operation #m mcf.v = @s mcf.t`, `scoreboard players add #m mcf.v ${11 + i * 7}`, `scoreboard players operation #m mcf.v %= #${T} mcf.c`,
+      `execute if score #m mcf.v matches 0${pct < 100 ? ` if score @s mcf.pct matches ..${pct}` : ''}${a.once ? ` unless entity @s[tag=${P}.a${i}]` : ''} run function ${F}/ability_${i}`);
+    const L = [a.once ? `tag @s add ${P}.a${i}` : '', a.msg?.trim() ? say({ text: { segs: [newSeg(a.msg.trim())] }, mode: 'chat' }, near(R)) : ''];
+    const snd = (id, rr = r) => `playsound ${id} hostile @a[distance=..${N(rr + 16)}] ~ ~ ~ 1 1`;
+    if (a.type === 'aoe_effect' && a.effect?.trim()) L.push(`effect give ${near(r)} ${nsId(a.effect)} ${secs(a.dur)} ${amp(a.lvl)}`,
+      `particle minecraft:witch ~ ~1 ~ ${N(r / 2)} 0.5 ${N(r / 2)} 0 60`, snd('minecraft:entity.evoker.prepare_attack'));
+    if (a.type === 'aoe_damage') L.push(`tag @s add mcf.atk`,
+      `execute as ${near(r)} run damage @s ${N(clampNum(a.amount, 0.5, 1000, 6))} minecraft:mob_attack by @e[tag=mcf.atk,limit=1]`,
+      `tag @s remove mcf.atk`, `particle minecraft:explosion ~ ~1 ~ ${N(r / 3)} 0.3 ${N(r / 3)} 0 ${Math.min(30, Math.round(r * 2))}`, snd('minecraft:entity.generic.explode'));
+    if (a.type === 'projectile') {
+      const c = Math.round(clampNum(a.count, 1, 8, 1)), spd = clampNum(a.speed, 0.1, 5, 1), proj = a.proj || 'small_fireball';
+      for (let k = 0; k < c; k++)
+        L.push(`execute anchored eyes positioned ^ ^ ^ facing entity ${nearest(Math.max(r, 16))} eyes rotated ~${N((k - (c - 1) / 2) * 8)} ~ run function ${F}/shoot_${i}`);
+      L.push(snd(proj === 'arrow' ? 'minecraft:entity.skeleton.shoot' : 'minecraft:entity.blaze.shoot'));
+      // Dirección: diferencia entre dos marcadores (ojos y un bloque adelante) → Motion del proyectil
+      fn('shoot_' + i, [`summon minecraft:marker ^ ^ ^ {Tags:["mcf.d0"]}`, `summon minecraft:marker ^ ^ ^1 {Tags:["mcf.d1"]}`,
+        `summon minecraft:${proj} ^ ^ ^${N(+(0.8 + w).toFixed(2))} {Tags:["mcf.fb"]${proj === 'arrow' ? ',pickup:0b' : ''}}`,
+        [0, 1, 2].map(c2 => [
+          `execute store result score #a mcf.v run data get entity @e[type=minecraft:marker,tag=mcf.d1,limit=1] Pos[${c2}] 1000`,
+          `execute store result score #b mcf.v run data get entity @e[type=minecraft:marker,tag=mcf.d0,limit=1] Pos[${c2}] 1000`,
+          `scoreboard players operation #a mcf.v -= #b mcf.v`,
+          `execute store result entity @e[tag=mcf.fb,limit=1] Motion[${c2}] double ${N(0.001 * spd)} run scoreboard players get #a mcf.v`]),
+        `data modify entity @e[tag=mcf.fb,limit=1] Owner set from entity @s UUID`, `tag @e[tag=mcf.fb] remove mcf.fb`,
+        `kill @e[type=minecraft:marker,tag=mcf.d0]`, `kill @e[type=minecraft:marker,tag=mcf.d1]`]);
+    }
+    if (a.type === 'summon') {
+      const c = Math.round(clampNum(a.count, 1, 20, 3));
+      let id = stripNs(a.mobId) || 'zombie', nbt = '';
+      if (a.src === 'lib' && a.mobData) { id = stripNs(a.mobData.id) || 'zombie'; nbt = mobNbt({ ...newMob(), ...a.mobData }, ver); if (nbt === '{}') nbt = ''; }
+      for (let k = 0; k < c; k++) {
+        const ang = 2 * Math.PI * k / c, rr = 1.5 + w;
+        L.push(`summon ${nsId(id)} ~${N(+(Math.cos(ang) * rr).toFixed(2))} ~ ~${N(+(Math.sin(ang) * rr).toFixed(2))}${nbt ? ' ' + nbt : ''}`);
+      }
+      L.push(`particle minecraft:poof ~ ~1 ~ ${N(1.5 + w)} 0.5 ${N(1.5 + w)} 0.02 40`, snd('minecraft:entity.evoker.prepare_summon'));
+    }
+    if (a.type === 'lightning') L.push(`execute at ${near(r)} run summon minecraft:lightning_bolt ~ ~ ~`);
+    if (a.type === 'teleport') L.push(`particle minecraft:portal ~ ~${cy} ~ ${N(w)} ${N(h / 2)} ${N(w)} 0.5 40`, `tp @s ${nearest(r)}`,
+      `execute at @s run particle minecraft:portal ~ ~${cy} ~ ${N(w)} ${N(h / 2)} ${N(w)} 0.5 40`,
+      `execute at @s run playsound minecraft:entity.enderman.teleport hostile @a[distance=..32] ~ ~ ~ 1 0.8`);
+    if (a.type === 'heal') L.push(heal(clampNum(a.amount, 1, 1024, 6)), snd('minecraft:entity.witch.drink'));
+    if (a.type === 'command') L.push(dpLines(a.cmds));
+    fn('ability_' + i, L);
+  });
+  if (combat.length) { boss.push(`execute if entity ${near(R)} run function ${F}/combat`); fn('combat', combat); }
+  // Partículas cada 4 ticks
+  const parts = (m.particles || []).map(pt => {
+    const hex = /^#[0-9a-f]{6}$/i.test(pt.color || '') ? pt.color : '#AB1B42';
+    const rgb = [1, 3, 5].map(j => (parseInt(hex.substr(j, 2), 16) / 255).toFixed(3));   // siempre con decimales: la lista no puede mezclar enteros
+    const id = pt.type === 'dust' ? `minecraft:dust{color:[${rgb.join(',')}],scale:1.5}` : pt.type;
+    const sp = clampNum(pt.spread, 0.1, 5, 1);
+    return `particle ${id} ~ ~${cy} ~ ${N(+(w * sp).toFixed(2))} ${N(+(h * 0.4 * sp).toFixed(2))} ${N(+(w * sp).toFixed(2))} ${pt.type === 'dust' ? 0 : 0.01} ${Math.round(clampNum(pt.count, 1, 100, 3))} normal`;
+  });
+  if (parts.length) {
+    boss.push(`scoreboard players operation #m mcf.v = @s mcf.t`, `scoreboard players operation #m mcf.v %= #4 mcf.c`,
+      `execute if score #m mcf.v matches 0 if entity @a[distance=..48] run function ${F}/fx`);
+    fn('fx', parts);
+  }
+  fn('boss', boss);
+  fn('start', [`tag @s add ${P}.met`, say(m.msgStart, near(R)), dpLines(m.startCmds)]);
+  fn('init', [`tag @s add mcf.init`, `scoreboard players add #next mcf.id 1`, `scoreboard players operation @s mcf.id = #next mcf.id`,
+    `scoreboard players set @s mcf.t 0`, `summon minecraft:marker ~ ~ ~ {Tags:["${P}.trk","mcf.new"]}`,
+    `scoreboard players operation @e[type=minecraft:marker,tag=mcf.new] mcf.id = #next mcf.id`,
+    Array.from({ length: G + 1 }, (_, g) => `execute if entity @s[tag=${P}.g${g}] run tag @e[type=minecraft:marker,tag=mcf.new] add ${P}.g${g}`),
+    `tag @e[type=minecraft:marker,tag=mcf.new] remove mcf.new`]);
+  fn('follow', [`tp @s ~ ~ ~`, `tag @s remove mcf.lost`]);
+  // Muerte: el marcador quedó solo
+  const death = [];
+  for (let g = 0; g < G; g++) {
+    death.push(`execute if entity @s[tag=${P}.g${g}] run function ${F}/split_${g + 1}`);
+    const c = Math.round(clampNum(m.splitCount, 2, 8, 2)), nbt = mobNbt(splitChild(m, g + 1), ver), id = stripNs(m.id) || 'zombie';
+    fn('split_' + (g + 1), [Array.from({ length: c }, (_, k) => {
+      const ang = 2 * Math.PI * k / c, rr = 0.6 + w * 0.6;
+      return `summon ${nsId(id)} ~${N(+(Math.cos(ang) * rr).toFixed(2))} ~0.2 ~${N(+(Math.sin(ang) * rr).toFixed(2))} ${nbt}`;
+    }), `particle minecraft:poof ~ ~${cy} ~ ${N(w)} ${N(h / 3)} ${N(w)} 0.05 30`,
+      `playsound minecraft:entity.slime.squish hostile @a[distance=..24] ~ ~ ~ 1.5 0.6`]);
+  }
+  death.push(`execute unless entity @e[tag=${P}.boss] run function ${F}/victory`, `kill @s`);
+  fn('death', death);
+  fn('victory', [m.bossbar ? `bossbar set ${F} players` : '', say(m.msgVictory, near(R * 1.5)), dpLines(m.victoryCmds)]);
+  fn('tick', [`tag @e[type=minecraft:marker,tag=${P}.trk] add mcf.lost`,
+    `execute as @e[tag=${P}.boss] at @s run function ${F}/boss`,
+    `execute as @e[type=minecraft:marker,tag=${P}.trk,tag=mcf.lost] at @s run function ${F}/death`,
+    m.bossbar ? `execute unless entity @e[tag=${P}.boss] run bossbar set ${F} players` : '']);
+  fn('load', [['mcf.hp', 'mcf.max', 'mcf.pct', 'mcf.t', 'mcf.id', 'mcf.ss', 'mcf.v', 'mcf.c'].map(o => `scoreboard objectives add ${o} dummy`),
+    [...consts].sort((a, b) => a - b).map(c => `scoreboard players set #${c} mcf.c ${c}`),
+    m.bossbar ? [`bossbar add ${F} ${J(nameComp)}`, `bossbar set ${F} name ${J(nameComp)}`, `bossbar set ${F} color ${m.barColor || 'purple'}`,
+      `bossbar set ${F} style ${m.barStyle || 'progress'}`, `bossbar set ${F} players`] : '']);
+  return { files, load: `${F}/load`, tick: `${F}/tick` };
+}
+// Todos los archivos del datapack de un mob (para la vista previa y el .zip)
+function mobPackFiles(m, ver = VERSION) {
+  const out = {};
+  if (hasDrops(m)) out[`data/${lootNsOf(m)}/loot_table/entities/${lootNameOf(m)}.json`] = JSON.stringify(buildLootTable(m, ver), null, 2);
+  if (bossPackOn(m)) Object.assign(out, bossFiles(m, ver).files);
+  return out;
+}
+async function downloadLootPack() {
+  if (typeof JSZip === 'undefined') { toast('No se pudo cargar JSZip (¿sin internet?)'); return; }
+  docSync('mobs');
+  const mobs = DOCS.mobs.state.list.filter(usesPack);
+  if (!mobs.length) { toast('Ningún mob abierto usa el datapack: añade drops, barra de jefe, habilidades…'); return; }
+  const zip = new JSZip(), seen = new Set(), loads = [], tickFns = [];
+  const readme = ['DATAPACK DE JEFES · MC CMD Forge', '', 'Instalación:', '1. Pon este .zip en .minecraft/saves/<tu mundo>/datapacks/',
+    '2. En el juego escribe /reload (o vuelve a entrar al mundo).', '3. Invoca al jefe con el comando que te dio MCForge.', '', 'Jefes incluidos:'];
+  zip.file('pack.mcmeta', JSON.stringify({ pack: {
+    description: 'Jefes y drops personalizados · MC CMD Forge',
+    pack_format: VERSION === 'v1214' ? 61 : 71, supported_formats: { min_inclusive: 48, max_inclusive: 999 },
+    min_format: 48, max_format: 999 } }, null, 2));
+  for (const m of mobs) {
+    const key = `${lootNsOf(m)}:${lootNameOf(m)}`;
+    if (seen.has(key)) toast(`Dos mobs usan el mismo ID (${key}): queda el último. Cambia el "ID del jefe".`);
+    seen.add(key);
+    for (const [path, txt] of Object.entries(mobPackFiles(m))) zip.file(path, txt);
+    if (bossPackOn(m)) { loads.push(`${key}/load`); tickFns.push(`${key}/tick`); }
+    readme.push(`- ${textPlain(m.name).trim() || NAMES.entities[stripNs(m.id)] || m.id}  (${key})`);
+    for (const d of m.drops || []) {
+      const kc = keyCommands(d); if (!kc) continue;
+      readme.push('    Llave de mazmorra. Cofre cerrado que solo ella abre (se abre con la llave en la mano):', '      ' + kc.chest, '    Llave de prueba:', '      ' + kc.give);
+    }
+  }
+  if (loads.length) {
+    zip.file('data/minecraft/tags/function/load.json', JSON.stringify({ values: loads }, null, 2));
+    zip.file('data/minecraft/tags/function/tick.json', JSON.stringify({ values: tickFns }, null, 2));
+  }
+  zip.file('LEEME.txt', readme.join('\n') + '\n');
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = el('a', { href: URL.createObjectURL(blob), download: mobs.length === 1 ? `jefe-${lootNameOf(mobs[0])}.zip` : 'mcforge-jefes.zip' });
+  document.body.append(a); a.click(); a.remove();
+  toast(`Datapack con ${mobs.length} mob${mobs.length > 1 ? 's' : ''} descargado`);
+}
+
 // Huevo de cada mob (los que no tienen uno propio usan uno parecido: el mob que sale es el correcto igual)
 const EGG_FALLBACK = { giant: 'zombie', illusioner: 'evoker' };
 const mobEggId = id => { id = stripNs(id); return NAMES.items[id + '_spawn_egg'] ? id + '_spawn_egg' : (EGG_FALLBACK[id] || 'pig') + '_spawn_egg'; };
@@ -2423,6 +2964,23 @@ function mobWarnings(m) {
   const sc = m.attrs.find(a => stripNs(a.type) === 'scale');
   if (sc && (+sc.base < 0.0625 || +sc.base > 16)) w.push(['warn', 'La escala va de 0.0625 a 16.']);
   if (m.extra.trim() && /[{}\[\]]/.test(m.extra) && !balanced(m.extra)) w.push(['err', 'El NBT extra tiene llaves o corchetes sin cerrar.']);
+  (m.drops || []).forEach((d, i) => {
+    const n = `Drop ${i + 1}`, it = equipItem(d.item);
+    if (!it) w.push(['warn', `${n}: no tiene item, se omite.`]);
+    else if (d.item.mode === 'vanilla' && !NAMES.items[stripNs(d.item.id)] && !d.item.id.includes(':')) w.push(['err', `${n}: "${d.item.id}" no es un item conocido.`]);
+    if (+d.min > +d.max) w.push(['warn', `${n}: el mínimo es mayor que el máximo; siempre soltará ${d.min}.`]);
+    if (d.chance !== '' && (+d.chance <= 0 || +d.chance > 100)) w.push(['warn', `${n}: la probabilidad va de 0 a 100 (0 = nunca).`]);
+  });
+  if (usesPack(m)) w.push(['warn', `Este mob usa el datapack (drops, barra de jefe, habilidades…). Descárgalo en "Opciones de datapack", ponlo en la carpeta datapacks del mundo y usa /reload. Sin él no pasa nada de eso.`]);
+  if (bossPackOn(m) && /(^|[,{\s])Tags\s*:/.test(m.extra)) w.push(['err', 'Pusiste Tags en el NBT extra: el datapack necesita sus propias etiquetas. Quítalas del NBT extra.']);
+  if (m.scaleMode === 'split' && (m.passengers || []).length) w.push(['warn', 'Las copias que salen al dividirse no llevan pasajeros.']);
+  (m.abilities || []).forEach((a, i) => {
+    if (a.type === 'command' && !dpLines(a.cmds).length) w.push(['warn', `Habilidad ${i + 1}: no tiene comandos.`]);
+    if (a.type === 'aoe_effect' && a.effect && !NAMES.effects[stripNs(a.effect)] && !a.effect.includes(':')) w.push(['err', `Habilidad ${i + 1}: efecto desconocido "${a.effect}".`]);
+  });
+  (m.auras || []).forEach((a, i) => { if (a.id && !NAMES.effects[stripNs(a.id)] && !a.id.includes(':')) w.push(['err', `Aura ${i + 1}: efecto desconocido "${a.id}".`]); });
+  if (m.bossbar && !textPlain(m.name).trim()) w.push(['warn', 'La barra de jefe usará el nombre normal del mob: ponle un nombre para que se vea mejor.']);
+  if (/DeathLootTable/.test(m.extra) && hasDrops(m)) w.push(['err', 'Pusiste DeathLootTable en el NBT extra y también drops: quita uno de los dos.']);
   return w;
 }
 function balanced(s) { let d = 0; for (const c of s) { if ('{['.includes(c)) d++; else if ('}]'.includes(c)) d--; if (d < 0) return false; } return d === 0; }
@@ -2534,13 +3092,209 @@ function renderPassengers() {
 }
 $('#passAdd').onclick = () => { mob.passengers.push({ mode: 'vanilla', id: 'skeleton', name: '', data: null }); renderPassengers(); updateMob(); };
 
+function renderMobDrops() {
+  mob.drops ||= [];
+  $('#mobDropList').replaceChildren(...mob.drops.map((d, i) => {
+    const num = (k, label, attrs) => el('div', { class: 'f' }, el('span', {}, label),
+      el('input', { type: 'number', value: d[k], style: 'width:72px', ...attrs, oninput: e => { d[k] = e.target.value; updateMob(); } }));
+    const row = el('div', { class: 'list-row' },
+      el('div', { class: 'f', style: 'flex:1 1 260px' }, el('span', {}, d.keyTag ? '🗝 Llave de mazmorra' : 'Item'), itemPicker(d.item, updateMob, { placeholder: 'emerald', hideCount: true })),
+      num('min', 'Mín', { min: 0, max: 64 }), num('max', 'Máx', { min: 0, max: 64 }),
+      num('chance', '% prob.', { min: 0, max: 100, step: 'any', placeholder: '100' }),
+      num('looting', '+ Saqueo', { min: 0, max: 64, title: 'Cuántos extra como máximo por cada nivel de Saqueo' }),
+      el('button', { class: 'btn icon danger', type: 'button', title: 'Quitar', onclick: () => { mob.drops.splice(i, 1); renderMobDrops(); updateMob(); } }, '✕'));
+    const kc = keyCommands(d);
+    if (kc) {
+      const line = (lbl, cmd) => el('div', {}, el('div', { class: 'row', style: 'margin:0;align-items:center' }, el('span', { style: 'flex:1;color:var(--muted)' }, lbl),
+        el('button', { class: 'btn sm icon', type: 'button', title: 'Copiar', onclick: async () => { await copyText(cmd); toast('Copiado'); } }, '📋')), el('code', { class: 'inset' }, cmd));
+      row.append(el('div', { class: 'dp-key' },
+        line('Cofre cerrado que solo abre esta llave (ponlo en su guarida; se abre con la llave en la mano):', kc.chest),
+        line('Llave de prueba para ti:', kc.give)));
+    }
+    return row;
+  }));
+  $('#mobDropBadge').textContent = mob.drops.length;
+}
+$('#mobDropAdd').onclick = () => { (mob.drops ||= []).push(newDrop()); renderMobDrops(); updateMob(); };
+$('#mobKeyAdd').onclick = () => {
+  const who = textPlain(mob.name).trim() || NAMES.entities[stripNs(mob.id)] || 'el jefe';
+  const data = { ...newItem(), id: 'trial_key', glint: 'true', rarity: 'epic',
+    name: { segs: [{ ...newSeg('Llave de ' + who), cm: 'gold', b: true }] },
+    lore: [{ segs: [{ ...newSeg('Abre el cofre de su guarida'), cm: 'gray', i: true }] }] };
+  (mob.drops ||= []).push({ ...newDrop(), item: { mode: 'lib', id: '', count: 1, name: 'Llave de ' + who, data }, keyTag: lootSlug(lootNameOf(mob)).replace(/\//g, '_') + '_llave' });
+  renderMobDrops(); updateMob(); toast('Llave añadida a los drops');
+};
+$('#mobLootZip').onclick = () => downloadLootPack();
+$('#mobLootCopy').onclick = async () => {
+  if (!hasDrops(mob)) { toast('Añade al menos un drop'); return; }
+  await copyText(JSON.stringify(buildLootTable(mob), null, 2)); toast('JSON de la loot table copiado');
+};
+
+/* ---------- OPCIONES DE DATAPACK: interfaz ---------- */
+BAR_COLORS.forEach(([v, n]) => $('#dpBarColor').append(el('option', { value: v }, n)));
+BAR_STYLES.forEach(([v, n]) => $('#dpBarStyle').append(el('option', { value: v }, n)));
+DP_ABIL.forEach(([v, n]) => $('#dpAbilType').append(el('option', { value: v }, n)));
+const dpNum = (o, k, label, attrs = {}) => el('div', { class: 'f' }, el('span', {}, label),
+  el('input', { type: 'number', value: o[k], style: 'width:78px', ...attrs, oninput: e => { o[k] = e.target.value; updateMob(); } }));
+const dpChk = (o, k, label) => el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: !!o[k], onchange: e => { o[k] = e.target.checked; updateMob(); } }), label);
+const dpDel = (arr, i, rerender) => el('button', { class: 'btn icon danger', type: 'button', title: 'Quitar', onclick: () => { arr.splice(i, 1); rerender(); updateMob(); } }, '✕');
+const dpText = (o, k, ph, rows = 2) => { const t = el('textarea', { rows, spellcheck: 'false', placeholder: ph, oninput: e => { o[k] = e.target.value; updateMob(); } }); t.value = o[k] || ''; return t; };
+const dpSel = (opts, o, k, after) => selectOf(opts, o[k], v => { o[k] = v; if (after) after(); updateMob(); });
+function msgEditor(g, label) {
+  return el('div', { class: 'dp-row' }, el('div', { class: 'te-line-head', style: 'margin:0' }, label),
+    textEditor(g.text, updateMob, { placeholder: 'Texto (vacío = sin mensaje)' }),
+    el('div', { class: 'row' }, el('div', { class: 'f' }, el('span', {}, 'Dónde se ve'), dpSel(DP_MSG_MODES, g, 'mode')),
+      el('div', { class: 'f' }, el('span', {}, 'Sonido'), dpSel(DP_SOUNDS, g, 'sound'))));
+}
+function renderDpAuras() {
+  $('#dpAuraList').replaceChildren(...mob.auras.map((a, i) => el('div', { class: 'list-row' },
+    autocomplete(DATA.effects, a.id, v => { a.id = v; updateMob(); }, 'darkness'),
+    dpNum(a, 'lvl', 'Nivel', { min: 1, max: 256 }), dpNum(a, 'radius', 'Radio', { min: 1, max: 64 }),
+    dpNum(a, 'every', 'Cada (s)', { min: 0.5, step: 'any' }), dpNum(a, 'dur', 'Dura (s)', { min: 1 }), dpDel(mob.auras, i, renderDpAuras))));
+  $('#dpAuraBadge').textContent = mob.auras.length;
+}
+$('#dpAuraAdd').onclick = () => { mob.auras.push(newAura()); renderDpAuras(); updateMob(); };
+function renderDpParts() {
+  $('#dpPartList').replaceChildren(...mob.particles.map((pt, i) => {
+    const color = el('input', { type: 'color', value: /^#[0-9a-f]{6}$/i.test(pt.color) ? pt.color : '#AB1B42', title: 'Color del polvo', oninput: e => { pt.color = e.target.value; updateMob(); } });
+    color.style.display = pt.type === 'dust' ? '' : 'none';
+    return el('div', { class: 'list-row' },
+      el('div', { class: 'f grow' }, el('span', {}, 'Partícula'), dpSel(DP_PARTICLES, pt, 'type', () => { color.style.display = pt.type === 'dust' ? '' : 'none'; })),
+      color, dpNum(pt, 'count', 'Cantidad', { min: 1, max: 100 }), dpNum(pt, 'spread', 'Dispersión', { min: 0.1, max: 5, step: 0.1 }),
+      dpDel(mob.particles, i, renderDpParts));
+  }));
+  $('#dpPartBadge').textContent = mob.particles.length;
+}
+$('#dpPartAdd').onclick = () => { mob.particles.push(newPart()); renderDpParts(); updateMob(); };
+function renderDpPhases() {
+  $('#dpPhaseList').replaceChildren(...mob.phases.map((ph, i) => {
+    const mods = el('div', {});
+    const renderMods = () => mods.replaceChildren(...ph.mods.map((md, k) => el('div', { class: 'list-row' },
+      autocomplete(DATA.attributes, md.type, v => { md.type = v; updateMob(); }, 'movement_speed'),
+      dpNum(md, 'amount', 'Valor', { step: 'any' }),
+      el('div', { class: 'f' }, el('span', {}, 'Operación'), dpSel(OPS, md, 'op')), dpDel(ph.mods, k, renderMods))));
+    renderMods();
+    return el('div', { class: 'dp-row' },
+      el('div', { class: 'row', style: 'align-items:flex-end' }, el('b', { style: 'font-family:var(--pixel);font-size:9px;color:#f0c8d2;flex:1' }, `FASE ${i + 1}`),
+        dpNum(ph, 'pct', 'Con vida ≤ %', { min: 1, max: 99 }), dpDel(mob.phases, i, renderDpPhases)),
+      msgEditor(ph.msg, 'Mensaje al entrar en la fase'),
+      el('div', { class: 'te-line-head', style: 'margin:0' }, 'Cambios de atributos'), mods,
+      el('button', { class: 'btn sm', type: 'button', style: 'align-self:flex-start', onclick: () => { ph.mods.push({ type: 'movement_speed', amount: 0.5, op: 'add_multiplied_base' }); renderMods(); updateMob(); } }, '+ Cambio de atributo'),
+      el('div', { class: 'row' }, el('div', { class: 'f grow' }, el('span', {}, 'Efecto para sí mismo (opcional)'), autocomplete(DATA.effects, ph.effect, v => { ph.effect = v; updateMob(); }, 'strength')),
+        dpNum(ph, 'effLvl', 'Nivel', { min: 1, max: 256 })),
+      el('div', { class: 'f' }, el('span', {}, 'Comandos extra (uno por línea)'), dpText(ph, 'cmds', 'summon minecraft:lightning_bolt ~ ~ ~')));
+  }));
+  $('#dpPhaseBadge').textContent = mob.phases.length;
+}
+$('#dpPhaseAdd').onclick = () => {
+  const last = mob.phases.length ? Math.min(...mob.phases.map(p => +p.pct || 50)) : 75;
+  mob.phases.push(newPhase(Math.max(5, mob.phases.length ? Math.round(last / 2) : 50))); renderDpPhases(); updateMob();
+};
+function renderDpAbils() {
+  const libMobs = libLoad().mobs || [];
+  $('#dpAbilList').replaceChildren(...mob.abilities.map((a, i) => {
+    const t = a.type, f = [];
+    if (t === 'aoe_effect') f.push(el('div', { class: 'f grow' }, el('span', {}, 'Efecto'), autocomplete(DATA.effects, a.effect, v => { a.effect = v; updateMob(); }, 'slowness')),
+      dpNum(a, 'lvl', 'Nivel', { min: 1, max: 256 }), dpNum(a, 'dur', 'Dura (s)', { min: 1 }), dpNum(a, 'radius', 'Radio', { min: 1, max: 64 }));
+    if (t === 'aoe_damage') f.push(dpNum(a, 'amount', 'Daño (½ corazón = 1)', { min: 0.5, step: 'any' }), dpNum(a, 'radius', 'Radio', { min: 1, max: 64 }));
+    if (t === 'projectile') f.push(el('div', { class: 'f' }, el('span', {}, 'Proyectil'), dpSel(DP_PROJ, a, 'proj')),
+      dpNum(a, 'count', 'Cuántos', { min: 1, max: 8 }), dpNum(a, 'speed', 'Velocidad', { min: 0.1, max: 5, step: 0.1 }), dpNum(a, 'radius', 'Alcance', { min: 4, max: 64 }));
+    if (t === 'summon') {
+      const sel = el('select', { style: 'width:auto', onchange: e => {
+        const v = e.target.value;
+        if (v === 'vanilla') { a.src = 'vanilla'; a.mobData = null; }
+        else if (v.startsWith('lib:')) { const x2 = libMobs.find(y => y.uid === v.slice(4)); if (x2) { a.src = 'lib'; a.mobData = clone(x2.data); a.mobName = x2.name; } }
+        renderDpAbils(); updateMob();
+      } }, el('option', { value: 'vanilla' }, 'Mob vanilla'),
+        libMobs.length ? el('optgroup', { label: 'Mis mobs guardados' }, libMobs.map(x2 => el('option', { value: 'lib:' + x2.uid }, x2.name))) : null,
+        a.src === 'lib' ? el('option', { value: 'keep' }, '★ ' + (a.mobName || 'Mob guardado')) : null);
+      sel.value = a.src === 'lib' ? 'keep' : 'vanilla';
+      f.push(el('div', { class: 'f' }, el('span', {}, 'Esbirro'), sel),
+        a.src === 'vanilla' ? el('div', { class: 'f grow' }, el('span', {}, 'Mob'), autocomplete(MOB_LIST, a.mobId, v => { a.mobId = v; updateMob(); }, 'vex')) : null,
+        dpNum(a, 'count', 'Cuántos', { min: 1, max: 20 }));
+    }
+    if (t === 'lightning') f.push(dpNum(a, 'radius', 'Radio', { min: 1, max: 64 }));
+    if (t === 'teleport') f.push(dpNum(a, 'radius', 'Alcance', { min: 2, max: 64 }));
+    if (t === 'heal') f.push(dpNum(a, 'amount', 'Vida que recupera', { min: 1 }));
+    if (t === 'command') f.push(el('div', { class: 'f', style: 'flex:1 1 100%' }, el('span', {}, 'Comandos (uno por línea, se ejecutan como el jefe y desde su posición)'),
+      dpText(a, 'cmds', 'effect give @a[distance=..5] minecraft:slowness 3 2', 3)));
+    return el('div', { class: 'dp-row' },
+      el('div', { class: 'row', style: 'align-items:flex-end' },
+        el('div', { class: 'f' }, el('span', {}, `Habilidad ${i + 1}`), dpSel(DP_ABIL, a, 'type', () => renderDpAbils())),
+        dpNum(a, 'every', 'Cada (s)', { min: 0.5, step: 'any' }), dpNum(a, 'pct', 'Con vida ≤ %', { min: 1, max: 100 }),
+        dpChk(a, 'once', 'Una vez'), el('span', { style: 'flex:1' }), dpDel(mob.abilities, i, renderDpAbils)),
+      el('div', { class: 'row' }, ...f),
+      el('div', { class: 'f' }, el('span', {}, 'Frase al usarla (opcional, sale en el chat)'),
+        el('input', { type: 'text', value: a.msg || '', placeholder: '¡Arrodíllate ante mí!', oninput: e => { a.msg = e.target.value; updateMob(); } })));
+  }));
+  $('#dpAbilBadge').textContent = mob.abilities.length;
+}
+$('#dpAbilAdd').onclick = () => {
+  const t = $('#dpAbilType').value, a = newAbility(t);
+  if (t === 'summon') Object.assign(a, { every: 20, pct: 50, once: true, count: 3 });
+  if (t === 'projectile') Object.assign(a, { every: 4, radius: 24 });
+  if (t === 'aoe_damage') Object.assign(a, { every: 10, amount: 6 });
+  if (t === 'lightning') Object.assign(a, { every: 15, radius: 12 });
+  if (t === 'teleport') Object.assign(a, { every: 12, radius: 20 });
+  if (t === 'heal') Object.assign(a, { every: 20, pct: 40, amount: 10 });
+  mob.abilities.push(a); renderDpAbils(); updateMob();
+};
+function renderDpMsgs() {
+  $('#dpMsgStart').replaceChildren(msgEditor(mob.msgStart, 'Al empezar el combate (el primer jugador entra al radio)'));
+  $('#dpMsgVictory').replaceChildren(msgEditor(mob.msgVictory, 'Al vencerlo'));
+}
+function renderBarPreview() {
+  const col = (BAR_COLORS.find(c => c[0] === mob.barColor) || BAR_COLORS[0])[2];
+  const n = { notched_6: 6, notched_10: 10, notched_12: 12, notched_20: 20 }[mob.barStyle] || 0;
+  const name = el('div', { style: 'font-family:var(--mc);font-size:20px;text-align:center;margin-bottom:4px;line-height:1' });
+  const np = textParts(mob.name);
+  renderParts(name, np.length ? np : [{ text: NAMES.entities[stripNs(mob.id)] || mob.id }], { color: 'white', italic: false });
+  const bar = el('div', { style: `height:8px;border:1px solid #000;background:${col}44;position:relative;max-width:360px;margin:0 auto` },
+    el('div', { style: `position:absolute;left:0;top:0;bottom:0;width:65%;background:${col}` }));
+  if (n) bar.append(el('div', { style: `position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(100% / ${n} - 1px),#000c calc(100% / ${n} - 1px),#000c calc(100% / ${n}))` }));
+  $('#dpBarPreview').replaceChildren(name, bar);
+  $('#dpBarPreview').style.opacity = mob.bossbar ? '1' : '.35';
+}
+function renderDpFiles() {
+  if (!$('#dpFilesSec').open) return;
+  const files = mobPackFiles(mob), sel = $('#dpFileSel'), keys = Object.keys(files), prev = sel.value;
+  sel.replaceChildren(...(keys.length ? keys.map(k => el('option', { value: k }, k.replace(/^data\//, ''))) : [el('option', { value: '' }, 'Aún no hay archivos: activa alguna opción')]));
+  sel.value = keys.includes(prev) ? prev : (keys.find(k => k.endsWith('/boss.mcfunction')) || keys[0] || '');
+  $('#dpFilePre').textContent = files[sel.value] || '';
+}
+$('#dpFileSel').onchange = () => { $('#dpFilePre').textContent = mobPackFiles(mob)[$('#dpFileSel').value] || ''; };
+$('#dpFilesSec').addEventListener('toggle', renderDpFiles);
+function renderDp() { renderDpAuras(); renderDpParts(); renderDpPhases(); renderDpAbils(); renderDpMsgs(); }
+// Visibilidad, contadores y vistas previas del panel (se llama en cada cambio)
+function updateDp() {
+  $('#mobLootPath').innerHTML = usesPack(mob)
+    ? `Archivos en <code>data/${lootNsOf(mob)}/</code> · etiqueta <code>${bossPrefix(mob)}.boss</code>` + (hasDrops(mob) ? ` · loot table <code>${lootId(mob)}</code>` : '')
+    : 'Activa alguna opción de abajo para generar el datapack.';
+  $('#dpScaleHealth').style.display = mob.scaleMode === 'health' ? '' : 'none';
+  $('#dpScaleSplit').style.display = mob.scaleMode === 'split' ? '' : 'none';
+  $('#dpScaleFrom').value = fmtNum(mobDims(mob).s0);
+  if (mob.scaleMode === 'split') {
+    const g = Math.round(clampNum(mob.splitGens, 1, 4, 1)), c = Math.round(clampNum(mob.splitCount, 2, 8, 2)), hp0 = clampNum(mob.maxHealth, 1, 1024, 20);
+    const last = splitChild(mob, g);
+    $('#dpSplitInfo').textContent = `En total salen ${Array.from({ length: g }, (_, k) => c ** (k + 1)).reduce((a, b) => a + b, 0)} copias. Las últimas miden ${fmtNum(last.attrs.at(-1).base)} y tienen ${fmtNum(last.maxHealth)} de vida` + (mob.maxHealth === '' ? ` (calculado con ${hp0} de vida base; pon la vida máxima arriba para que sea exacto).` : '.');
+  }
+  $('#dpPotHealRow').style.display = mob.immPotions ? '' : 'none';
+  renderBarPreview();
+  const n = [hasDrops(mob), mob.bossbar, mob.scaleMode !== 'none', mob.immArrows || mob.immPotions || mob.immFire || mob.immFall || mob.immKnock,
+    mob.auras.length, mob.abilities.length, mob.phases.length, mob.particles.length,
+    msgOn(mob.msgStart) || msgOn(mob.msgVictory) || mob.startCmds.trim() || mob.victoryCmds.trim()].filter(Boolean).length;
+  $('#mobPackBadge').textContent = n;
+  renderDpFiles();
+}
 function renderMobForm() {
+  for (const [k, v] of Object.entries(newMob())) if (mob[k] === undefined) mob[k] = v;   // mobs guardados antes de las opciones de datapack
   mob.equip = { ...Object.fromEntries(EQUIP_SLOTS.map(([s]) => [s, newEquip()])), ...(mob.equip || {}) };
   acMob.setValue(mob.id); fillSimpleFields(mobForm, mob);
-  renderMobName(); renderMobAttrs(); renderEquip(); renderMobEffects(); renderMobOpts(); renderPassengers();
+  renderMobName(); renderMobAttrs(); renderEquip(); renderMobEffects(); renderMobOpts(); renderPassengers(); renderMobDrops(); renderDp();
   updateMob();
 }
 function updateMob() {
+  updateDp();
   const egg = mob.spawnMode === 'egg';
   $('#mobPosRow').style.display = egg ? 'none' : ''; $('#mobEggRow').style.display = egg ? '' : 'none';
   $('#mobWarns').replaceChildren(...mobWarnings(mob).map(([lvl, t]) => el('div', { class: 'warn' + (lvl === 'err' ? ' err' : '') }, t)));
@@ -2648,7 +3402,7 @@ bindSimpleFields(vilForm, () => villager, () => updateVillager());
 function renderVilName() { $('#vilNameEditor').replaceChildren(textEditor(villager.name, updateVillager, { placeholder: 'Nombre del aldeano', defaultLabel: 'Blanco' })); }
 
 // Selector de item reutilizable (vanilla / biblioteca / item abierto)
-function itemPicker(t, onChange, { allowEmpty = false, placeholder = '' } = {}) {
+function itemPicker(t, onChange, { allowEmpty = false, placeholder = '', hideCount = false } = {}) {
   const libItems = libLoad().items || [];
   const wrap = el('div', { class: 'picker' });
   const render = () => {
@@ -2666,7 +3420,7 @@ function itemPicker(t, onChange, { allowEmpty = false, placeholder = '' } = {}) 
     mode.value = t.mode === 'lib' ? 'keep' : (t.mode === 'none' && !allowEmpty ? 'vanilla' : t.mode);
     const kids = [mode];
     if (t.mode === 'vanilla') kids.push(autocomplete(DATA.items, t.id, v => { t.id = v; onChange(); }, placeholder, true));
-    if (t.mode !== 'none') kids.push(el('input', { type: 'number', min: 1, max: 99, value: t.count, title: 'Cantidad', 'aria-label': 'Cantidad', style: 'width:64px', oninput: e => { t.count = e.target.value; onChange(); } }));
+    if (t.mode !== 'none' && !hideCount) kids.push(el('input', { type: 'number', min: 1, max: 99, value: t.count, title: 'Cantidad', 'aria-label': 'Cantidad', style: 'width:64px', oninput: e => { t.count = e.target.value; onChange(); } }));
     wrap.replaceChildren(...kids);
   };
   render();
@@ -2800,6 +3554,8 @@ function M(id, name, o = {}) {
   for (const [slot, v] of Object.entries(o.eq || {})) m.equip[slot] = SLOT(v, { drop: o.drop?.[slot] ?? '' });
   for (const k of ['glowing', 'baby', 'noAI', 'silent', 'invulnerable']) if (o[k]) m[k] = true;
   if (o.opts) m.opts = { ...o.opts };
+  if (o.pack) Object.assign(m, typeof o.pack === 'function' ? o.pack() : o.pack);
+  if (o.loot) m.drops = o.loot.map(([id, min, max, chance = 100, looting = 0]) => ({ ...newDrop(id), min, max, chance, looting }));
   return m;
 }
 // Poción
@@ -2971,10 +3727,29 @@ const RPG_ITEMS = [
 
 /* -------------------------------- MOBS -------------------------------- */
 const RPG_MOBS = [
+  () => {   // Jefe de muestra con todas las opciones de datapack
+    const m = M('zombie', S('Caballero de Hierro', '#DDDDDD>#55FF55', 'b'), { hp: 150, attrs: { attack_damage: 8, movement_speed: 0.26, scale: 1.3 },
+      eq: { mainhand: 'iron_sword', head: 'iron_helmet', chest: 'iron_chestplate', legs: 'iron_leggings', feet: 'iron_boots' },
+      drop: { mainhand: 0, head: 0, chest: 0, legs: 0, feet: 0 }, loot: [['emerald', 1, 5, 100, 1]],
+      pack: () => ({ bossbar: true, barColor: 'green', barStyle: 'notched_10', range: 32, immArrows: true, immFire: true, immKnock: true,
+        particles: [{ ...newPart(), type: 'minecraft:soul', count: 2 }, { ...newPart(), type: 'dust', color: '#55FF55', count: 3 }],
+        auras: [{ ...newAura(), id: 'mining_fatigue', lvl: 2, radius: 10, every: 4, dur: 6 }],
+        abilities: [{ ...newAbility('aoe_effect'), every: 7, effect: 'slowness', lvl: 3, dur: 3, radius: 5, msg: '¡Arrodíllate!' },
+          { ...newAbility('summon'), every: 20, pct: 50, once: true, mobId: 'vex', count: 3, msg: '¡A mí, sirvientes!' },
+          { ...newAbility('projectile'), every: 4, pct: 30, proj: 'small_fireball', count: 3, radius: 24 }],
+        phases: [{ ...newPhase(50), msg: { text: { segs: [{ ...newSeg('¡Ahora sí estoy enojado!'), cm: 'red', b: true }] }, mode: 'title', sound: 'minecraft:entity.ravager.roar' },
+          mods: [{ type: 'movement_speed', amount: 0.5, op: 'add_multiplied_base' }, { type: 'armor', amount: -10, op: 'add_value' }] }],
+        msgStart: newMsg('Nadie sale vivo de mi fortaleza.', 'chat', 'minecraft:entity.wither.spawn'),
+        msgVictory: { text: { segs: [{ ...newSeg('¡Caballero de Hierro derrotado!'), cm: 'gold', b: true }] }, mode: 'title', sound: 'minecraft:ui.toast.challenge_complete' } }) });
+    $('#mobKeyAdd') && m.drops.push({ ...newDrop(), item: { mode: 'lib', id: '', count: 1, name: 'Llave de la Fortaleza',
+      data: { ...newItem(), id: 'trial_key', glint: 'true', rarity: 'epic', name: { segs: [{ ...newSeg('Llave de la Fortaleza'), cm: 'gold', b: true }] },
+        lore: [{ segs: [{ ...newSeg('Abre el cofre de su guarida'), cm: 'gray', i: true }] }] } }, keyTag: 'caballero_de_hierro_llave' });
+    return m;
+  },
   () => M('zombie', [S('☠ ', 'dark_red'), S('Rey Zombie', '#55FF55>#FFAA00', 'b')], { hp: 100,
     attrs: { attack_damage: 10, movement_speed: 0.3, scale: 1.5, knockback_resistance: 1 }, eff: 'fire_resistance 1 inf -p', glowing: true,
     eq: { mainhand: 'golden_sword', offhand: 'shield', head: 'golden_helmet', chest: I('leather_chestplate', S('Pechera real', 'red'), [], { dye: '#8B1A1A', unb: 1 }), legs: 'iron_leggings', feet: 'diamond_boots' },
-    drop: { mainhand: 100, head: 0, chest: 0, legs: 0, feet: 0 } }),
+    drop: { mainhand: 100, head: 0, chest: 0, legs: 0, feet: 0 }, loot: [['emerald', 3, 8, 100, 2], ['gold_ingot', 1, 3, 50], ['golden_apple', 1, 1, 15]] }),
   () => M('wither_skeleton', S('Caballero Hueco', '#AAAAAA>#555555', 'b'), { hp: 150,
     attrs: { attack_damage: 12, movement_speed: 0.28, armor: 10, knockback_resistance: 0.5 },
     eq: { mainhand: 'netherite_sword', offhand: 'shield', head: 'netherite_helmet', chest: 'netherite_chestplate' }, drop: { mainhand: 5 } }),
@@ -3496,6 +4271,7 @@ function genMob(r, th, k, name) {
     if (r >= 4) { o.eq.legs = genItem(11, th, t, k); o.eq.feet = genItem(12, th, t, k); o.drop.legs = o.drop.feet = 0; }
     if (r >= 5 && !ARCHER.has(id) && id !== 'pillager' && !NO_WEAPON.has(id)) o.eq.offhand = genItem(8, th, t, k);
   }
+  if (r >= 3) o.loot = [['emerald', 1, Math.ceil(r / 2) + 1, 100, 1], ...(r >= 6 ? [['diamond', 1, r >= 8 ? 3 : 1, r >= 8 ? 100 : 40]] : [])];
   return M(id, S(name, th.c, 'b'), o);
 }
 for (let i = 0; i < 200; i++) {
@@ -4760,7 +5536,7 @@ function switchTab(name) {
   currentTab = name;
   $$('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   $$('.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
-  if (name === 'mobs') { renderEquip(); renderPassengers(); Viewer.attach('mobs'); Viewer.update(mob); }   // la biblioteca pudo cambiar
+  if (name === 'mobs') { renderEquip(); renderPassengers(); renderDpAbils(); Viewer.attach('mobs'); Viewer.update(mob); }   // la biblioteca pudo cambiar
   if (name === 'villagers') { renderTrades(); Viewer.attach('villagers'); Viewer.update(villagerView(villager)); }
   if (name === 'heads') { if (hdSrc === 'db') loadHeadDb(); renderHeadGrid(); }
   if (name === 'mannequins') { renderMqEquip(); Viewer.attach('mannequins'); Viewer.update(mannequinView(mannequin)); }
