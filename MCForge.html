@@ -234,20 +234,36 @@ dialog code{background:var(--field);padding:1px 5px;font-size:12px;word-break:br
 .list-row{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px;padding:6px;background:#1e1e22;border:1px solid #333}
 .list-row .ac{flex:1 1 180px}
 /* ---------- Opciones de datapack (pestaña Mobs) ---------- */
-.dp-sec{background:#241418;border-color:#d8406a #4a0a1c #4a0a1c #d8406a}
-.dp-sec>summary{background:#ab1b42;color:#fff;text-shadow:2px 2px 0 #4a0a1c}
-.dp-sec>summary::before{color:#fff}
+/* Dentro del panel, los grises del resto de la app se cambian por tonos de #ab1b42 / #47091a */
+.dp-sec{--panel:#2b0a14;--panel-2:#47091a;--field:#1c050c;--bevel-hi:#7a2a40;--bevel-lo:#12030a;--muted:#c99aa7;--dim:#8a5a68;
+  background:var(--panel);border-color:#d8406a #4a0a1c #4a0a1c #d8406a}
+.dp-sec>summary{background:#ab1b42;color:#fff;text-shadow:2px 2px 0 #47091a}
+details.sec.dp-sec>summary::before{color:#fff}
 .dp-sec>summary .badge{background:#7a1230;border-color:#e0607f;color:#fff}
 .dp-sec .sec-body{padding-top:10px}
-details.dp-sub{margin:8px 0;background:#1a1114}
-details.dp-sub>summary{font-size:9px;color:#f0c8d2}
-details.dp-sub>summary::before{color:#e0607f}
-.dp-row{padding:8px;margin-bottom:8px;background:#1e1e22;border:1px solid #3a2a30;display:flex;flex-direction:column;gap:6px}
+.dp-sec details.dp-sub{margin:8px 0;background:#360b18;border-color:#12030a #7a2a40 #7a2a40 #12030a}
+.dp-sec details.dp-sub>summary{font-size:9px;color:#f0c8d2}
+.dp-sec details.dp-sub>summary::before{color:#e0607f}
+.dp-sec .list-row,.dp-sec .dp-row{background:#47091a;border:1px solid #6a1a30}
+.dp-row{padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px}
 .dp-row .row{margin:0}
+.dp-row .dp-row{background:#3a0815}
 .dp-row textarea{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.dp-sec .btn{background:#6a1028;border-color:#b0405e #2a0510 #2a0510 #b0405e}
+.dp-sec .btn:hover{background:#8a1a38}
+.dp-sec .btn:active{border-color:#2a0510 #b0405e #b0405e #2a0510}
+.dp-sec .btn.green{background:var(--grass-dk);border-color:#7fdc5a #1d4a0d #1d4a0d #7fdc5a}
+.dp-sec .btn.green:hover{background:#4aa12a}
+.dp-sec .ac-list{background:#1c050c;border-color:#7a2a40}
+.dp-sec .ac-item.sel,.dp-sec .ac-item:hover{background:#6a1028}
+.dp-sec .te-fmt button.on{background:#ab1b42;border-color:#e0607f}
+.dp-sec input:focus,.dp-sec select:focus,.dp-sec textarea:focus{outline-color:#e0607f}
+.dp-sec label.chk input{accent-color:#ab1b42}
 .dp-key{flex-basis:100%;display:flex;flex-direction:column;gap:4px;font-size:12px}
 .dp-key code{display:block;overflow-wrap:anywhere;padding:4px 6px}
-#dpFilePre{font-family:ui-monospace,Consolas,monospace;font-size:12px;max-height:340px;overflow:auto;white-space:pre;padding:8px;margin:6px 0 0;color:#d6f5c8}
+#dpFilePre{font-family:ui-monospace,Consolas,monospace;font-size:12px;max-height:340px;overflow:auto;white-space:pre;padding:8px;margin:6px 0 0;color:#f0c8d2}
+.dp-sec *{scrollbar-color:#ab1b42 #1c050c}
+.dp-sec ::-webkit-scrollbar-thumb{background:#ab1b42;border-color:#e0607f #47091a #47091a #e0607f}
 </style>
 </head>
 <body>
@@ -542,18 +558,18 @@ details.dp-sub>summary::before{color:#e0607f}
           </div>
           <p class="hint" id="mobLootPath" style="margin-top:0"></p>
           <div class="row">
-            <button class="btn sm green" type="button" id="mobLootZip">⬇ Descargar datapack (.zip)</button>
-            <button class="btn sm" type="button" id="mobLootCopy">📋 Copiar JSON de drops</button>
+            <button class="btn sm green" type="button" id="mobLootZip">Descargar datapack (.zip)</button>
+            <button class="btn sm" type="button" id="mobLootCopy">Copiar JSON de drops</button>
           </div>
           <p class="hint">El radio de combate es la distancia a la que el jefe "te ve": ahí aparece la barra, se activan el aura y las habilidades y llegan los mensajes. El .zip incluye <b>todas</b> las pestañas de mobs abiertas que usen el datapack.</p>
 
           <details class="sec inset dp-sub" id="mobDropsSec">
-            <summary>🎒 Drops al morir <span class="badge" id="mobDropBadge">0</span></summary>
+            <summary>Drops al morir <span class="badge" id="mobDropBadge">0</span></summary>
             <div class="sec-body">
               <div id="mobDropList"></div>
               <div class="row">
                 <button class="btn sm" type="button" id="mobDropAdd">+ Drop</button>
-                <button class="btn sm" type="button" id="mobKeyAdd">🗝 Llave de mazmorra</button>
+                <button class="btn sm" type="button" id="mobKeyAdd">Llave de mazmorra</button>
               </div>
               <div class="row" style="margin-top:6px">
                 <div class="f"><span>Drops normales del mob</span>
@@ -568,7 +584,7 @@ details.dp-sub>summary::before{color:#e0607f}
           </details>
 
           <details class="sec inset dp-sub" id="dpBarSec">
-            <summary>👑 Barra de jefe</summary>
+            <summary>Barra de jefe</summary>
             <div class="sec-body">
               <label class="chk"><input type="checkbox" data-k="bossbar"> Mostrar barra de jefe (como el Wither o el Ender Dragon)</label>
               <div class="row">
@@ -581,7 +597,7 @@ details.dp-sub>summary::before{color:#e0607f}
           </details>
 
           <details class="sec inset dp-sub" id="dpSizeSec">
-            <summary>📏 Tamaño dinámico</summary>
+            <summary>Tamaño dinámico</summary>
             <div class="sec-body">
               <div class="f"><span>Modo</span>
                 <select data-k="scaleMode" style="width:auto">
@@ -607,7 +623,7 @@ details.dp-sub>summary::before{color:#e0607f}
           </details>
 
           <details class="sec inset dp-sub" id="dpImmSec">
-            <summary>🛡 Inmunidades</summary>
+            <summary>Inmunidades</summary>
             <div class="sec-body">
               <label class="chk" style="display:flex"><input type="checkbox" data-k="immArrows"> Inmune a flechas: las desvía (obliga a pelear cuerpo a cuerpo)</label>
               <label class="chk" style="display:flex"><input type="checkbox" data-k="immPotions"> Las pociones arrojadizas y persistentes lo curan en vez de dañarlo</label>
@@ -620,7 +636,7 @@ details.dp-sub>summary::before{color:#e0607f}
           </details>
 
           <details class="sec inset dp-sub" id="dpAuraSec">
-            <summary>🌫 Aura pasiva <span class="badge" id="dpAuraBadge">0</span></summary>
+            <summary>Aura pasiva <span class="badge" id="dpAuraBadge">0</span></summary>
             <div class="sec-body">
               <div id="dpAuraList"></div>
               <button class="btn sm" type="button" id="dpAuraAdd">+ Efecto de aura</button>
@@ -629,7 +645,7 @@ details.dp-sub>summary::before{color:#e0607f}
           </details>
 
           <details class="sec inset dp-sub" id="dpAbilSec">
-            <summary>⚔ Habilidades de combate <span class="badge" id="dpAbilBadge">0</span></summary>
+            <summary>Habilidades de combate <span class="badge" id="dpAbilBadge">0</span></summary>
             <div class="sec-body">
               <div id="dpAbilList"></div>
               <div class="row"><select id="dpAbilType" style="width:auto"></select><button class="btn sm" type="button" id="dpAbilAdd">+ Habilidad</button></div>
@@ -638,7 +654,7 @@ details.dp-sub>summary::before{color:#e0607f}
           </details>
 
           <details class="sec inset dp-sub" id="dpPhaseSec">
-            <summary>🔥 Fases de combate <span class="badge" id="dpPhaseBadge">0</span></summary>
+            <summary>Fases de combate <span class="badge" id="dpPhaseBadge">0</span></summary>
             <div class="sec-body">
               <div id="dpPhaseList"></div>
               <button class="btn sm" type="button" id="dpPhaseAdd">+ Fase</button>
@@ -647,7 +663,7 @@ details.dp-sub>summary::before{color:#e0607f}
           </details>
 
           <details class="sec inset dp-sub" id="dpPartSec">
-            <summary>✨ Partículas <span class="badge" id="dpPartBadge">0</span></summary>
+            <summary>Partículas <span class="badge" id="dpPartBadge">0</span></summary>
             <div class="sec-body">
               <div id="dpPartList"></div>
               <button class="btn sm" type="button" id="dpPartAdd">+ Partícula</button>
@@ -656,7 +672,7 @@ details.dp-sub>summary::before{color:#e0607f}
           </details>
 
           <details class="sec inset dp-sub" id="dpMsgSec">
-            <summary>💬 Mensajes y eventos</summary>
+            <summary>Mensajes y eventos</summary>
             <div class="sec-body">
               <div id="dpMsgStart"></div>
               <div class="f" style="margin-bottom:10px"><span>Comandos al empezar el combate (uno por línea, se ejecutan desde el jefe)</span>
@@ -669,7 +685,7 @@ details.dp-sub>summary::before{color:#e0607f}
           </details>
 
           <details class="sec inset dp-sub" id="dpFilesSec">
-            <summary>📂 Ver archivos generados</summary>
+            <summary>Ver archivos generados</summary>
             <div class="sec-body">
               <select id="dpFileSel" style="width:100%"></select>
               <pre id="dpFilePre" class="inset"></pre>
@@ -2698,8 +2714,9 @@ function keyCommands(d) {
 
 /* Genera los .mcfunction de un jefe. Cómo funciona:
    - tick: cada jefe (tag <ns>.<id>.boss) corre su función "boss".
-   - Cada jefe tiene un marcador invisible que lo sigue; si el jefe desaparece y el marcador
-     queda solo, el jefe murió: ahí se divide (modo slime) o se declara la victoria. */
+   - Cada jefe guarda su posición en un storage (memoria del mundo, no es una entidad).
+     Si deja de existir y su zona sigue cargada, murió: ahí se divide (modo slime)
+     o se declara la victoria. */
 function bossFiles(m, ver = VERSION) {
   const ns = lootNsOf(m), x = lootNameOf(m), P = bossPrefix(m), F = `${ns}:${x}`, files = {}, consts = new Set([4, 10, 100]);
   const N = fmtNum, J = o => JSON.stringify(o), R = clampNum(m.range, 4, 128, 32);
@@ -2731,8 +2748,14 @@ function bossFiles(m, ver = VERSION) {
   // ---------- boss: cada tick, como el jefe ----------
   const boss = [
     `execute unless entity @s[tag=mcf.init] run function ${F}/init`,
-    `scoreboard players operation #cur mcf.id = @s mcf.id`,
-    `execute as @e[type=minecraft:marker,tag=${P}.trk] if score @s mcf.id = #cur mcf.id run function ${F}/follow`,
+    `# Recuerda dónde está (en memoria, sin entidades) para saber dónde murió`,
+    `execute store result storage ${F} args.id int 1 run scoreboard players get @s mcf.id`,
+    `execute store result storage ${F} args.x int 1 run data get entity @s Pos[0]`,
+    `execute store result storage ${F} args.y int 1 run data get entity @s Pos[1]`,
+    `execute store result storage ${F} args.z int 1 run data get entity @s Pos[2]`,
+    `data modify storage ${F} args.g set value 0`,
+    Array.from({ length: G }, (_, g) => `execute if entity @s[tag=${P}.g${g + 1}] run data modify storage ${F} args.g set value ${g + 1}`),
+    `function ${F}/seen with storage ${F} args`,
     `execute store result score @s mcf.hp run data get entity @s Health 100`,
     `execute store result score @s mcf.max run attribute @s minecraft:max_health get 100`
   ];
@@ -2848,15 +2871,26 @@ function bossFiles(m, ver = VERSION) {
   fn('boss', boss);
   fn('start', [`tag @s add ${P}.met`, say(m.msgStart, near(R)), dpLines(m.startCmds)]);
   fn('init', [`tag @s add mcf.init`, `scoreboard players add #next mcf.id 1`, `scoreboard players operation @s mcf.id = #next mcf.id`,
-    `scoreboard players set @s mcf.t 0`, `summon minecraft:marker ~ ~ ~ {Tags:["${P}.trk","mcf.new"]}`,
-    `scoreboard players operation @e[type=minecraft:marker,tag=mcf.new] mcf.id = #next mcf.id`,
-    Array.from({ length: G + 1 }, (_, g) => `execute if entity @s[tag=${P}.g${g}] run tag @e[type=minecraft:marker,tag=mcf.new] add ${P}.g${g}`),
-    `tag @e[type=minecraft:marker,tag=mcf.new] remove mcf.new`]);
-  fn('follow', [`tp @s ~ ~ ~`, `tag @s remove mcf.lost`]);
-  // Muerte: el marcador quedó solo
+    `scoreboard players set @s mcf.t 0`]);
+  // Lista "vivos" en el storage: {id, g (generación), x, y, z, seen, miss}
+  fn('seen', [`$execute unless data storage ${F} vivos[{id:$(id)}] run function ${F}/register with storage ${F} args`,
+    `$data modify storage ${F} vivos[{id:$(id)}] merge value {seen:1b,miss:0,x:$(x),y:$(y),z:$(z)}`]);
+  fn('register', [`$data modify storage ${F} vivos append value {id:$(id),g:$(g),x:$(x),y:$(y),z:$(z),seen:1b,miss:0}`]);
+  // Revisa uno por uno los que no se vieron este tick
+  fn('lost_next', [`execute unless data storage ${F} pend[0] run return 0`,
+    `data modify storage ${F} cur set from storage ${F} pend[0]`, `data remove storage ${F} pend[0]`,
+    `function ${F}/lost_one with storage ${F} cur`, `function ${F}/lost_next`]);
+  fn('lost_one', [`# Si esa zona no está cargada, el jefe solo está lejos: se espera`,
+    `$execute unless loaded $(x) $(y) $(z) run return 0`,
+    `# Se espera 1 segundo por si sus entidades aún están cargando`,
+    `$scoreboard players set #miss mcf.v $(miss)`, `scoreboard players add #miss mcf.v 1`,
+    `$execute if score #miss mcf.v matches ..19 run return run execute store result storage ${F} vivos[{id:$(id)}].miss int 1 run scoreboard players get #miss mcf.v`,
+    `$data remove storage ${F} vivos[{id:$(id)}]`, `$scoreboard players set #g mcf.v $(g)`,
+    `$execute positioned $(x) $(y) $(z) positioned ~0.5 ~ ~0.5 run function ${F}/death`]);
+  // Muerte: el jefe ya no existe y su zona está cargada
   const death = [];
   for (let g = 0; g < G; g++) {
-    death.push(`execute if entity @s[tag=${P}.g${g}] run function ${F}/split_${g + 1}`);
+    death.push(`execute if score #g mcf.v matches ${g} run function ${F}/split_${g + 1}`);
     const c = Math.round(clampNum(m.splitCount, 2, 8, 2)), nbt = mobNbt(splitChild(m, g + 1), ver), id = stripNs(m.id) || 'zombie';
     fn('split_' + (g + 1), [Array.from({ length: c }, (_, k) => {
       const ang = 2 * Math.PI * k / c, rr = 0.6 + w * 0.6;
@@ -2864,15 +2898,19 @@ function bossFiles(m, ver = VERSION) {
     }), `particle minecraft:poof ~ ~${cy} ~ ${N(w)} ${N(h / 3)} ${N(w)} 0.05 30`,
       `playsound minecraft:entity.slime.squish hostile @a[distance=..24] ~ ~ ~ 1.5 0.6`]);
   }
-  death.push(`execute unless entity @e[tag=${P}.boss] run function ${F}/victory`, `kill @s`);
+  death.push(`execute unless entity @e[tag=${P}.boss] run function ${F}/victory`);
   fn('death', death);
   fn('victory', [m.bossbar ? `bossbar set ${F} players` : '', say(m.msgVictory, near(R * 1.5)), dpLines(m.victoryCmds)]);
-  fn('tick', [`tag @e[type=minecraft:marker,tag=${P}.trk] add mcf.lost`,
+  fn('tick', [`data modify storage ${F} vivos[].seen set value 0b`,
     `execute as @e[tag=${P}.boss] at @s run function ${F}/boss`,
-    `execute as @e[type=minecraft:marker,tag=${P}.trk,tag=mcf.lost] at @s run function ${F}/death`,
+    `data modify storage ${F} pend set value []`,
+    `data modify storage ${F} pend append from storage ${F} vivos[{seen:0b}]`,
+    `function ${F}/lost_next`,
     m.bossbar ? `execute unless entity @e[tag=${P}.boss] run bossbar set ${F} players` : '']);
   fn('load', [['mcf.hp', 'mcf.max', 'mcf.pct', 'mcf.t', 'mcf.id', 'mcf.ss', 'mcf.v', 'mcf.c'].map(o => `scoreboard objectives add ${o} dummy`),
     [...consts].sort((a, b) => a - b).map(c => `scoreboard players set #${c} mcf.c ${c}`),
+    `# Limpia los marcadores de la versión anterior del datapack`, `kill @e[type=minecraft:marker,tag=${P}.trk]`,
+    `execute unless data storage ${F} vivos run data modify storage ${F} vivos set value []`,
     m.bossbar ? [`bossbar add ${F} ${J(nameComp)}`, `bossbar set ${F} name ${J(nameComp)}`, `bossbar set ${F} color ${m.barColor || 'purple'}`,
       `bossbar set ${F} style ${m.barStyle || 'progress'}`, `bossbar set ${F} players`] : '']);
   return { files, load: `${F}/load`, tick: `${F}/tick` };
@@ -3098,7 +3136,7 @@ function renderMobDrops() {
     const num = (k, label, attrs) => el('div', { class: 'f' }, el('span', {}, label),
       el('input', { type: 'number', value: d[k], style: 'width:72px', ...attrs, oninput: e => { d[k] = e.target.value; updateMob(); } }));
     const row = el('div', { class: 'list-row' },
-      el('div', { class: 'f', style: 'flex:1 1 260px' }, el('span', {}, d.keyTag ? '🗝 Llave de mazmorra' : 'Item'), itemPicker(d.item, updateMob, { placeholder: 'emerald', hideCount: true })),
+      el('div', { class: 'f', style: 'flex:1 1 260px' }, el('span', {}, d.keyTag ? 'Llave de mazmorra' : 'Item'), itemPicker(d.item, updateMob, { placeholder: 'emerald', hideCount: true })),
       num('min', 'Mín', { min: 0, max: 64 }), num('max', 'Máx', { min: 0, max: 64 }),
       num('chance', '% prob.', { min: 0, max: 100, step: 'any', placeholder: '100' }),
       num('looting', '+ Saqueo', { min: 0, max: 64, title: 'Cuántos extra como máximo por cada nivel de Saqueo' }),
@@ -3106,7 +3144,7 @@ function renderMobDrops() {
     const kc = keyCommands(d);
     if (kc) {
       const line = (lbl, cmd) => el('div', {}, el('div', { class: 'row', style: 'margin:0;align-items:center' }, el('span', { style: 'flex:1;color:var(--muted)' }, lbl),
-        el('button', { class: 'btn sm icon', type: 'button', title: 'Copiar', onclick: async () => { await copyText(cmd); toast('Copiado'); } }, '📋')), el('code', { class: 'inset' }, cmd));
+        el('button', { class: 'btn sm icon', type: 'button', title: 'Copiar', onclick: async () => { await copyText(cmd); toast('Copiado'); } }, 'Copiar')), el('code', { class: 'inset' }, cmd));
       row.append(el('div', { class: 'dp-key' },
         line('Cofre cerrado que solo abre esta llave (ponlo en su guarida; se abre con la llave en la mano):', kc.chest),
         line('Llave de prueba para ti:', kc.give)));
